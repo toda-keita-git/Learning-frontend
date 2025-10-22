@@ -23,7 +23,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
-import FindInPageIcon from "@mui/icons-material/FindInPage";
+// import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
 import Spreadsheet from "react-spreadsheet"; // ★ react-spreadsheet をインポート
 import type { CellBase, Matrix } from "react-spreadsheet";
@@ -449,7 +449,7 @@ export default function NewLearningDialog({
             multiple
             options={allTags.map((tag: any) => tag.name)}
             value={selectedTags}
-            onChange={(event, newValue) => {
+            onChange={(_event, newValue) => {
               setSelectedTags(newValue);
             }}
             freeSolo // 選択肢にない新しいタグも入力可能にする
@@ -478,7 +478,7 @@ export default function NewLearningDialog({
             <Typography component="legend">理解度</Typography>
             <Rating
               value={understandingLevel}
-              onChange={(event, newValue: any) => {
+              onChange={(_event, newValue: any) => {
                 setUnderstandingLevel(newValue);
               }}
             />
@@ -560,7 +560,7 @@ export default function NewLearningDialog({
                 >
                   <Tabs
                     value={activeSheetIndex}
-                    onChange={(event, newValue) =>
+                    onChange={(_event, newValue) =>
                       setActiveSheetIndex(newValue)
                     }
                     variant="scrollable"

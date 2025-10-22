@@ -23,11 +23,11 @@ const MessageRowRight = styled(MessageRow)({
 });
 
 // メッセージ内容のテキストスタイル
-const MessageContent = styled(Typography)({
-  padding: 0,
-  margin: 0,
-  font: "400 .9em 'Open Sans', sans-serif", // 元のスタイルを維持
-});
+// const MessageContent = styled(Typography)({
+//   padding: 0,
+//   margin: 0,
+//   font: "400 .9em 'Open Sans', sans-serif", // 元のスタイルを維持
+// });
 
 // メッセージバブルの共通スタイル
 const MessageBubbleBase = styled("div")({

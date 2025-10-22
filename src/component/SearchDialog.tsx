@@ -114,7 +114,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
             options={allHashtags}
             getOptionLabel={(option) => option.name}
             value={selectedHashtagObjects}
-            onChange={(event, newValue) => {
+            onChange={(_event, newValue) => {
               // 選択されたオブジェクトのtitleだけをstateに保存
               setHashtags(newValue.map((option) => option.name));
             }}
