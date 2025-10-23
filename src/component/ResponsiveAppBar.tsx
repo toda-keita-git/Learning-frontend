@@ -107,7 +107,7 @@ function ResponsiveAppBar() {
                 key={page}
                 id={page}
                 onClick={naviSearch}
-                sx={{ my: 2, color: "white", display: "block" }}
+                sx={{ my: 2, color: "blcak", display: "block" }}
               >
                 {page}
               </Button>
