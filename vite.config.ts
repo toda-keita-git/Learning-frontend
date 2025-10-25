@@ -9,7 +9,7 @@ export default defineConfig({
       // '/api' で始まるリクエストをすべてプロキシする
       "/api": {
         // 転送先サーバーのURL
-        target: "https://learning-backend-1-wlzo.onrender.com/github/callback",
+        target: "https://learning-backend-1-wlzo.onrender.com",
         // オリジンを偽装してCORSエラーを回避
         changeOrigin: true,
         // パスから '/api' を削除する

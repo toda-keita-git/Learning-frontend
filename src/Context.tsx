@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
         try {
-          const response = await fetch(`${token_url}`,{
+          const response = await fetch(`${token_url}/github/callback`,{
             method: "POST",
             headers: {
               "Content-Type": "application/json",
