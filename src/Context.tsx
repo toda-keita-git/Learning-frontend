@@ -46,7 +46,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
         try {
-          const response = await fetch(`${token_url}?code=${authCode}`);
+          const response = await fetch(`${token_url}?code=${authCode}`,{
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ code: authCode }),
+          });
           if (!response.ok) {
             throw new Error("バックエンドからのトークン取得に失敗しました。");
           }
