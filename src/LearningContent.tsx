@@ -29,6 +29,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
+import { Octokit } from "@octokit/rest";
 
 const drawerWidth = 240;
 
