@@ -120,11 +120,6 @@ export default function LearningContent() {
     },
   ]);
 
-  if (!userId) {
-      alert("ユーザーIDが取得できていません。再ログインしてください。");
-      return;
-    }
-
   const fetchFileForDialog = async (
     path: string
   ): Promise<{
