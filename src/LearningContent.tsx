@@ -99,8 +99,9 @@ type Message = {
   displayName?: string;
 };
 
+
 export default function LearningContent() {
-  const { isAuthenticated, login, userId } = useContext(AuthContext);
+  const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
@@ -127,9 +128,9 @@ export default function LearningContent() {
     sha: string;
     base64Content: string;
   } | null> => {
-    const owner = import.meta.env.VITE_REPO_OWNER;
-    const repo = import.meta.env.VITE_REPO_NAME;
-    const token = import.meta.env.VITE_ONLY_TOKEN;
+    const owner = githubLogin;
+    const repo = repoName;
+    const token = octokit;
 
     try {
       const response = await fetch(
@@ -165,9 +166,9 @@ export default function LearningContent() {
   // ★ GitHubからファイルリストを取得する関数 (旧fetchRepoFiles)
   const fetchGitHubFiles = async () => {
     setFilesLoading(true);
-    const owner = import.meta.env.VITE_REPO_OWNER;
-    const repo = import.meta.env.VITE_REPO_NAME;
-    const token = import.meta.env.VITE_ONLY_TOKEN;
+    const owner = githubLogin;
+    const repo = repoName;
+    const token = octokit;
     const branch = "main";
 
     try {
@@ -203,9 +204,9 @@ export default function LearningContent() {
     options: { contentIsBase64?: boolean } = {}
   ) => {
     // .envからの変数読み込み
-    const owner = import.meta.env.VITE_REPO_OWNER;
-    const repo = import.meta.env.VITE_REPO_NAME;
-    const token = import.meta.env.VITE_ONLY_TOKEN;
+    const owner = githubLogin;
+    const repo = repoName;
+    const token = octokit;
 
     try {
       // ★ ファイル内容をUTF-8対応でBase64にエンコード
@@ -267,9 +268,9 @@ export default function LearningContent() {
     editable: boolean,
     commitSha?: string
   ) => {
-    const owner = import.meta.env.VITE_REPO_OWNER;
-    const repo = import.meta.env.VITE_REPO_NAME;
-    const token = import.meta.env.VITE_ONLY_TOKEN;
+    const owner = githubLogin;
+    const repo = repoName;
+    const token = octokit;
     // ★ コミットIDがあれば、それをクエリパラメータに追加
     const refQuery = commitSha ? `?ref=${commitSha}` : "";
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}${refQuery}`;

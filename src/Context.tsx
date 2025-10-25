@@ -1,39 +1,36 @@
-import React, { useState, useRef, useEffect, createContext } from "react";
+import React, { useState, useRef, useEffect, createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
 
-// .envからの変数読み込み
 const client = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const callback = import.meta.env.VITE_CALLBACK_URL;
-const token_url = import.meta.env.VITE_BACKEND_TOKEN_URL;
+const backendUrl = import.meta.env.VITE_BACKEND_TOKEN_URL; // e.g. https://learning-backend-1-wlzo.onrender.com
 
-// Contextの型定義
 interface AuthContextType {
   octokit: Octokit | null;
   isAuthenticated: boolean;
-  userId: number | null;   // 追加
+  userId: number | null;
+  githubLogin: string | null;
   login: () => void;
 }
 
-// Contextの作成
 export const AuthContext = createContext<AuthContextType>({
   octokit: null,
   isAuthenticated: false,
-  userId: null,   // 初期値
+  userId: null,
+  githubLogin: null,
   login: () => {},
 });
 
-// AuthProviderコンポーネント
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [octokit, setOctokit] = useState<Octokit | null>(null);
-  const [userId, setUserId] = useState<number | null>(null); // userId用state
-  const effectRan = useRef(false); // 実行済みかを管理するフラグ
-
-  const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
+  const [userId, setUserId] = useState<number | null>(null);
+  const [githubLogin, setGithubLogin] = useState<string | null>(null);
+  const effectRan = useRef(false);
+  const repoName = githubLogin ? `learning-site-${githubLogin}` : null;
 
   const login = () => {
+    const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
     window.location.assign(url);
   };
 
@@ -46,31 +43,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
         try {
-          const response = await fetch(`${token_url}/github/callback`,{
+          const response = await fetch(`${backendUrl}/github/callback`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ code: authCode }),
           });
-          if (!response.ok) {
-            throw new Error("バックエンドからのトークン取得に失敗しました。");
-          }
+
+          if (!response.ok) throw new Error("バックエンドからのトークン取得に失敗しました。");
 
           const data = await response.json();
-          const token = data.access_token;   // サーバー側のJSONに合わせて access_token
-          const id = data.user_id;           // user_id を取得
+          const token = data.access_token;
+          const id = data.user_id;
+          const loginName = data.github_login;
 
-          if (!token) {
-            throw new Error("レスポンスにトークンが含まれていません。");
-          }
+          if (!token) throw new Error("レスポンスにトークンが含まれていません。");
 
           setOctokit(new Octokit({ auth: token }));
-          setUserId(id);  // userId を state にセット
+          setUserId(id);
+          setGithubLogin(loginName);
 
+          // URLからcodeを削除
           window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-          console.error("トークンの取得に失敗しました:", error);
+        } catch (err) {
+          console.error("トークンの取得に失敗しました:", err);
         }
       };
 
@@ -81,9 +76,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ octokit, isAuthenticated: !!octokit, userId, login }}
-    >
-      {children}
-    </AuthContext.Provider>
+  value={{
+    octokit,
+    isAuthenticated: !!octokit,
+    githubLogin,
+    repoName,  // ここでリポジトリ名を追加
+    userId,
+    login,
+  }}
+>
+  {children}
+</AuthContext.Provider>
   );
 };
