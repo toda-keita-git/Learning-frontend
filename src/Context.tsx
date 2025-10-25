@@ -35,10 +35,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    // 【修正点①】実行済みフラグをチェック。trueならここで処理を中断。
-    if (effectRan.current) {
-      return;
-    }
+    if (effectRan.current) return; // 実行済みなら中断
 
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
@@ -46,8 +43,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
         try {
+          // サーバーに code を渡してアクセストークンを取得
           const response = await fetch(`${token_url}?code=${authCode}`);
-
           if (!response.ok) {
             throw new Error("バックエンドからのトークン取得に失敗しました。");
           }
@@ -59,23 +56,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             throw new Error("レスポンスにトークンが含まれていません。");
           }
 
+          // Octokit インスタンスを生成
           setOctokit(new Octokit({ auth: token }));
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-          );
+
+          // URLから code を削除
+          window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
           console.error("トークンの取得に失敗しました:", error);
         }
       };
 
       exchangeCodeForToken(code);
-      // 【修正点②】処理を実行したので、フラグをtrueにする
-      effectRan.current = true;
+      effectRan.current = true; // 実行済みフラグを true に
     }
-    // 【修正点③】依存配列は必ず空にする
-  }, []);
+  }, []); // 空依存配列で初回レンダリングのみ
 
   return (
     <AuthContext.Provider
