@@ -64,7 +64,7 @@ interface LearningRecord {
   tags: string[];
   github_path: string;
   commit_sha: string | null;
-  user_id: number | null;
+  user_id: number;
 }
 
 // learning_tagsテーブルの型定義
