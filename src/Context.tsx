@@ -11,6 +11,7 @@ const token_url = import.meta.env.VITE_BACKEND_TOKEN_URL;
 interface AuthContextType {
   octokit: Octokit | null;
   isAuthenticated: boolean;
+  userId: number | null;   // 追加
   login: () => void;
 }
 
@@ -18,6 +19,7 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType>({
   octokit: null,
   isAuthenticated: false,
+  userId: null,   // 初期値
   login: () => {},
 });
 
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [octokit, setOctokit] = useState<Octokit | null>(null);
+  const [userId, setUserId] = useState<number | null>(null); // userId用state
   const effectRan = useRef(false); // 実行済みかを管理するフラグ
 
   const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
@@ -35,7 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    if (effectRan.current) return; // 実行済みなら中断
+    if (effectRan.current) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
@@ -43,23 +46,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
         try {
-          // サーバーに code を渡してアクセストークンを取得
           const response = await fetch(`${token_url}?code=${authCode}`);
           if (!response.ok) {
             throw new Error("バックエンドからのトークン取得に失敗しました。");
           }
 
           const data = await response.json();
-          const token = data.token;
+          const token = data.access_token;   // サーバー側のJSONに合わせて access_token
+          const id = data.user_id;           // user_id を取得
 
           if (!token) {
             throw new Error("レスポンスにトークンが含まれていません。");
           }
 
-          // Octokit インスタンスを生成
           setOctokit(new Octokit({ auth: token }));
+          setUserId(id);  // userId を state にセット
 
-          // URLから code を削除
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
           console.error("トークンの取得に失敗しました:", error);
@@ -67,13 +69,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       };
 
       exchangeCodeForToken(code);
-      effectRan.current = true; // 実行済みフラグを true に
+      effectRan.current = true;
     }
-  }, []); // 空依存配列で初回レンダリングのみ
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ octokit, isAuthenticated: !!octokit, login }}
+      value={{ octokit, isAuthenticated: !!octokit, userId, login }}
     >
       {children}
     </AuthContext.Provider>

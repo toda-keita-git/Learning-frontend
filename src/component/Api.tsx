@@ -9,16 +9,12 @@ const axios = axiosBase.create({
   responseType: "json",
 });
 
-export const learningApi = async () => {
+export const learningApi = async (userId: number) => {
   try {
-    // awaitでAPIからの応答を待つ
-    const response = await axios.get("/learning");
-    // 取得したデータを返す
+    const response = await axios.get(`/learning?user_id=${userId}`);
     return response.data;
   } catch (error) {
-    console.log("ERROR!! occurred in Backend.");
-    console.log(error);
-    // エラー発生時はnullや空のオブジェクトを返すなど、エラー処理を決めておくと良い
+    console.error("ERROR!! occurred in Backend.", error);
     return null;
   }
 };
@@ -66,20 +62,22 @@ export const CategoriesApi = async () => {
 };
 
 // 新規学習内容を登録するAPI
-export const createLearningApi = async (data: any) => {
+export const createLearningApi = async (data: any, userId: number) => {
   try {
-    const response = await axios.post("/learning_insert", data);
+    const payload = { ...data, user_id: userId }; // user_id を追加
+    const response = await axios.post("/learning_insert", payload);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in createLearningApi.", error);
-    throw error; // エラーを呼び出し元に伝える
+    throw error;
   }
 };
 
 // 学習内容を更新するAPI
-export const updateLearningApi = async (id: any, data: any) => {
+export const updateLearningApi = async (id: any, data: any, userId: number) => {
   try {
-    const response = await axios.post(`/learning_update/${id}`, data);
+    const payload = { ...data, user_id: userId };
+    const response = await axios.post(`/learning_update/${id}`, payload);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateLearningApi.", error);

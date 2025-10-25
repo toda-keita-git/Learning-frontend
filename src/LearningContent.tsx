@@ -64,6 +64,7 @@ interface LearningRecord {
   tags: string[];
   github_path: string;
   commit_sha: string | null;
+  user_id: number | null;
 }
 
 // learning_tagsテーブルの型定義
@@ -99,7 +100,7 @@ type Message = {
 };
 
 export default function LearningContent() {
-  const { isAuthenticated, login } = useContext(AuthContext);
+  const { isAuthenticated, login, userId } = useContext(AuthContext);
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
@@ -118,6 +119,11 @@ export default function LearningContent() {
       displayName: "システム",
     },
   ]);
+
+  if (!userId) {
+      alert("ユーザーIDが取得できていません。再ログインしてください。");
+      return;
+    }
 
   const fetchFileForDialog = async (
     path: string
@@ -568,6 +574,8 @@ export default function LearningContent() {
 
     try {
       let finalLearningData = { ...learningData };
+
+      finalLearningData.user_id = userId;
 
       // ... (ファイル更新処理はここに移動・統合)
       if (editedFile) {
