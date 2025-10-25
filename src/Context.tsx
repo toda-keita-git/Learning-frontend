@@ -11,6 +11,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   userId: number | null;
   githubLogin: string | null;
+  repoName: string | null; 
   login: () => void;
 }
 
@@ -19,6 +20,7 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   userId: null,
   githubLogin: null,
+  repoName: null, 
   login: () => {},
 });
 

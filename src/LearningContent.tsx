@@ -90,6 +90,15 @@ interface GitHubFile {
   path: string;
 }
 
+interface AuthContext {
+  octokit: Octokit | null;
+  isAuthenticated: boolean;
+  githubLogin: string | null;   // GitHubユーザー名
+  repoName: string | null;      // 作成済みリポジトリ名
+  login: () => void;
+}
+
+
 type Message = {
   id: number;
   text: string;
