@@ -91,15 +91,6 @@ interface GitHubFile {
   path: string;
 }
 
-interface AuthContext {
-  octokit: Octokit;
-  isAuthenticated: boolean;
-  userId: number | null;
-  githubLogin: string | null;   // GitHubユーザー名
-  repoName: string | null;      // 作成済みリポジトリ名
-  login: () => void;
-}
-
 
 type Message = {
   id: number;
@@ -209,7 +200,7 @@ export default function LearningContent() {
   content: string,
   sha: string,
   options: { contentIsBase64?: boolean } = {}
-) => {
+): Promise<string | null> => {
   if (!octokit || !githubLogin || !repoName) {
     console.error("Octokitまたはリポジトリ情報がありません");
     return null;
