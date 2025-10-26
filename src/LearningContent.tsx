@@ -324,7 +324,7 @@ export default function LearningContent() {
   // ダイアログの開閉を管理するStateを追加
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
   // ★ カテゴリー追加ダイアログ用のStateを追加
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (userId) {
