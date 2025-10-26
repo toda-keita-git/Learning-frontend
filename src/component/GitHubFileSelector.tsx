@@ -18,11 +18,18 @@ import ArticleIcon from "@mui/icons-material/Article";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AuthContext } from "../Context";
 import.meta.env;
+import { Octokit } from "@octokit/rest";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onFileSelect: (path: string) => void;
+}
+
+interface AuthContext {
+  octokit: Octokit | null;
+  githubLogin: string | null;   // GitHubユーザー名
+  repoName: string | null;      // 作成済みリポジトリ名
 }
 
 const GitHubFileSelector: React.FC<Props> = ({
