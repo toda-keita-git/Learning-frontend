@@ -94,6 +94,7 @@ interface GitHubFile {
 interface AuthContext {
   octokit: Octokit | null;
   isAuthenticated: boolean;
+  userId: number | null;
   githubLogin: string | null;   // GitHubユーザー名
   repoName: string | null;      // 作成済みリポジトリ名
   login: () => void;
