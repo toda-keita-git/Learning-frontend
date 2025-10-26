@@ -353,13 +353,6 @@ export default function LearningContent() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!octokit) return; // octokit がまだセットされていなければ処理しない
-
-    // API 呼び出し
-    fetchLearningData();
-  }, [octokit]);
-
-  useEffect(() => {
     if (userId) {
       refetchData();
     }
