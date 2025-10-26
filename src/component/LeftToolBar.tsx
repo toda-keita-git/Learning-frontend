@@ -164,7 +164,7 @@ export default function LeftToolBar({
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap component="div">
-              Learning Manager
+              学習内容検索チャット
             </Typography>
           </Toolbar>
         </AppBar>

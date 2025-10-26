@@ -884,6 +884,7 @@ export default function LearningContent() {
             position: "relative",
             overflow: "hidden",
             margin: { xs: 0, sm: "auto" },
+            marginTop: { xs: "56px" },
             borderRadius: { xs: 0, sm: 2 }, // スマホでは角丸なし
           }}
         >
