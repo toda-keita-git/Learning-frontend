@@ -1,84 +1,74 @@
 import * as React from "react";
-// ★ useStateとuseEffectをインポート
 import { useState } from "react";
-import BackButton from "./BackButton";
-import Drawer from "@mui/material/Drawer";
-import List from "@mui/material/List";
-import Divider from "@mui/material/Divider";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import Collapse from "@mui/material/Collapse";
+import {
+  Drawer,
+  List,
+  Divider,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Collapse,
+  TextField,
+  Box,
+  CircularProgress,
+  IconButton,
+  AppBar,
+  Toolbar,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
 import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
 import UpdateIcon from "@mui/icons-material/Update";
-// ★ TextField, Box, CircularProgress, ArticleIconをインポート
-import TextField from "@mui/material/TextField";
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
 import ArticleIcon from "@mui/icons-material/Article";
 import CategoryIcon from "@mui/icons-material/Category";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import BackButton from "./BackButton";
 
 const drawerWidth = 240;
 
-// ★ GitHubから取得するファイルの型定義
 interface GitHubFile {
   path: string;
 }
 
-// ★ 親コンポーネントから受け取るpropsの型定義を修正
 interface LeftToolBarProps {
   onAddNewLearning: () => void;
   onAddNewCategory: () => void;
-  onFileSelect: (path: string) => void; // ファイル選択時のコールバック
-  files: GitHubFile[]; // 親から受け取るファイルリスト
-  loading: boolean; // 親から受け取るローディング状態
+  onFileSelect: (path: string) => void;
+  files: GitHubFile[];
+  loading: boolean;
 }
 
 export default function LeftToolBar({
   onAddNewLearning,
   onAddNewCategory,
   onFileSelect,
-  files, // propsとして受け取る
-  loading, // propsとして受け取る
+  files,
+  loading,
 }: LeftToolBarProps) {
-  const [open1, setOpen1] = React.useState(true);
-  const handleClick_add = () => {
-    setOpen1(!open1);
-  };
-
-  const [open2, setOpen2] = React.useState(true);
-  const handleClick_GitHubFail = () => {
-    setOpen2(!open2);
-  };
-
+  const [open1, setOpen1] = useState(true);
+  const [open2, setOpen2] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width:600px)");
 
-  // ★ 検索クエリに基づいてファイルをフィルタリング
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
   const filteredFiles = files.filter((file) =>
     file.path.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <Drawer
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: drawerWidth,
-          boxSizing: "border-box",
-        },
-      }}
-      variant="permanent"
-      anchor="left"
-    >
+  const drawerContent = (
+    <Box>
       <BackButton />
       <Divider />
       <List>
-        {/* --- 「追加」セクション (変更なし) --- */}
-        <ListItemButton onClick={handleClick_add}>
+        {/* --- 追加セクション --- */}
+        <ListItemButton onClick={() => setOpen1(!open1)}>
           <ListItemIcon>
             <AddIcon />
           </ListItemIcon>
@@ -93,21 +83,17 @@ export default function LeftToolBar({
               </ListItemIcon>
               <ListItemText primary="新規学習内容" />
             </ListItemButton>
-            {/* ... 他の追加項目 ... */}
-          </List>
-          <List component="div" disablePadding>
             <ListItemButton sx={{ pl: 4 }} onClick={onAddNewCategory}>
               <ListItemIcon>
                 <CategoryIcon />
               </ListItemIcon>
               <ListItemText primary="新規カテゴリー" />
             </ListItemButton>
-            {/* ... 他の追加項目 ... */}
           </List>
         </Collapse>
 
-        {/* --- 「最新データ編集」セクション (ここから変更) --- */}
-        <ListItemButton onClick={handleClick_GitHubFail}>
+        {/* --- GitHubファイル編集セクション --- */}
+        <ListItemButton onClick={() => setOpen2(!open2)}>
           <ListItemIcon>
             <UpdateIcon />
           </ListItemIcon>
@@ -118,7 +104,6 @@ export default function LeftToolBar({
           <Box sx={{ p: 2 }}>
             <TextField
               fullWidth
-              id="outlined-uncontrolled"
               label="ファイル名で検索"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -138,7 +123,10 @@ export default function LeftToolBar({
                 <ListItemButton
                   key={file.path}
                   sx={{ pl: 4 }}
-                  onClick={() => onFileSelect(file.path)}
+                  onClick={() => {
+                    onFileSelect(file.path);
+                    if (isMobile) setMobileOpen(false); // モバイルなら自動で閉じる
+                  }}
                 >
                   <ListItemIcon>
                     <ArticleIcon fontSize="small" />
@@ -159,6 +147,55 @@ export default function LeftToolBar({
           </List>
         </Collapse>
       </List>
-    </Drawer>
+    </Box>
+  );
+
+  return (
+    <>
+      {/* モバイル用 AppBar */}
+      {isMobile && (
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div">
+              Learning Manager
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      {/* Drawer表示 */}
+      {isMobile ? (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      ) : (
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
+    </>
   );
 }
