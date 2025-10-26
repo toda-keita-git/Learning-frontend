@@ -728,7 +728,7 @@ export default function LearningContent() {
           // ★★★ 変更箇所 ★★★
           // ボタンの配置（justify-content）を、「ファイルを見る」ボタンの有無によって動的に変更します。
           // また、「編集」ボタンのスタイルを分かりやすく変更しました。
-          const justifyContent = item.github_path
+          const justifyContent: string = item.github_path
             ? "space-between"
             : "flex-end";
 
