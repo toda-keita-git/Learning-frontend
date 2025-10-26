@@ -27,9 +27,9 @@ interface Props {
 }
 
 interface AuthContext {
-  octokit: Octokit | null;
-  githubLogin: string | null;   // GitHubユーザー名
-  repoName: string | null;      // 作成済みリポジトリ名
+  octokit: Octokit;
+  githubLogin: string;   // GitHubユーザー名
+  repoName: string;      // 作成済みリポジトリ名
 }
 
 const GitHubFileSelector: React.FC<Props> = ({
