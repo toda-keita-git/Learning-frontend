@@ -33,7 +33,7 @@ const MessageRowRight = styled(MessageRow)({
 const MessageBubbleBase = styled("div")({
   position: "relative",
   padding: "10px",
-  width: "60%",
+  width: "90%",
   borderRadius: "10px",
 });
 
