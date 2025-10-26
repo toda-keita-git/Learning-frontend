@@ -861,30 +861,40 @@ export default function LearningContent() {
       />
       <Box
         component="main"
-        sx={{ flexGrow: 1, bgcolor: "background.default", p: 3 }}
+        sx={{
+          flexGrow: 1,
+          bgcolor: "background.default",
+          p: { xs: 0, sm: 3 }, // スマホでは余白を削除
+          height: { xs: "100vh", sm: "auto" }, // スマホでは全画面
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <Toolbar />
+        <Toolbar sx={{ display: { xs: "none", sm: "flex" } }} /> {/* スマホでは非表示 */}
+        
         <Paper
           elevation={3}
           sx={{
-            width: "80vw",
-            height: "85vh",
-            maxWidth: "600px",
-            maxHeight: "900px",
+            width: { xs: "100vw", sm: "80vw" },
+            height: { xs: "100vh", sm: "85vh" },
+            maxWidth: { sm: "600px" },
+            maxHeight: { sm: "900px" },
             display: "flex",
             flexDirection: "column",
             position: "relative",
             overflow: "hidden",
-            margin: "auto",
+            margin: { xs: 0, sm: "auto" },
+            borderRadius: { xs: 0, sm: 2 }, // スマホでは角丸なし
           }}
         >
+          {/* メッセージ一覧 */}
           <Box
             id="style-1"
             component="div"
             sx={{
               flexGrow: 1,
               overflowY: "auto",
-              p: 2,
+              p: { xs: 1, sm: 2 },
             }}
           >
             {messages.map((msg) =>
@@ -906,18 +916,25 @@ export default function LearningContent() {
             )}
             <div ref={messageEndRef} />
           </Box>
+
+          {/* 検索ダイアログ */}
           <SearchDialog
             open={openSearchDialog}
             onClose={() => setOpenSearchDialog(false)}
             onApply={handleApplyFilters}
             currentFilters={searchFilters}
           />
-          <TextInputLearning
-            onSendMessage={handleSearch}
-            onSearchMenuClick={() => setOpenSearchDialog(true)}
-          />
+
+          {/* 入力欄 */}
+          <Box sx={{ p: { xs: 1, sm: 2 }, borderTop: "1px solid #ddd" }}>
+            <TextInputLearning
+              onSendMessage={handleSearch}
+              onSearchMenuClick={() => setOpenSearchDialog(true)}
+            />
+          </Box>
         </Paper>
       </Box>
+
       <NewLearningDialog
         open={openNewDialog}
         onClose={() => setOpenNewDialog(false)}
