@@ -92,7 +92,7 @@ interface GitHubFile {
 }
 
 interface AuthContext {
-  octokit: Octokit | null;
+  octokit: Octokit;
   isAuthenticated: boolean;
   userId: number | null;
   githubLogin: string | null;   // GitHubユーザー名
