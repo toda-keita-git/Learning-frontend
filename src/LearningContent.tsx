@@ -251,7 +251,7 @@ export default function LearningContent() {
     sha: "",
   });
   // ★★★ ビューアが編集可能かどうかを管理するStateを追加 ★★★
-  const [isViewerEditable, setIsViewerEditable] = useState(false);
+  const [isViewerEditable, setIsViewerEditable] = useState<boolean>(false);
 
   // ★ GitHubファイルの内容を取得する関数を修正
   const handleViewFile = async (
@@ -287,7 +287,7 @@ export default function LearningContent() {
     });
 
     // 過去のコミットは編集不可
-    setIsViewerEditable(Boolean(editable && !isHistorical));
+    setIsViewerEditable(editable && !isHistorical);
     setViewerOpen(true);
   } catch (error: any) {
     console.error("Failed to fetch file:", error);
