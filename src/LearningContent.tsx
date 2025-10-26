@@ -29,7 +29,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
-import { Octokit } from "@octokit/rest";
 
 const drawerWidth = 240;
 
@@ -61,7 +60,7 @@ interface LearningRecord {
   reference_url: string | null; // nullの可能性も考慮
   created_at: string;
   category_name: string;
-  category_id?: number | string;
+  category_id?: number | string | null;
   tags: string[];
   github_path: string;
   commit_sha: string | null;
@@ -635,7 +634,7 @@ export default function LearningContent() {
       const category = allCategories.find(
         (c) => c.name === itemToEdit.category_name
       );
-      const category_id = category ? category.id : ""; // 見つからなければ空文字
+      const category_id = category ? category.id : null; // 見つからなければ空文字
 
       // ★ 元のデータに category_id を追加してStateにセット
       setEditingItem({
