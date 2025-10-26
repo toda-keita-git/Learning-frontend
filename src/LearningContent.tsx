@@ -353,6 +353,12 @@ export default function LearningContent() {
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
 
+  useEffect(() => {
+    if (userId) {
+      refetchData();
+    }
+  }, [userId]);
+
   // データを再取得するための関数
   const refetchData = async () => {
     try {
@@ -461,7 +467,7 @@ export default function LearningContent() {
     };
     fetchData();
     fetchGitHubFiles();
-  }, []); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
+  }, [userId]); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
