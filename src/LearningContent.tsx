@@ -177,7 +177,7 @@ export default function LearningContent() {
       owner: githubLogin,
       repo: repoName,
       tree_sha: "main",
-      recursive: true
+      recursive: "true"
     });
 
     const tree = response.data.tree;
