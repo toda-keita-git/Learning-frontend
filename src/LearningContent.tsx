@@ -244,7 +244,7 @@ export default function LearningContent() {
 };
 
 
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState<boolean>(false);
   const [viewingContent, setViewingContent] = useState({
     path: "",
     content: "",
@@ -944,7 +944,7 @@ export default function LearningContent() {
         content={viewingContent.content}
         // ★★★ 編集可能フラグをpropsとして渡す ★★★
         isEditable={isViewerEditable}
-        onUpdateFile={(path, newContent) =>
+        onUpdateFile={async (path, newContent) =>
           handleUpdateFile(path, newContent, viewingContent.sha)
         }
       />
