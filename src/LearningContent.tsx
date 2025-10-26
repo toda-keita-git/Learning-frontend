@@ -133,136 +133,116 @@ export default function LearningContent() {
   ]);
 
   const fetchFileForDialog = async (
-    path: string
-  ): Promise<{
-    content: string;
-    sha: string;
-    base64Content: string;
-  } | null> => {
-    const owner = githubLogin;
-    const repo = repoName;
-    const token = octokit;
+  path: string
+): Promise<{
+  content: string;
+  sha: string;
+  base64Content: string;
+} | null> => {
+  if (!octokit || !githubLogin || !repoName) {
+    console.error("Octokitまたはリポジトリ情報がありません");
+    return null;
+  }
 
-    try {
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-        {
-          headers: {
-            Accept: "application/vnd.github.v3+json",
-            Authorization: `token ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        // ファイルが見つからない場合などもここに含まれる
-        return null;
+  try {
+    const response = await octokit.request(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      {
+        owner: githubLogin,
+        repo: repoName,
+        path,
       }
+    );
 
-      const data = await response.json();
-      return {
-        content: decodeBase64(data.content),
-        sha: data.sha,
-        base64Content: data.content,
-      };
-    } catch (error) {
-      console.error("Error fetching file for dialog:", error);
-      return null;
-    }
-  };
+    const data = response.data as any;
+
+    return {
+      content: decodeBase64(data.content),
+      sha: data.sha,
+      base64Content: data.content,
+    };
+  } catch (error: any) {
+    console.error("Error fetching file for dialog:", error);
+    return null;
+  }
+};
+
 
   const [githubFiles, setGithubFiles] = useState<GitHubFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
 
   // ★ GitHubからファイルリストを取得する関数 (旧fetchRepoFiles)
-  const fetchGitHubFiles = async () => {
-    setFilesLoading(true);
-    const owner = githubLogin;
-    const repo = repoName;
-    const token = octokit;
-    const branch = "main";
+ const fetchGitHubFiles = async () => {
+  setFilesLoading(true);
 
-    try {
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-        {
-          headers: {
-            Accept: "application/vnd.github.v3+json",
-            Authorization: `token ${token}`,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch repository tree from GitHub.");
-      }
-      const data = await response.json();
-      const fileList = data.tree
-        .filter((item: any) => item.type === "blob")
-        .map((item: any) => ({ path: item.path }));
+  if (!octokit || !githubLogin || !repoName) {
+    console.error("Octokitまたはリポジトリ情報がありません");
+    setFilesLoading(false);
+    return;
+  }
 
-      setGithubFiles(fileList);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setFilesLoading(false);
-    }
-  };
+  try {
+    // mainブランチのツリーを取得
+    const response = await octokit.git.getTree({
+      owner: githubLogin,
+      repo: repoName,
+      tree_sha: "main",
+      recursive: true,
+    });
 
-  const handleUpdateFile = async (
-    path: string,
-    content: string,
-    sha: string,
-    options: { contentIsBase64?: boolean } = {}
-  ) => {
-    // .envからの変数読み込み
-    const owner = githubLogin;
-    const repo = repoName;
-    const token = octokit;
+    const tree = response.data.tree;
+    const fileList = tree
+      .filter((item: any) => item.type === "blob")
+      .map((item: any) => ({ path: item.path }));
 
-    try {
-      // ★ ファイル内容をUTF-8対応でBase64にエンコード
-      const contentBase64 = options.contentIsBase64
-        ? content // 既にBase64なのでそのまま使用
-        : btoa(unescape(encodeURIComponent(content)));
+    setGithubFiles(fileList);
+  } catch (error) {
+    console.error("Failed to fetch repository tree from GitHub:", error);
+  } finally {
+    setFilesLoading(false);
+  }
+};
 
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/vnd.github.v3+json",
-            Authorization: `token ${token}`,
-          },
-          body: JSON.stringify({
-            message: `Update ${path}`, // コミットメッセージ
-            content: contentBase64, // Base64エンコードされた新しいファイル内容
-            sha: sha, // ★ 更新対象のファイルの現在のSHA
-            branch: "main", // 対象ブランチ
-          }),
-        }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`GitHub API Error: ${errorData.message}`);
-      }
+ const handleUpdateFile = async (
+  path: string,
+  content: string,
+  sha: string,
+  options: { contentIsBase64?: boolean } = {}
+) => {
+  if (!octokit || !githubLogin || !repoName) {
+    console.error("Octokitまたはリポジトリ情報がありません");
+    return null;
+  }
 
-      const responseData = await response.json();
-      // ★ 成功した場合、新しいコミットIDを返す
-      return responseData.commit.sha;
-      // 成功したらダイアログを閉じる
-      setViewerOpen(false);
-      alert("ファイルを更新しました。");
-      // 必要であれば、サイドバーのファイルリストも再取得
-      // fetchGitHubFiles();
-    } catch (error) {
-      console.error("Failed to update file:", error);
-      alert(`ファイルの更新に失敗しました。\n${error}`);
-      // ★ 失敗した場合、nullを返す
-      return null;
-    }
-  };
+  try {
+    // UTF-8対応でBase64に変換
+    const contentBase64 = options.contentIsBase64
+      ? content
+      : btoa(unescape(encodeURIComponent(content)));
+
+    const response = await octokit.repos.createOrUpdateFileContents({
+      owner: githubLogin,
+      repo: repoName,
+      path: path,
+      message: `Update ${path}`,
+      content: contentBase64,
+      sha: sha,
+      branch: "main",
+    });
+
+    // 成功した場合、新しいコミットSHAを返す
+    setViewerOpen(false);
+    alert("ファイルを更新しました。");
+
+    return response.data.commit.sha;
+  } catch (error: any) {
+    console.error("Failed to update file:", error);
+    alert(`ファイルの更新に失敗しました。\n${error.message || error}`);
+    return null;
+  }
+};
+
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewingContent, setViewingContent] = useState({
@@ -275,41 +255,45 @@ export default function LearningContent() {
 
   // ★ GitHubファイルの内容を取得する関数を修正
   const handleViewFile = async (
-    path: string,
-    editable: boolean,
-    commitSha?: string
-  ) => {
-    const owner = githubLogin;
-    const repo = repoName;
-    const token = octokit;
-    // ★ コミットIDがあれば、それをクエリパラメータに追加
-    const refQuery = commitSha ? `?ref=${commitSha}` : "";
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}${refQuery}`;
-    try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          Accept: "application/vnd.github.v3+json",
-          Authorization: `token ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch repository tree from GitHub.");
-      }
-      const data = await response.json();
-      const content = decodeBase64(data.content);
-      // ★ 過去のバージョンのファイルは編集不可にする
-      const isHistorical = !!commitSha;
-      setIsViewerEditable(editable && !isHistorical);
+  path: string,
+  editable: boolean,
+  commitSha?: string
+) => {
+  if (!octokit || !githubLogin || !repoName) {
+    console.error("Octokitまたはリポジトリ情報がありません");
+    return;
+  }
 
-      setViewingContent({ path: data.path, content, sha: data.sha });
-      // ★★★ 編集可能フラグをセット ★★★
-      setIsViewerEditable(editable);
-      setViewerOpen(true);
-    } catch (error) {
-      console.error(error);
-      alert("ファイルの取得に失敗しました。");
+  try {
+    const response = await octokit.repos.getContent({
+      owner: githubLogin,
+      repo: repoName,
+      path: path,
+      ref: commitSha, // コミットSHAがあればそのバージョンを取得
+    });
+
+    // GitHub APIの返却形式が単一ファイルの場合
+    if (!("content" in response.data)) {
+      throw new Error("取得したデータがファイル形式ではありません");
     }
-  };
+
+    const content = decodeBase64(response.data.content);
+    const isHistorical = !!commitSha;
+
+    setViewingContent({
+      path: response.data.path,
+      content,
+      sha: response.data.sha,
+    });
+
+    // 過去のコミットは編集不可
+    setIsViewerEditable(editable && !isHistorical);
+    setViewerOpen(true);
+  } catch (error: any) {
+    console.error("Failed to fetch file:", error);
+    alert(`ファイルの取得に失敗しました。\n${error.message || error}`);
+  }
+};
 
   // ★ LeftToolBarでファイルが選択されたときの処理を定義
   const handleFileSelect = (path: string) => {
