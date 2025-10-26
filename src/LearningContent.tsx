@@ -944,9 +944,10 @@ export default function LearningContent() {
         content={viewingContent.content}
         // ★★★ 編集可能フラグをpropsとして渡す ★★★
         isEditable={isViewerEditable}
-        onUpdateFile={async (path, newContent) =>
-          await handleUpdateFile(path, newContent, viewingContent.sha)
-        }
+        onUpdateFile={async (path, newContent) => {
+          await handleUpdateFile(path, newContent, viewingContent.sha);
+          return;
+        }}
       />
       <Dialog
         open={deleteConfirmOpen}
