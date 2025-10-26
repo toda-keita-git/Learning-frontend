@@ -287,7 +287,7 @@ export default function LearningContent() {
     });
 
     // 過去のコミットは編集不可
-    setIsViewerEditable(editable && !isHistorical);
+    setIsViewerEditable(Boolean(editable && !isHistorical));
     setViewerOpen(true);
   } catch (error: any) {
     console.error("Failed to fetch file:", error);
