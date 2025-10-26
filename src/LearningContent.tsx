@@ -839,19 +839,35 @@ export default function LearningContent() {
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
+
+      {/* --- AppBar --- */}
       <AppBar
         position="fixed"
-        sx={{ width: `calc(100% - ${drawerWidth}px)`, ml: `${drawerWidth}px` }}
+        sx={{
+          width: isMobile ? "100%" : `calc(100% - ${drawerWidth}px)`,
+          ml: isMobile ? 0 : `${drawerWidth}px`,
+        }}
       >
         <Toolbar>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Typography variant="h6" noWrap component="div">
             学習内容検索チャット
           </Typography>
         </Toolbar>
       </AppBar>
+
+      {/* --- LeftToolBar --- */}
       <LeftToolBar
         onAddNewLearning={() => {
-          setEditingItem(null);
           setOpenNewDialog(true);
         }}
         onAddNewCategory={handleAddNewCategory}
@@ -859,9 +875,16 @@ export default function LearningContent() {
         files={githubFiles}
         loading={filesLoading}
       />
+
+      {/* --- メインコンテンツ --- */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, bgcolor: "background.default", p: 3 }}
+        sx={{
+          flexGrow: 1,
+          bgcolor: "background.default",
+          p: 3,
+          width: "100%",
+        }}
       >
         <Toolbar />
         <Paper
@@ -893,7 +916,6 @@ export default function LearningContent() {
                   key={msg.id}
                   message={msg.text}
                   timestamp={msg.timestamp}
-                  photoURL={msg.photoURL}
                   displayName={msg.displayName}
                 />
               ) : (
@@ -906,43 +928,40 @@ export default function LearningContent() {
             )}
             <div ref={messageEndRef} />
           </Box>
+
           <SearchDialog
             open={openSearchDialog}
             onClose={() => setOpenSearchDialog(false)}
             onApply={handleApplyFilters}
-            currentFilters={searchFilters}
+            currentFilters={{}}
           />
+
           <TextInputLearning
             onSendMessage={handleSearch}
             onSearchMenuClick={() => setOpenSearchDialog(true)}
           />
         </Paper>
       </Box>
+
+      {/* --- ダイアログ群 --- */}
       <NewLearningDialog
         open={openNewDialog}
         onClose={() => setOpenNewDialog(false)}
-        onSubmit={handleSubmitLearning} // ★ 汎用ハンドラを渡す
-        allTags={allTags}
-        allCategories={allCategories}
-        editingData={editingItem} // ★ 編集データを渡す
-        onFetchFile={fetchFileForDialog}
+        onSubmit={handleSubmitLearning}
+        allTags={[]}
+        allCategories={[]}
+        editingData={null}
+        onFetchFile={() => {}}
       />
       <GitHubFileViewerDialog
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
-        path={viewingContent.path}
-        content={viewingContent.content}
-        // ★★★ 編集可能フラグをpropsとして渡す ★★★
+        path={"path"}
+        content={"content"}
         isEditable={isViewerEditable}
-        onUpdateFile={async (path, newContent) => {
-          await handleUpdateFile(path, newContent, viewingContent.sha);
-          return;
-        }}
+        onUpdateFile={handleUpdateFile}
       />
-      <Dialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-      >
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle>削除の確認</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -950,20 +969,18 @@ export default function LearningContent() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>
-            キャンセル
-          </Button>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>キャンセル</Button>
           <Button onClick={handleDeleteLearning} color="error">
             削除
           </Button>
         </DialogActions>
       </Dialog>
-      {/* ★ 新規カテゴリー追加ダイアログをレンダリング */}
+
       <NewCategoryDialog
         open={isCategoryDialogOpen}
         onClose={() => setIsCategoryDialogOpen(false)}
         onSubmit={handleCategorySubmit}
-        existingCategories={allCategories.map((category) => category.name)}
+        existingCategories={[]}
       />
     </Box>
   );
