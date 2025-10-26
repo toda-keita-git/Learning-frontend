@@ -12,12 +12,12 @@ import {
   Box,
   Typography,
   ListItemIcon,
+  CircularProgress,
 } from "@mui/material";
 import FolderIcon from "@mui/icons-material/Folder";
 import ArticleIcon from "@mui/icons-material/Article";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AuthContext } from "../Context";
-import.meta.env;
 import { Octokit } from "@octokit/rest";
 
 interface Props {
@@ -27,44 +27,50 @@ interface Props {
 }
 
 interface AuthContextType {
-  octokit: Octokit;
-  githubLogin: string;   // GitHubユーザー名
-  repoName: string;      // 作成済みリポジトリ名
+  octokit: Octokit | null;
+  githubLogin: string | null;   // GitHubユーザー名
+  repoName: string | null;      // 作成済みリポジトリ名
 }
 
-const GitHubFileSelector: React.FC<Props> = ({
-  open,
-  onClose,
-  onFileSelect,
-}) => {
-  const { octokit,githubLogin,repoName } = useContext(AuthContext) as AuthContextType;
+const GitHubFileSelector: React.FC<Props> = ({ open, onClose, onFileSelect }) => {
+  const { octokit, githubLogin, repoName } = useContext(AuthContext) as AuthContextType;
   const [currentPath, setCurrentPath] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // GitHubリポジトリ内容を取得
   useEffect(() => {
-    if (open && octokit) {
-      const fetchContent = async () => {
-        try {
-          const { data } = await octokit.repos.getContent({
-            owner: githubLogin,
-            repo: repoName,
-            path: currentPath,
-          });
-          const sortedData = (Array.isArray(data) ? data : [data]).sort(
-            (a, b) => {
-              if (a.type === b.type) return a.name.localeCompare(b.name);
-              return a.type === "dir" ? -1 : 1;
-            }
-          );
-          setItems(sortedData);
-        } catch (error) {
-          console.error("GitHubコンテンツの取得に失敗しました", error);
-        }
-      };
-      fetchContent();
+    if (!open || !octokit || !githubLogin || !repoName) {
+      setItems([]);
+      return;
     }
-  }, [currentPath, open, octokit]);
+
+    const fetchContent = async () => {
+      setLoading(true);
+      try {
+        const { data } = await octokit.repos.getContent({
+          owner: githubLogin,
+          repo: repoName,
+          path: currentPath,
+        });
+
+        const sortedData = (Array.isArray(data) ? data : [data]).sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === "dir" ? -1 : 1;
+        });
+
+        setItems(sortedData);
+      } catch (error) {
+        console.error("GitHubコンテンツの取得に失敗しました", error);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContent();
+  }, [currentPath, open, octokit, githubLogin, repoName]);
 
   const handleItemClick = (item: any) => {
     if (item.type === "dir") {
@@ -72,12 +78,15 @@ const GitHubFileSelector: React.FC<Props> = ({
       setCurrentPath(item.path);
     }
   };
+
   const handleBack = () => {
-    const prevPath = history[history.length - 1];
+    const prevPath = history[history.length - 1] || "";
     setHistory(history.slice(0, -1));
     setCurrentPath(prevPath);
   };
+
   const handleSelect = (item: any) => {
+    if (!octokit) return;
     onFileSelect(item.path);
   };
 
@@ -101,39 +110,42 @@ const GitHubFileSelector: React.FC<Props> = ({
             ファイルを選択
           </Typography>
         </Box>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ ml: 1, mt: 1 }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 1, mt: 1 }}>
           /{currentPath}
         </Typography>
       </DialogTitle>
       <DialogContent dividers>
-        <List>
-          {items.map((item) => (
-            <ListItem
-              key={item.sha}
-              secondaryAction={
-                <Button size="small" onClick={() => handleSelect(item)}>
-                  選択
-                </Button>
-              }
-            >
-              <ListItemIcon
-                onClick={() => handleItemClick(item)}
-                sx={{ cursor: item.type === "dir" ? "pointer" : "default" }}
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <List>
+            {items.map((item) => (
+              <ListItem
+                key={item.sha}
+                secondaryAction={
+                  <Button size="small" onClick={() => handleSelect(item)}>
+                    選択
+                  </Button>
+                }
               >
-                {item.type === "dir" ? <FolderIcon /> : <ArticleIcon />}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.name}
-                onClick={() => handleItemClick(item)}
-                sx={{ cursor: item.type === "dir" ? "pointer" : "default" }}
-              />
-            </ListItem>
-          ))}
-        </List>
+                <ListItemIcon
+                  onClick={() => handleItemClick(item)}
+                  sx={{ cursor: item.type === "dir" ? "pointer" : "default" }}
+                >
+                  {item.type === "dir" ? <FolderIcon /> : <ArticleIcon />}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.name}
+                  onClick={() => handleItemClick(item)}
+                  sx={{ cursor: item.type === "dir" ? "pointer" : "default" }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        )}
+        {!loading && items.length === 0 && <Typography sx={{ p: 2 }}>ファイルがありません</Typography>}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>キャンセル</Button>

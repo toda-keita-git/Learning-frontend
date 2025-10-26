@@ -113,7 +113,6 @@ type Message = {
 
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
-  console.log(userId);
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
@@ -352,6 +351,13 @@ export default function LearningContent() {
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!octokit) return; // octokit がまだセットされていなければ処理しない
+
+    // API 呼び出し
+    fetchLearningData();
+  }, [octokit]);
 
   useEffect(() => {
     if (userId) {
