@@ -200,7 +200,7 @@ export default function LearningContent() {
   content: string,
   sha: string,
   options: { contentIsBase64?: boolean } = {}
-): Promise<string | null> => {
+) => {
   if (!octokit || !githubLogin || !repoName) {
     console.error("Octokitまたはリポジトリ情報がありません");
     return null;
