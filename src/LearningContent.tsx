@@ -112,6 +112,7 @@ type Message = {
 
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
+  console.log(userId);
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
