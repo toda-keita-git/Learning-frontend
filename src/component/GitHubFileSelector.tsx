@@ -19,9 +19,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AuthContext } from "../Context";
 import.meta.env;
 
-const owner = import.meta.env.VITE_REPO_OWNER;
-const repoName = import.meta.env.VITE_REPO_NAME;
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -33,7 +30,7 @@ const GitHubFileSelector: React.FC<Props> = ({
   onClose,
   onFileSelect,
 }) => {
-  const { octokit } = useContext(AuthContext);
+  const { octokit,githubLogin,repoName } = useContext(AuthContext);
   const [currentPath, setCurrentPath] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<string[]>([]);
@@ -43,7 +40,7 @@ const GitHubFileSelector: React.FC<Props> = ({
       const fetchContent = async () => {
         try {
           const { data } = await octokit.repos.getContent({
-            owner: owner,
+            owner: githubLogin,
             repo: repoName,
             path: currentPath,
           });
