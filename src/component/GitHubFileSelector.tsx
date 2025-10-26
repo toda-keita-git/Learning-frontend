@@ -26,7 +26,7 @@ interface Props {
   onFileSelect: (path: string) => void;
 }
 
-interface AuthContext {
+interface AuthContextType {
   octokit: Octokit;
   githubLogin: string;   // GitHubユーザー名
   repoName: string;      // 作成済みリポジトリ名
@@ -37,7 +37,7 @@ const GitHubFileSelector: React.FC<Props> = ({
   onClose,
   onFileSelect,
 }) => {
-  const { octokit,githubLogin,repoName } = useContext(AuthContext);
+  const { octokit,githubLogin,repoName } = useContext(AuthContext) as AuthContextType;
   const [currentPath, setCurrentPath] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<string[]>([]);
