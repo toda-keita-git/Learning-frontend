@@ -278,7 +278,61 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
           </Box>
         </DialogTitle>
         <DialogContent dividers>
-          {isEditing ? (
+          {/* 画像ファイルの場合 */}
+          {["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(
+            path.split(".").pop()?.toLowerCase() || ""
+          ) ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "#1e1e1e",
+                overflow: "auto",
+                maxHeight: "70vh",
+                position: "relative",
+              }}
+            >
+              {/* 拡大縮小可能な画像 */}
+              <img
+                src={
+                  content.startsWith("data:")
+                    ? content
+                    : `data:image/*;base64,${content}`
+                }
+                alt={path}
+                onClick={(e) => {
+                  const img = e.currentTarget;
+                  // クリックで拡大・縮小トグル
+                  if (img.style.transform === "scale(2)") {
+                    img.style.transform = "scale(1)";
+                    img.style.cursor = "zoom-in";
+                  } else {
+                    img.style.transform = "scale(2)";
+                    img.style.cursor = "zoom-out";
+                  }
+                }}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "70vh",
+                  objectFit: "contain",
+                  cursor: "zoom-in",
+                  transition: "transform 0.3s ease",
+                }}
+              />
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 8,
+                  right: 16,
+                  color: "#ccc",
+                  fontSize: "0.8rem",
+                }}
+              >
+                クリックで拡大／縮小
+              </Box>
+            </Box>
+          ) : isEditing ? (
             <TextField
               fullWidth
               multiline
@@ -288,13 +342,12 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               variant="outlined"
             />
           ) : (
-            /* SyntaxHighlighterを使ってコードを表示 */
             <SyntaxHighlighter
               language={language}
               style={vscDarkPlus}
               showLineNumbers
               customStyle={{
-                maxHeight: "60vh", // ダイアログのコンテンツの最大高さを設定
+                maxHeight: "60vh",
               }}
             >
               {content}

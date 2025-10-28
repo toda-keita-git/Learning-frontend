@@ -486,7 +486,7 @@ export default function NewLearningDialog({
           {/* === GitHub連携 === */}
           <Box sx={{ display: "flex", alignItems: "flex-end", mt: 2, gap: 1 }}>
             <TextField
-              label="GitHub連携ファイルパス"
+              label="GitHub連携ファイル"
               type="text"
               fullWidth
               variant="standard"
@@ -495,7 +495,7 @@ export default function NewLearningDialog({
               onChange={(e) => setGithub_path(e.target.value)}
               placeholder={
                 localFile
-                  ? "コミット先のパス/ファイル名"
+                  ? "コミット先のファイル名"
                   : "ファイルを選択またはパスを入力"
               }
             />
@@ -630,7 +630,7 @@ export default function NewLearningDialog({
                 }}
               >
                 <Typography color="textSecondary">
-                  ファイルパスを入力・選択してプレビューボタンを押してください。
+                  ファイル選択するとプレビュー表示されます。
                 </Typography>
               </Box>
             )}

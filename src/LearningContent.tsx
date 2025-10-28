@@ -650,7 +650,7 @@ export default function LearningContent() {
 
     const userMessage: Message = {
       id: Date.now(),
-      text: trimmedQuery || "(詳細条件のみで検索)",
+      text: trimmedQuery || "詳細条件のみで検索",
       timestamp: new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
         minute: "2-digit",

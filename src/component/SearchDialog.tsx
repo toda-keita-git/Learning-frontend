@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-
 import {
   Button,
   Dialog,
@@ -16,19 +15,11 @@ import {
 } from "@mui/material";
 import { TagsApi, CategoriesApi } from "./Api";
 
-// APIデータの型定義を実際のデータ構造に合わせる
 interface CategoriesRecord {
   id: number;
   name: string;
 }
 
-// APIデータの型定義を実際のデータ構造に合わせる
-interface HashTagsRecord {
-  id: number;
-  name: string;
-}
-
-// APIデータの型定義を実際のデータ構造に合わせる
 interface HashTagsRecord {
   id: number;
   name: string;
@@ -55,40 +46,33 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
   const [category, setCategory] = useState<string>(currentFilters.category);
   const [sort, setSort] = useState<string>(currentFilters.sort);
 
-  const [allCategories, setAllCategoriesData] = useState<CategoriesRecord[]>(
-    []
-  );
-
-  // コンポーネントが最初に描画された時にAPIからデータを取得する
-  useEffect(() => {
-    const fetchData = async () => {
-      const data = await CategoriesApi();
-      if (data) {
-        setAllCategoriesData(data);
-      }
-    };
-    fetchData();
-  }, []); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
-
   const [allHashtags, setAllHashtagsData] = useState<HashTagsRecord[]>([]);
+  const [allCategories, setAllCategoriesData] = useState<CategoriesRecord[]>([]);
 
-  // コンポーネントが最初に描画された時にAPIからデータを取得する
-  useEffect(() => {
-    const fetchData = async () => {
-      const data = await TagsApi();
-      if (data) {
-        setAllHashtagsData(data);
-      }
-    };
-    fetchData();
-  }, []); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
-
-  // ダイアログが開かれたときに現在のフィルタを同期する
+  // ダイアログが開かれたときに現在のフィルタを同期 + APIデータを再取得
   useEffect(() => {
     if (open) {
       setHashtags(currentFilters.hashtags);
       setCategory(currentFilters.category);
       setSort(currentFilters.sort);
+
+      // 🔹ハッシュタグを取得
+      TagsApi.getAllTags()
+        .then((res) => {
+          setAllHashtagsData(res.data || []);
+        })
+        .catch((err) => {
+          console.error("ハッシュタグ取得失敗:", err);
+        });
+
+      // 🔹カテゴリーを取得
+      CategoriesApi.getAllCategories()
+        .then((res) => {
+          setAllCategoriesData(res.data || []);
+        })
+        .catch((err) => {
+          console.error("カテゴリー取得失敗:", err);
+        });
     }
   }, [open, currentFilters]);
 
@@ -97,7 +81,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
     onClose();
   };
 
-  // Autocompleteのvalue propのために、string配列から対応するオブジェクト配列を見つける
+  // 選択済みハッシュタグオブジェクトを復元
   const selectedHashtagObjects = allHashtags.filter((option) =>
     hashtags.includes(option.name)
   );
@@ -106,6 +90,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>詳細検索</DialogTitle>
       <DialogContent>
+        {/* 🔹ハッシュタグ選択 */}
         <FormControl fullWidth sx={{ mt: 2, mb: 3 }}>
           <Autocomplete
             multiple
@@ -115,7 +100,6 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
             getOptionLabel={(option) => option.name}
             value={selectedHashtagObjects}
             onChange={(_event, newValue) => {
-              // 選択されたオブジェクトのtitleだけをstateに保存
               setHashtags(newValue.map((option) => option.name));
             }}
             renderInput={(params) => (
@@ -127,6 +111,8 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
             )}
           />
         </FormControl>
+
+        {/* 🔹カテゴリー選択 */}
         <FormControl fullWidth sx={{ mb: 3 }}>
           <InputLabel id="category-select-label">カテゴリー</InputLabel>
           <Select
@@ -137,13 +123,14 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
           >
             <MenuItem value="all">すべて</MenuItem>
             {allCategories.map((cat) => (
-              <MenuItem key={cat["name"]} value={cat["name"]}>
-                {cat["name"]}
+              <MenuItem key={cat.id} value={cat.name}>
+                {cat.name}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
+        {/* 🔹ソート選択 */}
         <FormControl fullWidth>
           <InputLabel id="sort-select-label">ソート</InputLabel>
           <Select

@@ -47,7 +47,7 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
       <TextField
         fullWidth
         variant="outlined"
-        placeholder="メッセージを入力..."
+        placeholder="タイトル名検索..."
         size="small"
         sx={{ mr: 1 }}
         value={inputValue}
