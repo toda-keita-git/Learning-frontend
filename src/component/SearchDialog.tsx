@@ -56,23 +56,14 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
       setCategory(currentFilters.category);
       setSort(currentFilters.sort);
 
-      // 🔹ハッシュタグを取得
-      TagsApi.getAllTags()
-        .then((res) => {
-          setAllHashtagsData(res.data || []);
-        })
-        .catch((err) => {
-          console.error("ハッシュタグ取得失敗:", err);
-        });
+      TagsApi()
+      .then((res) => setAllHashtagsData(res.data || []))
+      .catch((err) => console.error("ハッシュタグ取得失敗:", err));
 
-      // 🔹カテゴリーを取得
-      CategoriesApi.getAllCategories()
-        .then((res) => {
-          setAllCategoriesData(res.data || []);
-        })
-        .catch((err) => {
-          console.error("カテゴリー取得失敗:", err);
-        });
+     CategoriesApi()
+      .then((res) => setAllCategoriesData(res.data || []))
+      .catch((err) => console.error("カテゴリー取得失敗:", err));
+
     }
   }, [open, currentFilters]);
 
