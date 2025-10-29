@@ -296,7 +296,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               {/* 拡大縮小可能な画像 */}
               <img
                 src={
-                  content.startsWith("data:")
+                  content.startsWith("http") || content.startsWith("data:")
                     ? content
                     : `data:image/*;base64,${content}`
                 }

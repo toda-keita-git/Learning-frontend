@@ -51,21 +51,21 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
 
   // ダイアログが開かれたときに現在のフィルタを同期 + APIデータを再取得
   useEffect(() => {
-    if (open) {
-      setHashtags(currentFilters.hashtags);
-      setCategory(currentFilters.category);
-      setSort(currentFilters.sort);
+  if (open) {
+    setHashtags(currentFilters.hashtags);
+    setCategory(currentFilters.category);
+    setSort(currentFilters.sort);
 
-      TagsApi()
-      .then((res) => setAllHashtagsData(res.data || []))
+    TagsApi()
+      .then((res) => setAllHashtagsData(res || []))
       .catch((err) => console.error("ハッシュタグ取得失敗:", err));
 
-     CategoriesApi()
-      .then((res) => setAllCategoriesData(res.data || []))
+    CategoriesApi()
+      .then((res) => setAllCategoriesData(res || []))
       .catch((err) => console.error("カテゴリー取得失敗:", err));
+  }
+}, [open, currentFilters]);
 
-    }
-  }, [open, currentFilters]);
 
   const handleApply = () => {
     onApply({ hashtags, category, sort });
