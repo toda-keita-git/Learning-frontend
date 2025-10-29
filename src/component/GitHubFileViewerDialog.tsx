@@ -14,11 +14,12 @@ import {
 import type { AlertProps } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useGetImageUrl } from "./useGetImageUrl";
 
-// ✅ Snackbar用のAlert
+// Snackbar用のAlertコンポーネント
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
   props,
   ref
@@ -48,7 +49,14 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const [editedContent, setEditedContent] = useState(content);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const extension = path.split(".").pop()?.toLowerCase() || "";
+  const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
+  const mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
+
   const imageUrl = useGetImageUrl(imageFile);
+
+  // Base64かどうか簡易判定
+  const isBase64Image = /^[A-Za-z0-9+/=]+\s*$/.test(content.trim());
 
   useEffect(() => {
     setEditedContent(content);
@@ -58,6 +66,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const handleSave = () => {
     if (imageUrl) {
+      // Base64データURLからヘッダを除去して保存
       const base64Data = imageUrl.split(",")[1];
       onUpdateFile(path, base64Data);
     } else {
@@ -82,21 +91,6 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
-
-  const extension = path.split(".").pop()?.toLowerCase() || "";
-  const isImageFile = [
-    "png",
-    "jpg",
-    "jpeg",
-    "gif",
-    "bmp",
-    "svg",
-    "ico",
-    "webp",
-  ].includes(extension);
-
-  // ✅ Base64形式の判定（空白や改行を許容）
-  const isBase64Image = /^[A-Za-z0-9+/=\r\n]+$/.test(content.trim());
 
   const getLanguage = (path: string) => {
     const ext = path.split(".").pop()?.toLowerCase();
@@ -125,33 +119,10 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const language = getLanguage(path);
 
-  // ✅ 安全な MIME タイプ生成
-  const mimeType = (() => {
-    switch (extension) {
-      case "jpg":
-      case "jpeg":
-        return "image/jpeg";
-      case "png":
-        return "image/png";
-      case "gif":
-        return "image/gif";
-      case "bmp":
-        return "image/bmp";
-      case "svg":
-        return "image/svg+xml";
-      case "webp":
-        return "image/webp";
-      case "ico":
-        return "image/x-icon";
-      default:
-        return "image/png";
-    }
-  })();
-
   return (
     <>
       <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-        {/* --- Header --- */}
+        {/* Header */}
         <DialogTitle
           sx={{
             m: 0,
@@ -163,12 +134,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         >
           {path}
           <Box>
-            <IconButton
-              aria-label="copy"
-              onClick={handleCopyClick}
-              color="primary"
-              sx={{ mr: 1 }}
-            >
+            <IconButton aria-label="copy" onClick={handleCopyClick} color="primary" sx={{ mr: 1 }}>
               <ContentCopyIcon />
             </IconButton>
             <IconButton aria-label="close" onClick={onClose}>
@@ -177,10 +143,10 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
           </Box>
         </DialogTitle>
 
-        {/* --- Main Content --- */}
+        {/* Main Content */}
         <DialogContent dividers sx={{ position: "relative" }}>
           {(() => {
-            // ✅ Base64画像プレビュー
+            // Base64画像プレビュー
             if (isImageFile && isBase64Image && !isEditing) {
               return (
                 <Box
@@ -195,7 +161,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                   }}
                 >
                   <img
-                    src={`data:${mimeType};base64,${content}`}
+                    src={`data:${mimeType};base64,${content.replace(/\s/g, "")}`}
                     alt={path}
                     onClick={(e) => {
                       const img = e.currentTarget;
@@ -230,16 +196,10 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
-            // ✅ 編集モード（画像アップロード）
+            // 編集モード（画像アップロード）
             if (isImageFile && isEditing) {
               return (
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                  }}
-                >
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <input
                     type="file"
                     accept="image/*"
@@ -265,7 +225,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
-            // ✅ テキストファイル編集モード
+            // テキストファイル編集モード
             if (isEditing) {
               return (
                 <TextField
@@ -279,7 +239,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
-            // ✅ 通常テキスト表示
+            // 通常テキスト／コード表示
             return (
               <SyntaxHighlighter
                 language={language}
@@ -293,7 +253,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
           })()}
         </DialogContent>
 
-        {/* --- Footer --- */}
+        {/* Footer */}
         <DialogActions>
           {isEditing ? (
             <>
@@ -307,12 +267,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         </DialogActions>
       </Dialog>
 
-      {/* --- Snackbar --- */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-      >
+      {/* Snackbar */}
+      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
         <Alert severity="success" sx={{ width: "100%" }}>
           クリップボードにコピーしました！
         </Alert>
