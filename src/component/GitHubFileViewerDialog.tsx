@@ -211,13 +211,12 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                   />
                   {imageUrl && (
                     <img
-                      src={imageUrl}
-                      alt="プレビュー"
+                      src={`data:${mimeType};base64,${content.replace(/\s/g, "")}`}
+                      alt={path}
                       style={{
                         maxWidth: "100%",
-                        maxHeight: "60vh",
+                        maxHeight: "70vh",
                         objectFit: "contain",
-                        marginTop: 8,
                       }}
                     />
                   )}
