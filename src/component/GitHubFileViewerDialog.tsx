@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from "react";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+  Snackbar,
+  Box,
+  TextField,
+} from "@mui/material";
+import MuiAlert, { AlertProps } from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
-// ★ コピーアイコンをインポート
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-// ★ SnackbrとAlertをインポート
-import Snackbar from "@mui/material/Snackbar";
-import MuiAlert from "@mui/material/Alert";
-import type { AlertProps } from "@mui/material/Alert";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import Box from "@mui/material/Box";
-
-import TextField from "@mui/material/TextField";
+import { useGetImageUrl } from "./useGetImageUrl";
 
 // Snackbar用のAlertコンポーネント
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -32,7 +31,7 @@ interface Props {
   onClose: () => void;
   path: string;
   content: string;
-  isEditable: boolean; // ★ 編集可能かどうかを受け取る
+  isEditable: boolean;
   onUpdateFile: (path: string, newContent: string) => Promise<void>;
 }
 
@@ -41,210 +40,92 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   onClose,
   path,
   content,
-  isEditable, // ★ propsとして受け取る
+  isEditable,
   onUpdateFile,
 }) => {
-  // ★ コピースナックバーのState
-  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const { imageUrl } = useGetImageUrl({ file: imageFile });
 
   useEffect(() => {
     setEditedContent(content);
     setIsEditing(false);
+    setImageFile(null);
   }, [content, open]);
 
   const handleSave = () => {
-    onUpdateFile(path, editedContent);
-  };
-
-  // ファイルの拡張子を取得
-  const getLanguage = (path: string) => {
-    const extension = path.split(".").pop()?.toLowerCase();
-
-    // ファイル名自体で判定した方が良いもの (Dockerfileなど)
-    const filename = path.split("/").pop()?.toLowerCase();
-    if (filename === "dockerfile") return "docker";
-
-    switch (extension) {
-      // --- Web, Frontend ---
-      case "js":
-      case "cjs":
-      case "mjs":
-        return "javascript";
-      case "jsx":
-        return "jsx";
-      case "ts":
-        return "typescript";
-      case "tsx":
-        return "tsx";
-      case "html":
-      case "htm":
-        return "html";
-      case "css":
-        return "css";
-      case "scss":
-      case "sass":
-        return "scss";
-      case "less":
-        return "less";
-      case "vue":
-        return "vue";
-      case "svelte":
-        return "svelte";
-
-      // --- Backend ---
-      case "py":
-      case "pyw":
-        return "python";
-      case "java":
-      case "jar":
-        return "java";
-      case "php":
-        return "php";
-      case "go":
-        return "go";
-      case "rb":
-        return "ruby";
-      case "cs":
-      case "csx":
-        return "csharp";
-      case "rs":
-        return "rust";
-      case "kt":
-      case "kts":
-        return "kotlin";
-      case "swift":
-        return "swift";
-      case "pl":
-      case "pm":
-        return "perl";
-      case "ex":
-      case "exs":
-        return "elixir";
-
-      // --- C Family ---
-      case "c":
-      case "h":
-        return "c";
-      case "cpp":
-      case "hpp":
-      case "cc":
-        return "cpp";
-      case "m":
-        return "objectivec";
-
-      // --- Markup & Data Formats ---
-      case "json":
-        return "json";
-      case "xml":
-        return "xml";
-      case "yml":
-      case "yaml":
-        return "yaml";
-      case "md":
-      case "markdown":
-        return "markdown";
-      case "sql":
-        return "sql";
-      case "graphql":
-      case "gql":
-        return "graphql";
-      case "toml":
-        return "toml";
-      case "csv":
-        return "csv";
-      case "svg":
-        return "svg";
-
-      // --- Scripting & Shell ---
-      case "sh":
-      case "bash":
-      case "zsh":
-        return "bash";
-      case "ps1":
-        return "powershell";
-      case "bat":
-      case "cmd":
-        return "batch";
-      case "lua":
-        return "lua";
-
-      // --- Config & Others ---
-      case "ini":
-        return "ini";
-      case "env":
-        return "properties"; // .envファイルはpropertiesとして解釈されることが多い
-      case "gitignore":
-      case "gitattributes":
-      case "gitmodules":
-        return "git";
-      case "r":
-        return "r";
-      case "dart":
-        return "dart";
-      case "jl":
-        return "julia";
-
-      // --- バイナリファイル (プレビュー不可) ---
-      case "xlsx":
-      case "xls":
-      case "doc":
-      case "docx":
-      case "ppt":
-      case "pptx":
-      case "pdf":
-      case "png":
-      case "jpg":
-      case "jpeg":
-      case "gif":
-      case "bmp":
-      case "ico":
-      case "zip":
-      case "gz":
-      case "tar":
-      case "rar":
-      case "exe":
-      case "dll":
-        return "binary"; // ★ 特別な識別子を返す
-
-      // --- 認識できない拡張子 ---
-      default:
-        return "plaintext";
+    if (imageUrl) {
+      // Base64データURLからヘッダを除去して保存
+      const base64Data = imageUrl.split(",")[1];
+      onUpdateFile(path, base64Data);
+    } else {
+      onUpdateFile(path, editedContent);
     }
   };
 
-  const language = getLanguage(path);
-
-  // ★ コピーボタンのハンドラー
   const handleCopyClick = async () => {
-    // ★ 編集モードかどうかでコピーする内容を決定
     const textToCopy = isEditing ? editedContent : content;
     try {
       await navigator.clipboard.writeText(textToCopy);
-      setSnackbarOpen(true); // コピー成功時にスナックバーを表示
+      setSnackbarOpen(true);
     } catch (err) {
       console.error("Failed to copy text: ", err);
-      // エラー処理（アラートなど）
     }
   };
 
-  // ★ スナックバーを閉じるハンドラー
   const handleSnackbarClose = (
     _event?: React.SyntheticEvent | Event,
     reason?: string
   ) => {
-    if (reason === "clickaway") {
-      return;
-    }
+    if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
 
+  const extension = path.split(".").pop()?.toLowerCase() || "";
+  const isImageFile = [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "bmp",
+    "svg",
+    "ico",
+    "webp",
+  ].includes(extension);
+
+  const getLanguage = (path: string) => {
+    const ext = path.split(".").pop()?.toLowerCase();
+    const filename = path.split("/").pop()?.toLowerCase();
+    if (filename === "dockerfile") return "docker";
+    const map: Record<string, string> = {
+      js: "javascript",
+      ts: "typescript",
+      jsx: "jsx",
+      tsx: "tsx",
+      html: "html",
+      css: "css",
+      scss: "scss",
+      java: "java",
+      py: "python",
+      sql: "sql",
+      md: "markdown",
+      json: "json",
+      xml: "xml",
+      yaml: "yaml",
+      yml: "yaml",
+      sh: "bash",
+    };
+    return map[ext || ""] || "plaintext";
+  };
+
+  const language = getLanguage(path);
+
   return (
     <>
-      {" "}
-      {/* ★ Snackbarをルートで含むためにFragmentを使用 */}
       <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+        {/* --- Header --- */}
         <DialogTitle
           sx={{
             m: 0,
@@ -256,82 +137,103 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         >
           {path}
           <Box>
-            {" "}
-            {/* コピーボタンと閉じるボタンをまとめるBox */}
             <IconButton
-              aria-label="copy content"
+              aria-label="copy"
               onClick={handleCopyClick}
-              color="primary" // または "inherit"
-              sx={{ mr: 1 }} // 閉じるボタンとの間にマージン
+              color="primary"
+              sx={{ mr: 1 }}
             >
               <ContentCopyIcon />
             </IconButton>
-            <IconButton
-              aria-label="close"
-              onClick={onClose}
-              sx={{
-                color: (theme) => theme.palette.grey[500],
-              }}
-            >
+            <IconButton aria-label="close" onClick={onClose}>
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent dividers>
-          {/* 画像ファイルの場合 */}
-          {["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(
-            path.split(".").pop()?.toLowerCase() || ""
-          ) ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "#1e1e1e",
-                overflow: "auto",
-                maxHeight: "70vh",
-                position: "relative",
-              }}
-            >
-              {/* 拡大縮小可能な画像 */}
-              <img
-                src={
-                  content.startsWith("http") || content.startsWith("data:")
-                    ? content
-                    : `data:image/*;base64,${content}`
-                }
-                alt={path}
-                onClick={(e) => {
-                  const img = e.currentTarget;
-                  // クリックで拡大・縮小トグル
-                  if (img.style.transform === "scale(2)") {
-                    img.style.transform = "scale(1)";
-                    img.style.cursor = "zoom-in";
-                  } else {
-                    img.style.transform = "scale(2)";
-                    img.style.cursor = "zoom-out";
-                  }
-                }}
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "70vh",
-                  objectFit: "contain",
-                  cursor: "zoom-in",
-                  transition: "transform 0.3s ease",
-                }}
-              />
+
+        {/* --- Main Content --- */}
+        <DialogContent dividers sx={{ position: "relative" }}>
+          {isImageFile ? (
+            isEditing ? (
               <Box
                 sx={{
-                  position: "absolute",
-                  bottom: 8,
-                  right: 16,
-                  color: "#ccc",
-                  fontSize: "0.8rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
                 }}
               >
-                クリックで拡大／縮小
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setImageFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt="プレビュー"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      objectFit: "contain",
+                      marginTop: 8,
+                    }}
+                  />
+                )}
               </Box>
-            </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  position: "relative",
+                  backgroundColor: "#1e1e1e",
+                  overflow: "hidden",
+                  maxHeight: "70vh",
+                }}
+              >
+                <img
+                  src={
+                    content.startsWith("data:")
+                      ? content
+                      : `data:image/*;base64,${content}`
+                  }
+                  alt={path}
+                  onClick={(e) => {
+                    const img = e.currentTarget;
+                    if (img.style.transform === "scale(2)") {
+                      img.style.transform = "scale(1)";
+                      img.style.cursor = "zoom-in";
+                    } else {
+                      img.style.transform = "scale(2)";
+                      img.style.cursor = "zoom-out";
+                    }
+                  }}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "70vh",
+                    objectFit: "contain",
+                    cursor: "zoom-in",
+                    transition: "transform 0.3s ease",
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: 8,
+                    right: 16,
+                    color: "#ccc",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  クリックで拡大／縮小
+                </Box>
+              </Box>
+            )
           ) : isEditing ? (
             <TextField
               fullWidth
@@ -346,14 +248,14 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               language={language}
               style={vscDarkPlus}
               showLineNumbers
-              customStyle={{
-                maxHeight: "60vh",
-              }}
+              customStyle={{ maxHeight: "60vh" }}
             >
               {content}
             </SyntaxHighlighter>
           )}
         </DialogContent>
+
+        {/* --- Footer --- */}
         <DialogActions>
           {isEditing ? (
             <>
@@ -361,24 +263,19 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               <Button onClick={handleSave}>保存</Button>
             </>
           ) : (
-            isEditable && (
-              <Button onClick={() => setIsEditing(true)}>編集</Button>
-            )
+            isEditable && <Button onClick={() => setIsEditing(true)}>編集</Button>
           )}
           <Button onClick={onClose}>閉じる</Button>
         </DialogActions>
       </Dialog>
-      {/* ★ コピースナックバー */}
+
+      {/* --- Snackbar --- */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={handleSnackbarClose}
       >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity="success"
-          sx={{ width: "100%" }}
-        >
+        <Alert severity="success" sx={{ width: "100%" }}>
           クリップボードにコピーしました！
         </Alert>
       </Snackbar>
