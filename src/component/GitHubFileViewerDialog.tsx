@@ -49,6 +49,9 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const [editedContent, setEditedContent] = useState(content);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
+
+
   // ✅ 修正ポイント② useGetImageUrlはstring|nullを返す
   const imageUrl = useGetImageUrl(imageFile);
 
@@ -126,68 +129,42 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const language = getLanguage(path);
 
   return (
-    <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-        {/* --- Header --- */}
-        <DialogTitle
-          sx={{
-            m: 0,
-            p: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {path}
-          <Box>
-            <IconButton
-              aria-label="copy"
-              onClick={handleCopyClick}
-              color="primary"
-              sx={{ mr: 1 }}
-            >
-              <ContentCopyIcon />
-            </IconButton>
-            <IconButton aria-label="close" onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
+  <>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      {/* --- Header --- */}
+      <DialogTitle
+        sx={{
+          m: 0,
+          p: 2,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        {path}
+        <Box>
+          <IconButton
+            aria-label="copy"
+            onClick={handleCopyClick}
+            color="primary"
+            sx={{ mr: 1 }}
+          >
+            <ContentCopyIcon />
+          </IconButton>
+          <IconButton aria-label="close" onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
 
-        {/* --- Main Content --- */}
-        <DialogContent dividers sx={{ position: "relative" }}>
-          {isImageFile ? (
-            isEditing ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setImageFile(e.target.files[0]);
-                    }
-                  }}
-                />
-                {imageUrl && (
-                  <img
-                    src={imageUrl}
-                    alt="プレビュー"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "60vh",
-                      objectFit: "contain",
-                      marginTop: 8,
-                    }}
-                  />
-                )}
-              </Box>
-            ) : (
+      {/* --- Main Content --- */}
+      <DialogContent dividers sx={{ position: "relative" }}>
+        {(() => {
+          const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
+
+          // 画像ファイル拡張子かつ Base64 の場合 → 表示
+          if (isImageFile && isBase64Image && !isEditing) {
+            return (
               <Box
                 sx={{
                   display: "flex",
@@ -200,11 +177,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                 }}
               >
                 <img
-                  src={
-                    content.startsWith("data:")
-                      ? content
-                      : `data:image/*;base64,${content}`
-                  }
+                  src={`data:image/${extension};base64,${content}`}
                   alt={path}
                   onClick={(e) => {
                     const img = e.currentTarget;
@@ -236,17 +209,60 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                   クリックで拡大／縮小
                 </Box>
               </Box>
-            )
-          ) : isEditing ? (
-            <TextField
-              fullWidth
-              multiline
-              rows={20}
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              variant="outlined"
-            />
-          ) : (
+            );
+          }
+
+          // 編集モード & 画像ファイル
+          if (isImageFile && isEditing) {
+            return (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setImageFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt="プレビュー"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      objectFit: "contain",
+                      marginTop: 8,
+                    }}
+                  />
+                )}
+              </Box>
+            );
+          }
+
+          // テキストファイル：編集モード
+          if (isEditing) {
+            return (
+              <TextField
+                fullWidth
+                multiline
+                rows={20}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                variant="outlined"
+              />
+            );
+          }
+
+          // 通常テキスト or コード
+          return (
             <SyntaxHighlighter
               language={language}
               style={vscDarkPlus}
@@ -255,35 +271,35 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
             >
               {content}
             </SyntaxHighlighter>
-          )}
-        </DialogContent>
+          );
+        })()}
+      </DialogContent>
 
-        {/* --- Footer --- */}
-        <DialogActions>
-          {isEditing ? (
-            <>
-              <Button onClick={() => setIsEditing(false)}>キャンセル</Button>
-              <Button onClick={handleSave}>保存</Button>
-            </>
-          ) : (
-            isEditable && <Button onClick={() => setIsEditing(true)}>編集</Button>
-          )}
-          <Button onClick={onClose}>閉じる</Button>
-        </DialogActions>
-      </Dialog>
+      {/* --- Footer --- */}
+      <DialogActions>
+        {isEditing ? (
+          <>
+            <Button onClick={() => setIsEditing(false)}>キャンセル</Button>
+            <Button onClick={handleSave}>保存</Button>
+          </>
+        ) : (
+          isEditable && <Button onClick={() => setIsEditing(true)}>編集</Button>
+        )}
+        <Button onClick={onClose}>閉じる</Button>
+      </DialogActions>
+    </Dialog>
 
-      {/* --- Snackbar --- */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-      >
-        <Alert severity="success" sx={{ width: "100%" }}>
-          クリップボードにコピーしました！
-        </Alert>
-      </Snackbar>
-    </>
-  );
-};
+    {/* --- Snackbar --- */}
+    <Snackbar
+      open={snackbarOpen}
+      autoHideDuration={3000}
+      onClose={handleSnackbarClose}
+    >
+      <Alert severity="success" sx={{ width: "100%" }}>
+        クリップボードにコピーしました！
+      </Alert>
+    </Snackbar>
+  </>
+);
 
 export default GitHubFileViewerDialog;
