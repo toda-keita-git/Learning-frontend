@@ -9,8 +9,9 @@ import {
   Snackbar,
   Box,
   TextField,
+  Alert as MuiAlert, // ← 修正ポイント①
 } from "@mui/material";
-import MuiAlert, { AlertProps } from "@mui/material/Alert";
+import type { AlertProps } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
@@ -18,7 +19,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useGetImageUrl } from "./useGetImageUrl";
 
-// Snackbar用のAlertコンポーネント
+// ✅ Snackbar用のAlertコンポーネント
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
   props,
   ref
@@ -47,7 +48,9 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const { imageUrl } = useGetImageUrl({ file: imageFile });
+
+  // ✅ 修正ポイント② useGetImageUrlはstring|nullを返す
+  const imageUrl = useGetImageUrl(imageFile);
 
   useEffect(() => {
     setEditedContent(content);
