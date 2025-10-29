@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 
 /**
- * 画像ファイルからプレビューURLを生成するカスタムフック
- * 
- * @param file - 選択された File オブジェクト
- * @returns {string | null} 生成された画像URL（プレビュー用）
+ * FileReaderを使って画像ファイルからBase64 URLを生成
  */
 export const useGetImageUrl = (file: File | null): string | null => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -15,12 +12,16 @@ export const useGetImageUrl = (file: File | null): string | null => {
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    setImageUrl(url);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setImageUrl(e.target.result as string); // Base64データURL
+      }
+    };
+    reader.readAsDataURL(file);
 
-    // メモリリーク防止
     return () => {
-      URL.revokeObjectURL(url);
+      reader.abort();
     };
   }, [file]);
 
