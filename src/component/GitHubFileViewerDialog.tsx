@@ -9,17 +9,16 @@ import {
   Snackbar,
   Box,
   TextField,
-  Alert as MuiAlert, // ← 修正ポイント①
+  Alert as MuiAlert,
 } from "@mui/material";
 import type { AlertProps } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useGetImageUrl } from "./useGetImageUrl";
 
-// ✅ Snackbar用のAlertコンポーネント
+// ✅ Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
   props,
   ref
@@ -49,10 +48,6 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const [editedContent, setEditedContent] = useState(content);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
-
-
-  // ✅ 修正ポイント② useGetImageUrlはstring|nullを返す
   const imageUrl = useGetImageUrl(imageFile);
 
   useEffect(() => {
@@ -63,7 +58,6 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const handleSave = () => {
     if (imageUrl) {
-      // Base64データURLからヘッダを除去して保存
       const base64Data = imageUrl.split(",")[1];
       onUpdateFile(path, base64Data);
     } else {
@@ -101,6 +95,9 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     "webp",
   ].includes(extension);
 
+  // ✅ Base64形式の判定（空白や改行を許容）
+  const isBase64Image = /^[A-Za-z0-9+/=\r\n]+$/.test(content.trim());
+
   const getLanguage = (path: string) => {
     const ext = path.split(".").pop()?.toLowerCase();
     const filename = path.split("/").pop()?.toLowerCase();
@@ -128,179 +125,200 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const language = getLanguage(path);
 
+  // ✅ 安全な MIME タイプ生成
+  const mimeType = (() => {
+    switch (extension) {
+      case "jpg":
+      case "jpeg":
+        return "image/jpeg";
+      case "png":
+        return "image/png";
+      case "gif":
+        return "image/gif";
+      case "bmp":
+        return "image/bmp";
+      case "svg":
+        return "image/svg+xml";
+      case "webp":
+        return "image/webp";
+      case "ico":
+        return "image/x-icon";
+      default:
+        return "image/png";
+    }
+  })();
+
   return (
-  <>
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      {/* --- Header --- */}
-      <DialogTitle
-        sx={{
-          m: 0,
-          p: 2,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        {path}
-        <Box>
-          <IconButton
-            aria-label="copy"
-            onClick={handleCopyClick}
-            color="primary"
-            sx={{ mr: 1 }}
-          >
-            <ContentCopyIcon />
-          </IconButton>
-          <IconButton aria-label="close" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+    <>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+        {/* --- Header --- */}
+        <DialogTitle
+          sx={{
+            m: 0,
+            p: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {path}
+          <Box>
+            <IconButton
+              aria-label="copy"
+              onClick={handleCopyClick}
+              color="primary"
+              sx={{ mr: 1 }}
+            >
+              <ContentCopyIcon />
+            </IconButton>
+            <IconButton aria-label="close" onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
 
-      {/* --- Main Content --- */}
-      <DialogContent dividers sx={{ position: "relative" }}>
-        {(() => {
-          const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
-
-          // 画像ファイル拡張子かつ Base64 の場合 → 表示
-          if (isImageFile && isBase64Image && !isEditing) {
-            return (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  position: "relative",
-                  backgroundColor: "#1e1e1e",
-                  overflow: "hidden",
-                  maxHeight: "70vh",
-                }}
-              >
-                <img
-                  src={`data:image/${extension};base64,${content}`}
-                  alt={path}
-                  onClick={(e) => {
-                    const img = e.currentTarget;
-                    if (img.style.transform === "scale(2)") {
-                      img.style.transform = "scale(1)";
-                      img.style.cursor = "zoom-in";
-                    } else {
-                      img.style.transform = "scale(2)";
-                      img.style.cursor = "zoom-out";
-                    }
-                  }}
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "70vh",
-                    objectFit: "contain",
-                    cursor: "zoom-in",
-                    transition: "transform 0.3s ease",
-                  }}
-                />
+        {/* --- Main Content --- */}
+        <DialogContent dividers sx={{ position: "relative" }}>
+          {(() => {
+            // ✅ Base64画像プレビュー
+            if (isImageFile && isBase64Image && !isEditing) {
+              return (
                 <Box
                   sx={{
-                    position: "absolute",
-                    bottom: 8,
-                    right: 16,
-                    color: "#ccc",
-                    fontSize: "0.8rem",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    position: "relative",
+                    backgroundColor: "#1e1e1e",
+                    overflow: "hidden",
+                    maxHeight: "70vh",
                   }}
                 >
-                  クリックで拡大／縮小
-                </Box>
-              </Box>
-            );
-          }
-
-          // 編集モード & 画像ファイル
-          if (isImageFile && isEditing) {
-            return (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setImageFile(e.target.files[0]);
-                    }
-                  }}
-                />
-                {imageUrl && (
                   <img
-                    src={imageUrl}
-                    alt="プレビュー"
+                    src={`data:${mimeType};base64,${content}`}
+                    alt={path}
+                    onClick={(e) => {
+                      const img = e.currentTarget;
+                      if (img.style.transform === "scale(2)") {
+                        img.style.transform = "scale(1)";
+                        img.style.cursor = "zoom-in";
+                      } else {
+                        img.style.transform = "scale(2)";
+                        img.style.cursor = "zoom-out";
+                      }
+                    }}
                     style={{
                       maxWidth: "100%",
-                      maxHeight: "60vh",
+                      maxHeight: "70vh",
                       objectFit: "contain",
-                      marginTop: 8,
+                      cursor: "zoom-in",
+                      transition: "transform 0.3s ease",
                     }}
                   />
-                )}
-              </Box>
-            );
-          }
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 8,
+                      right: 16,
+                      color: "#ccc",
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    クリックで拡大／縮小
+                  </Box>
+                </Box>
+              );
+            }
 
-          // テキストファイル：編集モード
-          if (isEditing) {
+            // ✅ 編集モード（画像アップロード）
+            if (isImageFile && isEditing) {
+              return (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setImageFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt="プレビュー"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "60vh",
+                        objectFit: "contain",
+                        marginTop: 8,
+                      }}
+                    />
+                  )}
+                </Box>
+              );
+            }
+
+            // ✅ テキストファイル編集モード
+            if (isEditing) {
+              return (
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={20}
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  variant="outlined"
+                />
+              );
+            }
+
+            // ✅ 通常テキスト表示
             return (
-              <TextField
-                fullWidth
-                multiline
-                rows={20}
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                variant="outlined"
-              />
+              <SyntaxHighlighter
+                language={language}
+                style={vscDarkPlus}
+                showLineNumbers
+                customStyle={{ maxHeight: "60vh" }}
+              >
+                {content}
+              </SyntaxHighlighter>
             );
-          }
+          })()}
+        </DialogContent>
 
-          // 通常テキスト or コード
-          return (
-            <SyntaxHighlighter
-              language={language}
-              style={vscDarkPlus}
-              showLineNumbers
-              customStyle={{ maxHeight: "60vh" }}
-            >
-              {content}
-            </SyntaxHighlighter>
-          );
-        })()}
-      </DialogContent>
+        {/* --- Footer --- */}
+        <DialogActions>
+          {isEditing ? (
+            <>
+              <Button onClick={() => setIsEditing(false)}>キャンセル</Button>
+              <Button onClick={handleSave}>保存</Button>
+            </>
+          ) : (
+            isEditable && <Button onClick={() => setIsEditing(true)}>編集</Button>
+          )}
+          <Button onClick={onClose}>閉じる</Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* --- Footer --- */}
-      <DialogActions>
-        {isEditing ? (
-          <>
-            <Button onClick={() => setIsEditing(false)}>キャンセル</Button>
-            <Button onClick={handleSave}>保存</Button>
-          </>
-        ) : (
-          isEditable && <Button onClick={() => setIsEditing(true)}>編集</Button>
-        )}
-        <Button onClick={onClose}>閉じる</Button>
-      </DialogActions>
-    </Dialog>
-
-    {/* --- Snackbar --- */}
-    <Snackbar
-      open={snackbarOpen}
-      autoHideDuration={3000}
-      onClose={handleSnackbarClose}
-    >
-      <Alert severity="success" sx={{ width: "100%" }}>
-        クリップボードにコピーしました！
-      </Alert>
-    </Snackbar>
-  </>
-);
-}
+      {/* --- Snackbar --- */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert severity="success" sx={{ width: "100%" }}>
+          クリップボードにコピーしました！
+        </Alert>
+      </Snackbar>
+    </>
+  );
+};
 
 export default GitHubFileViewerDialog;
