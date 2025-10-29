@@ -19,7 +19,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useGetImageUrl } from "./useGetImageUrl";
 
-// Snackbar用のAlertコンポーネント
+// Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
   props,
   ref
@@ -51,12 +51,12 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
-  const mimeType = `image/${extension === "jpg" ? "jpeg" : extension}`;
 
+  // Base64画像かどうか判定
+  const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
+
+  // 画像プレビュー用URL（編集モードでアップロードした場合）
   const imageUrl = useGetImageUrl(imageFile);
-
-  // Base64かどうか簡易判定
-  const isBase64Image = /^[A-Za-z0-9+/=]+\s*$/.test(content.trim());
 
   useEffect(() => {
     setEditedContent(content);
@@ -84,10 +84,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     }
   };
 
-  const handleSnackbarClose = (
-    _event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
+  const handleSnackbarClose = (_event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
@@ -146,23 +143,14 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         {/* Main Content */}
         <DialogContent dividers sx={{ position: "relative" }}>
           {(() => {
-            // Base64画像プレビュー
+            // Base64画像プレビュー（非編集モード）
             if (isImageFile && isBase64Image && !isEditing) {
               return (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    position: "relative",
-                    backgroundColor: "#1e1e1e",
-                    overflow: "hidden",
-                    maxHeight: "70vh",
-                  }}
-                >
+                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", backgroundColor: "#1e1e1e", overflow: "hidden", maxHeight: "70vh" }}>
                   <img
-                    src={`data:${mimeType};base64,${content.replace(/\s/g, "")}`}
+                    src={`data:image/${extension};base64,${content.replace(/\s/g, "")}`}
                     alt={path}
+                    style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", cursor: "zoom-in", transition: "transform 0.3s ease" }}
                     onClick={(e) => {
                       const img = e.currentTarget;
                       if (img.style.transform === "scale(2)") {
@@ -173,25 +161,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                         img.style.cursor = "zoom-out";
                       }
                     }}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "70vh",
-                      objectFit: "contain",
-                      cursor: "zoom-in",
-                      transition: "transform 0.3s ease",
-                    }}
                   />
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      bottom: 8,
-                      right: 16,
-                      color: "#ccc",
-                      fontSize: "0.8rem",
-                    }}
-                  >
-                    クリックで拡大／縮小
-                  </Box>
+                  <Box sx={{ position: "absolute", bottom: 8, right: 16, color: "#ccc", fontSize: "0.8rem" }}>クリックで拡大／縮小</Box>
                 </Box>
               );
             }
@@ -204,27 +175,15 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setImageFile(e.target.files[0]);
-                      }
+                      if (e.target.files && e.target.files[0]) setImageFile(e.target.files[0]);
                     }}
                   />
-                  {imageUrl && (
-                    <img
-                      src={`data:${mimeType};base64,${content.replace(/\s/g, "")}`}
-                      alt={path}
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "70vh",
-                        objectFit: "contain",
-                      }}
-                    />
-                  )}
+                  {imageUrl && <img src={imageUrl} alt="プレビュー" style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain", marginTop: 8 }} />}
                 </Box>
               );
             }
 
-            // テキストファイル編集モード
+            // 編集モード（テキスト）
             if (isEditing) {
               return (
                 <TextField
@@ -239,16 +198,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
             }
 
             // 通常テキスト／コード表示
-            return (
-              <SyntaxHighlighter
-                language={language}
-                style={vscDarkPlus}
-                showLineNumbers
-                customStyle={{ maxHeight: "60vh" }}
-              >
-                {content}
-              </SyntaxHighlighter>
-            );
+            return <SyntaxHighlighter language={language} style={vscDarkPlus} showLineNumbers customStyle={{ maxHeight: "60vh" }}>{content}</SyntaxHighlighter>;
           })()}
         </DialogContent>
 
