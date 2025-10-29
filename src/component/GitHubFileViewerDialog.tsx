@@ -301,5 +301,6 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     </Snackbar>
   </>
 );
+}
 
 export default GitHubFileViewerDialog;
