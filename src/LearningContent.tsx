@@ -128,9 +128,10 @@ export default function LearningContent() {
     );
 
     const data = response.data as any;
+    const ext = path.split(".").pop() || "";
 
     return {
-      content: decodeBase64(data.content),
+      content: decodeBase64(data.content, ext),
       sha: data.sha,
       base64Content: data.content,
     };
