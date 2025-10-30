@@ -47,7 +47,7 @@ const decodeBase64 = (base64String: string) => {
     return decoded;
   } catch (e) {
     console.error("Failed to decode base64 string", e);
-    return "コンテンツのデコードに失敗しました。";
+    return base64String;
   }
 };
 
