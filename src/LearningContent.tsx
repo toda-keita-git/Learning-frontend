@@ -250,8 +250,8 @@ export default function LearningContent() {
     if (!("content" in response.data)) {
       throw new Error("取得したデータがファイル形式ではありません");
     }
-
-    const content = decodeBase64(response.data.content);
+    const ext = path.split(".").pop() || "";
+    const content = decodeBase64(response.data.content, ext);
     const isHistorical = !!commitSha;
 
     setViewingContent({
