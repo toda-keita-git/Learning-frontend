@@ -32,24 +32,25 @@ import NewCategoryDialog from "./component/NewCategoryDialog";
 
 const drawerWidth = 240;
 
-// Base64をデコードするヘルパー関数
+// ✅ 安全なBase64デコード（Unicode対応）
 const decodeBase64 = (base64String: string) => {
   try {
-    // atobはASCII文字しか扱えないため、Unicode文字化けを防ぐための処理
-    const decoded = decodeURIComponent(
-      Array.prototype.map
-        .call(
-          atob(base64String),
-          (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
-        )
-        .join("")
-    );
+    // URL-safe Base64対応
+    base64String = base64String.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64String.length % 4) base64String += "=";
+
+    // atobでバイナリ化 → TextDecoderでUTF-8として読み取る
+    const binary = atob(base64String);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const decoded = new TextDecoder("utf-8").decode(bytes);
+
     return decoded;
   } catch (e) {
-    console.error("Failed to decode base64 string", e);
-    return base64String;
+    console.error("Failed to decode base64 string:", e);
+    return "デコードに失敗しました";
   }
 };
+
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
