@@ -52,6 +52,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
 
+  console.log(content);
+
   // Base64画像かどうか判定
   const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
 
