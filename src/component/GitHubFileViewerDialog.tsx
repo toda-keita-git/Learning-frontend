@@ -17,7 +17,6 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { useGetImageUrl } from "./useGetImageUrl";
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
