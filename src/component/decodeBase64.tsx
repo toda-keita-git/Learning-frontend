@@ -3,7 +3,7 @@
  * - テキスト/JSONはデコードして返す
  * - 画像などはそのまま返す
  */
-export const decodeBase64Safe = (base64String: string): string => {
+export const decodeBase64 = (base64String: string): string => {
   try {
     // data:image 形式ならそのまま返す
     if (base64String.startsWith("data:image")) return base64String;
