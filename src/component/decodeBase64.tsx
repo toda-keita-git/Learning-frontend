@@ -1,28 +1,26 @@
 /**
- * Base64を安全にデコードするヘルパー関数
- * - テキスト/JSONをデコードして返す
- * - 画像などの場合はそのままBase64データURLを返す
+ * Base64を安全にデコード
+ * - テキスト/JSONはデコードして返す
+ * - 画像などはそのまま返す
  */
-export const decodeBase64 = (base64String: string): string => {
+export const decodeBase64Safe = (base64String: string): string => {
   try {
-    // データURL形式（例: "data:image/png;base64,..."）なら、そのまま返す
-    if (base64String.startsWith("data:image")) {
-      return base64String;
-    }
+    // data:image 形式ならそのまま返す
+    if (base64String.startsWith("data:image")) return base64String;
 
-    // 通常のBase64データをデコード
+    // 改行や空白を削除して atob に渡す
+    const cleaned = base64String.replace(/\s/g, "");
+
+    // デコード
     const decoded = decodeURIComponent(
       Array.prototype.map
-        .call(
-          atob(base64String),
-          (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
-        )
+        .call(atob(cleaned), (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
 
     return decoded;
   } catch (e) {
-    console.error("Failed to decode base64 string", e);
-    return "コンテンツのデコードに失敗しました。";
+    console.warn("Base64のデコードに失敗しました。元の文字列を返します。", e);
+    return base64String; // 失敗した場合は元のBase64を返す
   }
 };
