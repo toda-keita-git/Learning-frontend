@@ -32,24 +32,56 @@ import NewCategoryDialog from "./component/NewCategoryDialog";
 
 const drawerWidth = 240;
 
-// ✅ 安全なBase64デコード（Unicode対応）
-const decodeBase64 = (base64String: string) => {
+/**
+ * Base64を安全にデコード（テキスト・画像対応）
+ * @param base64String Base64文字列
+ * @returns テキスト文字列またはBlob URL
+ */
+export const decodeBase64Safe = (base64String: string): string | null => {
   try {
+    if (!base64String) return null;
+
+    // 改行・空白削除
+    let clean = base64String.replace(/[\r\n\s]+/g, "").trim();
+
+    // dataURLの場合 → そのまま返す
+    if (clean.startsWith("data:image/")) {
+      return clean; // 画像URLとして使用可能
+    }
+
     // URL-safe Base64対応
-    base64String = base64String.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64String.length % 4) base64String += "=";
+    clean = clean.replace(/-/g, "+").replace(/_/g, "/");
 
-    // atobでバイナリ化 → TextDecoderでUTF-8として読み取る
-    const binary = atob(base64String);
+    // 4の倍数にパディング
+    while (clean.length % 4) {
+      clean += "=";
+    }
+
+    // Base64文字列をデコード
+    const binary = atob(clean);
     const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    const decoded = new TextDecoder("utf-8").decode(bytes);
 
+    // 画像データの可能性チェック（PNG/JPEG/GIF）
+    const isImage =
+      bytes[0] === 0x89 || // PNG
+      (bytes[0] === 0xff && bytes[1] === 0xd8) || // JPEG
+      (bytes[0] === 0x47 && bytes[1] === 0x49); // GIF
+
+    if (isImage) {
+      // Blob URL生成（画像プレビュー用）
+      const blob = new Blob([bytes], { type: "image/*" });
+      return URL.createObjectURL(blob);
+    }
+
+    // テキストとしてデコード（UTF-8）
+    const decoded = new TextDecoder("utf-8").decode(bytes);
     return decoded;
   } catch (e) {
     console.error("Failed to decode base64 string:", e);
-    return "デコードに失敗しました";
+    return null;
   }
 };
+
 
 
 // APIデータの型定義を実際のデータ構造に合わせる
