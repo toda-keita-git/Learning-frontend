@@ -129,6 +129,8 @@ export default function LearningContent() {
 
     const data = response.data as any;
 
+    console.log(data.content);
+
     return {
       content: decodeBase64(data.content),
       sha: data.sha,
