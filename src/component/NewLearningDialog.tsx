@@ -549,7 +549,8 @@ export default function NewLearningDialog({
               <Box sx={{ p: 2 }}>
                 <Typography color="error">{previewError}</Typography>
               </Box>
-            ) : workbook ? ( // ★ workbookが存在する場合、シート表示エリアをレンダリング
+            ) : workbook ? (
+              // Excel表示
               <>
                 <Box
                   sx={{
@@ -560,66 +561,77 @@ export default function NewLearningDialog({
                 >
                   <Tabs
                     value={activeSheetIndex}
-                    onChange={(_event, newValue) =>
-                      setActiveSheetIndex(newValue)
-                    }
+                    onChange={(_event, newValue) => setActiveSheetIndex(newValue)}
                     variant="scrollable"
                     scrollButtons="auto"
                     aria-label="Excel sheets"
                   >
                     {workbook.SheetNames.map((sheetName, index) => (
-                      <Tab
-                        label={sheetName}
-                        key={sheetName}
-                        id={`sheet-tab-${index}`}
-                      />
+                      <Tab label={sheetName} key={sheetName} id={`sheet-tab-${index}`} />
                     ))}
                   </Tabs>
                 </Box>
                 {spreadsheetData && (
-                  // ★ spreadsheetDataがあればSpreadsheetコンポーネントを表示
-                  <div
-                    style={{ width: "100%", height: "100%", overflow: "auto" }}
-                  >
-                    <Spreadsheet
-                      data={spreadsheetData}
-                      onChange={handleSpreadsheetChange}
-                    />
+                  <div style={{ width: "100%", height: "100%", overflow: "auto" }}>
+                    <Spreadsheet data={spreadsheetData} onChange={handleSpreadsheetChange} />
                   </div>
                 )}
               </>
             ) : fileContent ? (
-              // ★ fileContentがあれば従来の表示 (テキストファイル用)
-              <div
-                style={{
-                  flexGrow: 1,
-                  overflow: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <Box sx={{ flexGrow: 1 }}>
-                  <SyntaxHighlighter
-                    language={fileType}
-                    style={vscDarkPlus}
-                    showLineNumbers
-                    customStyle={{ margin: 0, height: "100%" }}
-                  >
-                    {fileContent}
-                  </SyntaxHighlighter>
-                </Box>
-                {/* 編集ボタンはテキストファイルの場合のみ表示 */}
-                <Box sx={{ mt: 1, textAlign: "right" }}>
-                  {fileType !== "binary" && (
-                    <Button
-                      size="small"
-                      onClick={() => setIsEditingFile(!isEditingFile)}
+              // テキスト or 画像表示
+              (() => {
+                if (fileType === "image") {
+                  return (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        flexGrow: 1,
+                      }}
                     >
-                      {isEditingFile ? "プレビューに戻る" : "編集"}
-                    </Button>
-                  )}
-                </Box>
-              </div>
+                      <img
+                        src={fileContent}
+                        alt={github_path}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "50vh",
+                          objectFit: "contain",
+                        }}
+                      />
+                    </Box>
+                  );
+                } else {
+                  return (
+                    <div
+                      style={{
+                        flexGrow: 1,
+                        overflow: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <Box sx={{ flexGrow: 1 }}>
+                        <SyntaxHighlighter
+                          language={fileType}
+                          style={vscDarkPlus}
+                          showLineNumbers
+                          customStyle={{ margin: 0, height: "100%" }}
+                        >
+                          {fileContent}
+                        </SyntaxHighlighter>
+                      </Box>
+                      {fileType !== "binary" && (
+                        <Box sx={{ mt: 1, textAlign: "right" }}>
+                          <Button size="small" onClick={() => setIsEditingFile(!isEditingFile)}>
+                            {isEditingFile ? "プレビューに戻る" : "編集"}
+                          </Button>
+                        </Box>
+                      )}
+                    </div>
+                  );
+                }
+              })()
             ) : (
               <Box
                 sx={{
@@ -633,6 +645,8 @@ export default function NewLearningDialog({
                   ファイル選択するとプレビュー表示されます。
                 </Typography>
               </Box>
+            )}
+          </Box>
             )}
           </Box>
         </DialogContent>
