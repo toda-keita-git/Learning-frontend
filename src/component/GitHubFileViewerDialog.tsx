@@ -14,9 +14,9 @@ import {
 import type { AlertProps } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useGetImageUrl } from "./useGetImageUrl"; // ✅ 画像アップロード用hook
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -30,6 +30,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   path: string;
+  /** すでにデコードされたテキストまたは data:image/... URL */
   content: string;
   isEditable: boolean;
   onUpdateFile: (path: string, newContent: string) => Promise<void>;
@@ -51,12 +52,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
 
-  console.log(content);
-
-  // Base64画像かどうか判定
-  const isBase64Image = /^([A-Za-z0-9+/=]+\s*)+$/.test(content.trim());
-
-  // 画像プレビュー用URL（編集モードでアップロードした場合）
+  // 画像プレビューURL（編集モードでアップロードした場合）
   const imageUrl = useGetImageUrl(imageFile);
 
   useEffect(() => {
@@ -85,7 +81,10 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     }
   };
 
-  const handleSnackbarClose = (_event?: React.SyntheticEvent | Event, reason?: string) => {
+  const handleSnackbarClose = (
+    _event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
@@ -132,7 +131,12 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         >
           {path}
           <Box>
-            <IconButton aria-label="copy" onClick={handleCopyClick} color="primary" sx={{ mr: 1 }}>
+            <IconButton
+              aria-label="copy"
+              onClick={handleCopyClick}
+              color="primary"
+              sx={{ mr: 1 }}
+            >
               <ContentCopyIcon />
             </IconButton>
             <IconButton aria-label="close" onClick={onClose}>
@@ -144,14 +148,30 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         {/* Main Content */}
         <DialogContent dividers sx={{ position: "relative" }}>
           {(() => {
-            // Base64画像プレビュー（非編集モード）
-            if (isImageFile && isBase64Image && !isEditing) {
+            // --- 画像ファイル（非編集） ---
+            if (isImageFile && !isEditing && content.startsWith("data:image")) {
               return (
-                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", backgroundColor: "#1e1e1e", overflow: "hidden", maxHeight: "70vh" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    position: "relative",
+                    backgroundColor: "#1e1e1e",
+                    overflow: "hidden",
+                    maxHeight: "70vh",
+                  }}
+                >
                   <img
-                    src={`data:image/${extension};base64,${content.replace(/\s/g, "")}`}
+                    src={content}
                     alt={path}
-                    style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", cursor: "zoom-in", transition: "transform 0.3s ease" }}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "70vh",
+                      objectFit: "contain",
+                      cursor: "zoom-in",
+                      transition: "transform 0.3s ease",
+                    }}
                     onClick={(e) => {
                       const img = e.currentTarget;
                       if (img.style.transform === "scale(2)") {
@@ -163,28 +183,56 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                       }
                     }}
                   />
-                  <Box sx={{ position: "absolute", bottom: 8, right: 16, color: "#ccc", fontSize: "0.8rem" }}>クリックで拡大／縮小</Box>
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 8,
+                      right: 16,
+                      color: "#ccc",
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    クリックで拡大／縮小
+                  </Box>
                 </Box>
               );
             }
 
-            // 編集モード（画像アップロード）
+            // --- 編集モード（画像） ---
             if (isImageFile && isEditing) {
               return (
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) setImageFile(e.target.files[0]);
+                      if (e.target.files && e.target.files[0])
+                        setImageFile(e.target.files[0]);
                     }}
                   />
-                  {imageUrl && <img src={imageUrl} alt="プレビュー" style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain", marginTop: 8 }} />}
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt="プレビュー"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "60vh",
+                        objectFit: "contain",
+                        marginTop: 8,
+                      }}
+                    />
+                  )}
                 </Box>
               );
             }
 
-            // 編集モード（テキスト）
+            // --- 編集モード（テキスト） ---
             if (isEditing) {
               return (
                 <TextField
@@ -198,8 +246,17 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
-            // 通常テキスト／コード表示
-            return <SyntaxHighlighter language={language} style={vscDarkPlus} showLineNumbers customStyle={{ maxHeight: "60vh" }}>{content}</SyntaxHighlighter>;
+            // --- 通常テキスト／コード表示 ---
+            return (
+              <SyntaxHighlighter
+                language={language}
+                style={vscDarkPlus}
+                showLineNumbers
+                customStyle={{ maxHeight: "60vh" }}
+              >
+                {content}
+              </SyntaxHighlighter>
+            );
           })()}
         </DialogContent>
 
@@ -218,7 +275,11 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
       </Dialog>
 
       {/* Snackbar */}
-      <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+      >
         <Alert severity="success" sx={{ width: "100%" }}>
           クリップボードにコピーしました！
         </Alert>
