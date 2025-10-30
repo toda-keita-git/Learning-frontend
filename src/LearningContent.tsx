@@ -29,7 +29,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
-import { decodeBase64 } from "./component/decodeBase64";
+import { decodeBase64Text,getImageDataUrl } from "./component/decodeBase64";
 
 
 const drawerWidth = 240;
@@ -129,9 +129,14 @@ export default function LearningContent() {
 
     const data = response.data as any;
     const ext = path.split(".").pop() || "";
+    const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
+
+    const content = isImageFile
+      ? getImageDataUrl(data.content, ext)   // 画像は data URL
+      : decodeBase64Text(data.content);     // テキストは安全にデコード
 
     return {
-      content: decodeBase64(data.content, ext),
+      content,
       sha: data.sha,
       base64Content: data.content,
     };
@@ -251,7 +256,11 @@ export default function LearningContent() {
       throw new Error("取得したデータがファイル形式ではありません");
     }
     const ext = path.split(".").pop() || "";
-    const content = decodeBase64(response.data.content, ext);
+    const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
+
+    const content = isImageFile
+      ? getImageDataUrl(response.data.content, ext)   // 画像は data URL
+      : decodeBase64Text(response.data.content);     // テキストは安全にデコード
     const isHistorical = !!commitSha;
 
     setViewingContent({

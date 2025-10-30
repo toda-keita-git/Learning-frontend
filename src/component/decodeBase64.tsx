@@ -1,21 +1,26 @@
 /**
- * GitHub の Base64 を安全に処理
+ * テキスト用 Base64 を安全にデコード
  */
-export const decodeBase64 = (base64: string, extension: string): string => {
-  // 画像やバイナリはデコードせずそのまま返す
-  const imageExtensions = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"];
-  if (imageExtensions.includes(extension.toLowerCase())) return base64;
-
+export const decodeBase64Text = (base64String: string): string => {
   try {
-    // 改行・空白を削除して atob
-    const cleaned = base64.replace(/\s/g, "");
+    // 改行や空白を削除
+    const cleaned = base64String.replace(/\s/g, "");
+    // atob で ASCII 文字列に変換
     return decodeURIComponent(
       Array.prototype.map
         .call(atob(cleaned), (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
   } catch (e) {
-    console.warn("テキストデコードに失敗。元の文字列を返します", e);
-    return base64;
+    console.warn("Failed to decode text Base64, returning raw string", e);
+    return base64String;
   }
+};
+
+/**
+ * 画像用 Base64 → data URL
+ */
+export const getImageDataUrl = (base64: string, ext: string) => {
+  const cleaned = base64.replace(/\s/g, "");
+  return `data:image/${ext};base64,${cleaned}`;
 };
