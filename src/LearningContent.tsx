@@ -29,60 +29,10 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
+import { decodeBase64Safe } from "./decodeBase64Safe";
+
 
 const drawerWidth = 240;
-
-/**
- * Base64を安全にデコード（テキスト・画像対応）
- * @param base64String Base64文字列
- * @returns テキスト文字列またはBlob URL
- */
-export const decodeBase64Safe = (base64String: string): string | null => {
-  try {
-    if (!base64String) return null;
-
-    // 改行・空白削除
-    let clean = base64String.replace(/[\r\n\s]+/g, "").trim();
-
-    // dataURLの場合 → そのまま返す
-    if (clean.startsWith("data:image/")) {
-      return clean; // 画像URLとして使用可能
-    }
-
-    // URL-safe Base64対応
-    clean = clean.replace(/-/g, "+").replace(/_/g, "/");
-
-    // 4の倍数にパディング
-    while (clean.length % 4) {
-      clean += "=";
-    }
-
-    // Base64文字列をデコード
-    const binary = atob(clean);
-    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-
-    // 画像データの可能性チェック（PNG/JPEG/GIF）
-    const isImage =
-      bytes[0] === 0x89 || // PNG
-      (bytes[0] === 0xff && bytes[1] === 0xd8) || // JPEG
-      (bytes[0] === 0x47 && bytes[1] === 0x49); // GIF
-
-    if (isImage) {
-      // Blob URL生成（画像プレビュー用）
-      const blob = new Blob([bytes], { type: "image/*" });
-      return URL.createObjectURL(blob);
-    }
-
-    // テキストとしてデコード（UTF-8）
-    const decoded = new TextDecoder("utf-8").decode(bytes);
-    return decoded;
-  } catch (e) {
-    console.error("Failed to decode base64 string:", e);
-    return null;
-  }
-};
-
-
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
