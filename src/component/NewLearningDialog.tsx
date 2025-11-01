@@ -584,13 +584,13 @@ export default function NewLearningDialog({
                 <img
                   src={
                     fileContent.startsWith("data:")
-                      ? fileContent // すでに data:image/... の場合
-                      : `data:image/${github_path.split(".").pop()};base64,${fileContent}`
+                      ? fileContent
+                      : `data:image/${github_path.split(".").pop()?.toLowerCase()};base64,${fileContent}`
                   }
                   alt={github_path}
                   style={{
                     maxWidth: "100%",
-                    maxHeight: "50vh",
+                    maxHeight: "60vh",
                     objectFit: "contain",
                   }}
                 />
