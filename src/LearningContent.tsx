@@ -118,42 +118,55 @@ export default function LearningContent() {
   }
 
   try {
-    const response = await octokit.request(
-      "GET /repos/{owner}/{repo}/contents/{path}",
-      {
-        owner: githubLogin,
-        repo: repoName,
-        path,
-      }
-    );
-
-    const data = response.data as any;
-    const ext = path.split(".").pop() || "";
-    const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
-
-    let content = "";
-    let base64Content = "";
-
-    if (isImageFile) {
-      if (data.content && data.content.trim() !== "") {
-        // ✅ Base64データがある通常パターン
-        base64Content = data.content.replace(/\r?\n/g, "");
-        content = `data:image/${ext};base64,${base64Content}`;
-      } else {
-        // ⚠️ LFSや大容量ファイルなどの場合
-        // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
-        content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
-      }
-    } else {
-      // テキストの場合は通常のBase64デコード
-      content = decodeBase64Text(data.content);
+  const response = await octokit.request(
+    "GET /repos/{owner}/{repo}/contents/{path}",
+    {
+      owner: githubLogin,
+      repo: repoName,
+      path,
     }
+  );
 
-    return {
-      content,
-      sha: data.sha,
-      base64Content: data.content,
-    };
+  const data = response.data as any;
+  const ext = path.split(".").pop()?.toLowerCase() || "";
+  const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
+
+  let content = "";
+  let base64Content = "";
+
+  if (isImageFile) {
+    if (data.content && data.content.trim() !== "") {
+      // ✅ Base64データがある通常パターン
+      base64Content = data.content.replace(/\r?\n/g, "");
+      content = `data:image/${ext};base64,${base64Content}`;
+    } else {
+      // ⚠️ Base64が空（LFSや大容量ファイルなど）
+      // ✅ 日本語・スペースをURLエンコードしてGitHub raw URLを生成
+      const encodedPath = encodeURIComponent(path)
+        .replace(/%2F/g, "/") // パス区切りは残す
+        .replace(/%20/g, " "); // 空白はGitHub上ではそのまま扱われる
+      content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${encodedPath}`;
+    }
+  } else if (data.content) {
+    // ✅ テキストの場合：Base64デコード
+    try {
+      const decoded = decodeURIComponent(
+        Array.prototype.map
+          .call(atob(data.content), (c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      content = decoded;
+    } catch (err) {
+      console.error("テキストデコード失敗:", err);
+      content = "テキストデコードに失敗しました。";
+    }
+  }
+
+  return {
+    content,
+    sha: data.sha,
+    base64Content: data.content,
+  };
   } catch (error: any) {
     console.error("Error fetching file for dialog:", error);
     return null;
