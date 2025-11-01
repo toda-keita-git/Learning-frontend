@@ -21,7 +21,7 @@ import GitHubFileSelector from "./GitHubFileSelector";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { getFileType } from "./getFileType";
+import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
