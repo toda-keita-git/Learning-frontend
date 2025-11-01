@@ -133,9 +133,9 @@ export default function LearningContent() {
 
     let content = "";
     let base64Content = "";
-    let imageUrl = "";
 
     if (isImageFile) {
+      let imageUrl = "";
       if (data.content && data.content.trim() !== "") {
         // ✅ Base64データがある通常パターン
         base64Content = data.content.replace(/\r?\n/g, "");
@@ -276,9 +276,9 @@ export default function LearningContent() {
 
     let content = "";
     let base64Content = "";
-    let imageUrl = "";
 
     if (isImageFile) {
+      let imageUrl = "";
       if (response.data.content && response.data.content.trim() !== "") {
         // ✅ Base64データがある通常パターン
         base64Content = response.data.content.replace(/\r?\n/g, "");
