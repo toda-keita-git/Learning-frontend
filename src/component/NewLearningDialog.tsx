@@ -328,7 +328,7 @@ export default function NewLearningDialog({
             sx={{ mt: 2 }} />
           <Box sx={{ mt: 2 }}>
             <Typography component="legend">理解度</Typography>
-            <Rating value={understandingLevel} onChange={(_, v) => setUnderstandingLevel(v)} />
+            <Rating value={understandingLevel} onChange={(_, v) => setUnderstandingLevel(v ?? 0)} />
           </Box>
 
           {/* === GitHub連携 === */}

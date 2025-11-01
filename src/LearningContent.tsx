@@ -29,7 +29,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
-import { decodeBase64Text,getImageDataUrl } from "./component/decodeBase64";
+import { decodeBase64Text } from "./component/decodeBase64";
 
 
 const drawerWidth = 240;
@@ -284,7 +284,7 @@ export default function LearningContent() {
         base64Content = response.data.content.replace(/\r?\n/g, "");
         imageUrl = `data:image/${ext};base64,${base64Content}`;
       } else {
-        // ⚠️ LFSや大容量ファイルなどの場合
+        // ⚠️ LFSや大容量ファイルなどの場合F
         // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
         imageUrl = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
       }
