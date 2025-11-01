@@ -224,76 +224,63 @@ export default function NewLearningDialog({
 
   // ローカルファイルのプレビュー処理
   const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLocalFile(file);
-      setGithub_path(file.name);
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    setLocalFile(file);
+    setGithub_path(file.name);
 
-      setIsLoadingFile(true);
-      setPreviewError(null);
-      setFileContent("");
-      setSpreadsheetData(null); // ★ リセット
-      setFileSha(null);
-      setWorkbook(null); // workbookもリセット
-      setActiveSheetIndex(0);
+    setIsLoadingFile(true);
+    setPreviewError(null);
+    setFileContent("");
+    setSpreadsheetData(null);
+    setFileSha(null);
+    setWorkbook(null);
+    setActiveSheetIndex(0);
 
-      const reader = new FileReader();
-      const fileType = getFileType(file.name);
+    const reader = new FileReader();
+    const fileType = getFileType(file.name);
 
-      reader.onload = (event) => {
-        try {
-          const fileData = event.target?.result;
-          if (!fileData) throw new Error("ファイルの読み込みに失敗しました。");
+    reader.onload = (event) => {
+      try {
+        const fileData = event.target?.result;
+        if (!fileData) throw new Error("ファイルの読み込みに失敗しました。");
 
-          if (fileType === "excel") {
-            const wb = XLSX.read(fileData, { type: "array" });
-            setWorkbook(wb);
-          } else if (
-            fileType === "image"
-          ) {
-            // ✅ 画像プレビュー対応部分
-            const base64Data = fileData as string;
-            const mimeType = getMimeType(file.name);
-            const imageSrc = base64Data.startsWith("data:")
-              ? base64Data
-              : `data:${mimeType};base64,${base64Data}`;
-            setFileContent(imageSrc);
-          }  else if (fileType === "pdf") {
-            setPreviewError("PDFプレビューは現在サポートされていません。");
-          } else if (fileType === "binary") {
-            setPreviewError("このバイナリ形式のプレビューはサポートされていません。");
-          } else {
-            // テキスト系
-            setFileContent(fileData as string);
-          }
-        } catch (err) {
-          setPreviewError("ファイルのプレビューに失敗しました。");
-        } finally {
-          setIsLoadingFile(false);
+        if (fileType === "excel") {
+          const wb = XLSX.read(fileData, { type: "array" });
+          setWorkbook(wb);
+        } else if (fileType === "image") {
+          // ✅ 画像ファイルの場合：data URL をそのまま src に使う
+          setFileContent(fileData as string);
+        } else if (fileType === "pdf") {
+          setPreviewError("PDFプレビューは現在サポートされていません。");
+        } else if (fileType === "binary") {
+          setPreviewError("このバイナリファイル形式はプレビューできません。");
+        } else {
+          // ✅ テキスト系
+          setFileContent(fileData as string);
         }
-      };
-
-      reader.onerror = () => {
-        setPreviewError("ファイルの読み込み中にエラーが発生しました。");
+      } catch (err) {
+        setPreviewError("ファイルのプレビューに失敗しました。");
+      } finally {
         setIsLoadingFile(false);
-      };
-
-      if (fileType === "excel") {
-        reader.readAsArrayBuffer(file);
-      } else if (
-        fileType === "binary" ||
-        fileType === "image" ||
-        fileType === "pdf"
-      ) {
-        setIsLoadingFile(false);
-        setPreviewError(
-          `このファイル形式 (.${fileType}) のプレビューはサポートされていません。`
-        );
-      } else {
-        reader.readAsText(file);
       }
+    };
+
+    reader.onerror = () => {
+      setPreviewError("ファイルの読み込み中にエラーが発生しました。");
+      setIsLoadingFile(false);
+    };
+
+    if (fileType === "excel") {
+      reader.readAsArrayBuffer(file);
+    } else if (fileType === "image") {
+      reader.readAsDataURL(file); // ✅ 画像は base64 data URL 形式で読み込み
+    } else {
+      reader.readAsText(file);
     }
-  };
+  }
+};
+
 
   const handleFileSelectFromGitHub = (path: string) => {
     setGithub_path(path);
