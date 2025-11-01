@@ -29,7 +29,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
-import { decodeBase64Text,getImageDataUrl } from "./component/decodeBase64";
+import { decodeBase64Text } from "./component/decodeBase64";
 
 
 const drawerWidth = 240;
