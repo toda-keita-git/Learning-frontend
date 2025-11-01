@@ -592,12 +592,12 @@ export default function NewLearningDialog({
                   src={
                     fileContent.startsWith("data:")
                       ? fileContent
-                      : `data:image/${github_path.split(".").pop()?.toLowerCase()};base64,${fileContent}`
+                      : `data:${getMimeType(github_path)};base64,${fileContent}`
                   }
                   alt={github_path}
                   style={{
                     maxWidth: "100%",
-                    maxHeight: "60vh",
+                    maxHeight: "50vh",
                     objectFit: "contain",
                   }}
                 />

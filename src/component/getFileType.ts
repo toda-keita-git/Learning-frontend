@@ -155,32 +155,25 @@ export const getFileType = (path: string): string => {
 
 // MIMEタイプを取得するヘルパー関数
 export const getMimeType = (path: string): string => {
-  const extension = path.split(".").pop()?.toLowerCase();
-  switch (extension) {
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "gif":
-      return "image/gif";
-    case "webp":
-      return "image/webp";
-    case "svg":
-      return "image/svg+xml";
-    case "ico":
-      return "image/x-icon";
-    case "pdf":
-      return "application/pdf";
-    case "xlsx":
-      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    case "docx":
-      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    case "pptx":
-      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    case "zip":
-      return "application/zip";
-    default:
-      return "application/octet-stream";
-  }
+  const ext = path.split(".").pop()?.toLowerCase();
+
+  const mimeTypes: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    bmp: "image/bmp",
+    svg: "image/svg+xml",
+    webp: "image/webp",
+    ico: "image/x-icon",
+    txt: "text/plain",
+    md: "text/markdown",
+    json: "application/json",
+    js: "application/javascript",
+    ts: "application/typescript",
+    html: "text/html",
+    css: "text/css",
+  };
+
+  return mimeTypes[ext ?? ""] || "application/octet-stream";
 };
