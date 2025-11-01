@@ -573,25 +573,29 @@ export default function NewLearningDialog({
             ) : fileContent ? (
               // ★ JSX 直接条件分岐で返す
               fileType === "image" ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    flexGrow: 1,
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  flexGrow: 1,
+                }}
+              >
+                <img
+                  src={
+                    fileContent.startsWith("data:")
+                      ? fileContent // すでに data:image/... の場合
+                      : `data:image/${github_path.split(".").pop()};base64,${fileContent}`
+                  }
+                  alt={github_path}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "50vh",
+                    objectFit: "contain",
                   }}
-                >
-                  <img
-                    src={fileContent}
-                    alt={github_path}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "50vh",
-                      objectFit: "contain",
-                    }}
-                  />
-                </Box>
-              ) : (
+                />
+              </Box>
+            ) : (
                 <div
                   style={{
                     flexGrow: 1,
