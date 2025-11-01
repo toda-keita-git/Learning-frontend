@@ -133,17 +133,16 @@ export default function LearningContent() {
 
     let content = "";
     let base64Content = "";
-    let imageUrl = "";
 
     if (isImageFile) {
       if (data.content && data.content.trim() !== "") {
         // ✅ Base64データがある通常パターン
         base64Content = data.content.replace(/\r?\n/g, "");
-        imageUrl = `data:image/${ext};base64,${base64Content}`;
+        content = `data:image/${ext};base64,${base64Content}`;
       } else {
         // ⚠️ LFSや大容量ファイルなどの場合
         // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
-        imageUrl = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
+        content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
       }
     } else {
       // テキストの場合は通常のBase64デコード
@@ -276,17 +275,16 @@ export default function LearningContent() {
 
     let content = "";
     let base64Content = "";
-    let imageUrl = "";
 
     if (isImageFile) {
       if (response.data.content && response.data.content.trim() !== "") {
         // ✅ Base64データがある通常パターン
         base64Content = response.data.content.replace(/\r?\n/g, "");
-        imageUrl = `data:image/${ext};base64,${base64Content}`;
+        content = `data:image/${ext};base64,${base64Content}`;
       } else {
         // ⚠️ LFSや大容量ファイルなどの場合
         // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
-        imageUrl = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
+        content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
       }
     } else {
       // テキストの場合は通常のBase64デコード

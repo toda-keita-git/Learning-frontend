@@ -582,7 +582,7 @@ export default function NewLearningDialog({
                   }}
                 >
                   <img
-                    src={fileContent.imageUrl}
+                    src={fileContent}
                     alt={github_path}
                     style={{
                       maxWidth: "100%",
