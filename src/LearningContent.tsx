@@ -129,13 +129,26 @@ export default function LearningContent() {
 
     const data = response.data as any;
     const ext = path.split(".").pop() || "";
-        console.log("path:", path);
-    console.log("content preview:", data.content.slice(0, 100));
     const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
 
-    const content = isImageFile
-      ? getImageDataUrl(data.content, ext)   // 画像は data URL
-      : decodeBase64Text(data.content);     // テキストは安全にデコード
+    let content = "";
+    let base64Content = "";
+    let imageUrl = "";
+
+    if (isImageFile) {
+      if (data.content && data.content.trim() !== "") {
+        // ✅ Base64データがある通常パターン
+        base64Content = data.content.replace(/\r?\n/g, "");
+        imageUrl = `data:image/${ext};base64,${base64Content}`;
+      } else {
+        // ⚠️ LFSや大容量ファイルなどの場合
+        // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
+        imageUrl = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
+      }
+    } else {
+      // テキストの場合は通常のBase64デコード
+      content = decodeBase64Text(data.content);
+    }
 
     return {
       content,
