@@ -202,7 +202,16 @@ export default function NewLearningDialog({
           setPreviewError("Excelファイルの解析に失敗しました。");
         }
       } else {
-        setFileContent(result.content);
+        const fileType = getFileType(pathToFetch);
+        const mimeType = getMimeType(pathToFetch);
+
+        if (fileType === "image" && result.base64Content) {
+          // GitHubから取得したBase64をそのまま画像SRCにする
+          setFileContent(`data:${mimeType};base64,${result.base64Content}`);
+        } else {
+          // 通常テキスト
+          setFileContent(result.content);
+        }
         setFileSha(result.sha);
       }
       setIsEditingFile(false);
