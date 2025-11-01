@@ -272,11 +272,26 @@ export default function LearningContent() {
     }
     const ext = path.split(".").pop() || "";
     const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
-
-    const content = isImageFile
-      ? getImageDataUrl(response.data.content, ext)   // 画像は data URL
-      : decodeBase64Text(response.data.content);     // テキストは安全にデコード
     const isHistorical = !!commitSha;
+
+    let content = "";
+    let base64Content = "";
+    let imageUrl = "";
+
+    if (isImageFile) {
+      if (response.data.content && response.data.content.trim() !== "") {
+        // ✅ Base64データがある通常パターン
+        base64Content = response.data.content.replace(/\r?\n/g, "");
+        imageUrl = `data:image/${ext};base64,${base64Content}`;
+      } else {
+        // ⚠️ LFSや大容量ファイルなどの場合
+        // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
+        imageUrl = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
+      }
+    } else {
+      // テキストの場合は通常のBase64デコード
+      content = decodeBase64Text(response.data.content);
+    }
 
     setViewingContent({
       path: response.data.path,

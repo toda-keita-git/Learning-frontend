@@ -483,157 +483,106 @@ export default function NewLearningDialog({
               }}
             />
           </Box>
-          {/* === GitHub連携 === */}
-          <Box sx={{ display: "flex", alignItems: "flex-end", mt: 2, gap: 1 }}>
-            <TextField
-              label="GitHub連携ファイル"
-              type="text"
-              fullWidth
-              variant="standard"
-              value={github_path}
-              // ★ ローカルファイル選択時はパスを編集可能にする
-              onChange={(e) => setGithub_path(e.target.value)}
-              placeholder={
-                localFile
-                  ? "コミット先のファイル名"
-                  : "ファイルを選択またはパスを入力"
-              }
-            />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleLocalFileSelect}
-              style={{ display: "none" }}
-            />
-            <IconButton
-              onClick={handleUploadButtonClick}
-              color="primary"
-              title="PCからアップロード"
-            >
-              <UploadFileIcon />
-            </IconButton>
-            <IconButton
-              onClick={() => setIsSelectorOpen(true)}
-              color="primary"
-              title="GitHubから選択"
-            >
-              <FolderOpenIcon />
-            </IconButton>
+         {/* === GitHub連携 === */}
+      <Box sx={{ display: "flex", alignItems: "flex-end", mt: 2, gap: 1 }}>
+        <TextField
+          label="GitHub連携ファイル"
+          type="text"
+          fullWidth
+          variant="standard"
+          value={github_path}
+          onChange={(e) => setGithub_path(e.target.value)}
+          placeholder={localFile ? "コミット先のファイル名" : "ファイルを選択またはパスを入力"}
+        />
+        <input type="file" ref={fileInputRef} onChange={handleLocalFileSelect} style={{ display: "none" }} />
+        <IconButton onClick={handleUploadButtonClick} color="primary" title="PCからアップロード">
+          <UploadFileIcon />
+        </IconButton>
+        <IconButton color="primary" title="GitHubから選択">
+          <FolderOpenIcon />
+        </IconButton>
+      </Box>
+
+      {/* === プレビューエリア === */}
+      <Box
+        sx={{
+          mt: 2,
+          p: 1,
+          border: "1px solid #ddd",
+          borderRadius: 1,
+          minHeight: 150,
+          maxHeight: "50vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "#fff",
+        }}
+      >
+        {isLoadingFile ? (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexGrow: 1 }}>
+            <CircularProgress />
           </Box>
-          <Box
-            sx={{
-              mt: 2,
-              p: 1,
-              border: "1px solid #ddd",
-              borderRadius: 1,
-              minHeight: 150,
-              maxHeight: "50vh",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              bgcolor: "#fff",
-            }}
-          >
-            {isLoadingFile ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  flexGrow: 1,
-                }}
+        ) : previewError ? (
+          <Box sx={{ p: 2 }}>
+            <Typography color="error">{previewError}</Typography>
+          </Box>
+        ) : workbook ? (
+          <>
+            <Box sx={{ borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+              <Tabs
+                value={activeSheetIndex}
+                onChange={(_e, v) => setActiveSheetIndex(v)}
+                variant="scrollable"
+                scrollButtons="auto"
+                aria-label="Excel sheets"
               >
-                <CircularProgress />
-              </Box>
-            ) : previewError ? (
-              <Box sx={{ p: 2 }}>
-                <Typography color="error">{previewError}</Typography>
-              </Box>
-            ) : workbook ? (
-              <>
-                <Box sx={{ borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
-                  <Tabs
-                    value={activeSheetIndex}
-                    onChange={(_event, newValue) => setActiveSheetIndex(newValue)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    aria-label="Excel sheets"
-                  >
-                    {workbook.SheetNames.map((sheetName, index) => (
-                      <Tab label={sheetName} key={sheetName} id={`sheet-tab-${index}`} />
-                    ))}
-                  </Tabs>
-                </Box>
-                {spreadsheetData && (
-                  <div style={{ width: "100%", height: "100%", overflow: "auto" }}>
-                    <Spreadsheet data={spreadsheetData} onChange={handleSpreadsheetChange} />
-                  </div>
-                )}
-              </>
-            ) : fileContent ? (
-              // ★ JSX 直接条件分岐で返す
-              fileType === "image" ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    flexGrow: 1,
-                  }}
-                >
-                  <img
-                    src={fileContent}
-                    alt={github_path}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "50vh",
-                      objectFit: "contain",
-                    }}
-                  />
-                </Box>
-              ) : (
-                <div
-                  style={{
-                    flexGrow: 1,
-                    overflow: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Box sx={{ flexGrow: 1 }}>
-                    <SyntaxHighlighter
-                      language={fileType}
-                      style={vscDarkPlus}
-                      showLineNumbers
-                      customStyle={{ margin: 0, height: "100%" }}
-                    >
-                      {fileContent}
-                    </SyntaxHighlighter>
-                  </Box>
-                  {fileType !== "binary" && (
-                    <Box sx={{ mt: 1, textAlign: "right" }}>
-                      <Button size="small" onClick={() => setIsEditingFile(!isEditingFile)}>
-                        {isEditingFile ? "プレビューに戻る" : "編集"}
-                      </Button>
-                    </Box>
-                  )}
-                </div>
-              )
-            ) : (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  flexGrow: 1,
-                }}
-              >
-                <Typography color="textSecondary">
-                  ファイル選択するとプレビュー表示されます。
-                </Typography>
-              </Box>
+                {workbook.SheetNames.map((name, idx) => (
+                  <Tab label={name} key={name} id={`sheet-tab-${idx}`} />
+                ))}
+              </Tabs>
+            </Box>
+            {spreadsheetData && (
+              <div style={{ width: "100%", height: "100%", overflow: "auto" }}>
+                <pre>{JSON.stringify(spreadsheetData, null, 2)}</pre>
+              </div>
             )}
+          </>
+        ) : fileContent ? (
+          fileType === "image" ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexGrow: 1 }}>
+              <img
+                src={fileContent}
+                alt={github_path}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "50vh",
+                  objectFit: "contain",
+                  borderRadius: "8px",
+                }}
+              />
+            </Box>
+          ) : (
+            <div style={{ flexGrow: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+              <Box sx={{ flexGrow: 1 }}>
+                <SyntaxHighlighter language={fileType} style={vscDarkPlus} showLineNumbers customStyle={{ margin: 0 }}>
+                  {fileContent}
+                </SyntaxHighlighter>
+              </Box>
+              {fileType !== "binary" && (
+                <Box sx={{ mt: 1, textAlign: "right" }}>
+                  <Button size="small" onClick={() => setIsEditingFile(!isEditingFile)}>
+                    {isEditingFile ? "プレビューに戻る" : "編集"}
+                  </Button>
+                </Box>
+              )}
+            </div>
+          )
+        ) : (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexGrow: 1 }}>
+            <Typography color="textSecondary">ファイル選択するとプレビュー表示されます。</Typography>
           </Box>
+        )}
+      </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => handleClose()}>キャンセル</Button>
