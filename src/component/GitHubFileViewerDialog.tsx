@@ -129,7 +129,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         <DialogContent dividers sx={{ position: "relative" }}>
           {(() => {
             // 画像ファイル（編集不可）
-            if (isImageFile && content.startsWith("data:image")) {
+            if (isImageFile) {
               return (
                 <Box
                   sx={{
