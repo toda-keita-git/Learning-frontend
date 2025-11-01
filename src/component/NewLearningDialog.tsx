@@ -240,14 +240,21 @@ export default function NewLearningDialog({
             const wb = XLSX.read(fileData, { type: "array" });
             setWorkbook(wb);
           } else if (
-            fileType === "binary" ||
-            fileType === "image" ||
-            fileType === "pdf"
+            fileType === "image"
           ) {
-            setPreviewError(
-              `このファイル形式 (.${fileType}) のプレビューはサポートされていません。`
-            );
+            // ✅ 画像プレビュー対応部分
+            const base64Data = fileData as string;
+            const mimeType = getMimeType(file.name);
+            const imageSrc = base64Data.startsWith("data:")
+              ? base64Data
+              : `data:${mimeType};base64,${base64Data}`;
+            setFileContent(imageSrc);
+          }  else if (fileType === "pdf") {
+            setPreviewError("PDFプレビューは現在サポートされていません。");
+          } else if (fileType === "binary") {
+            setPreviewError("このバイナリ形式のプレビューはサポートされていません。");
           } else {
+            // テキスト系
             setFileContent(fileData as string);
           }
         } catch (err) {
