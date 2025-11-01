@@ -393,6 +393,9 @@ export default function NewLearningDialog({
 
   const fileType = getFileType(github_path);
 
+  console.log(fileType, getMimeType(github_path));
+  console.log(github_path);
+
   return (
     <>
       <Dialog open={open} onClose={() => handleClose()} fullWidth maxWidth="md">
