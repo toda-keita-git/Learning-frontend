@@ -129,6 +129,8 @@ export default function LearningContent() {
 
     const data = response.data as any;
     const ext = path.split(".").pop() || "";
+        console.log("path:", path);
+    console.log("content preview:", data.content.slice(0, 100));
     const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
 
     const content = isImageFile
