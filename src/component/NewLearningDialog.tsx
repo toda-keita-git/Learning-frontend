@@ -593,15 +593,20 @@ export default function NewLearningDialog({
               >
                 <img
                   src={
+                    // fileContent が Base64 っぽいならそのまま使う
                     fileContent.startsWith("data:")
                       ? fileContent
-                      : `data:${getMimeType(github_path)};base64,${fileContent}`
+                      : fileContent.match(/^[A-Za-z0-9+/=]+$/)
+                      ? `data:${getMimeType(github_path)};base64,${fileContent}`
+                      : // もし既にデコード済みの場合はエンコードし直す
+                        `data:${getMimeType(github_path)};base64,${btoa(fileContent)}`
                   }
                   alt={github_path}
                   style={{
                     maxWidth: "100%",
-                    maxHeight: "50vh",
+                    maxHeight: "60vh",
                     objectFit: "contain",
+                    borderRadius: "8px",
                   }}
                 />
               </Box>
