@@ -393,8 +393,10 @@ export default function NewLearningDialog({
 
   const fileType = getFileType(github_path);
 
-  console.log(fileType, getMimeType(github_path));
-  console.log(github_path);
+  console.log("fileType:", fileType);
+console.log("mime:", getMimeType(github_path));
+console.log("fileContent sample:", fileContent.slice(0, 100));
+
 
   return (
     <>
