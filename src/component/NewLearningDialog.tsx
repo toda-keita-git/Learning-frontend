@@ -29,6 +29,8 @@ import Spreadsheet from "react-spreadsheet"; // ★ react-spreadsheet をイン�
 import type { CellBase, Matrix } from "react-spreadsheet";
 import Tabs from "@mui/material/Tabs"; // ★ MUI Tabsをインポート
 import Tab from "@mui/material/Tab"; // ★ MUI Tabをインポート
+import GitHubFolderSelector from "./GitHubFolderSelector";
+
 
 // Base64エンコードを行うヘルパー関数
 const toBase64 = (file: File): Promise<string> =>
@@ -118,6 +120,9 @@ export default function NewLearningDialog({
       })
     );
   };
+
+  const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
+
 
   const handleSpreadsheetChange = (data: Matrix<CellBase<any>>) => {
     // ライブラリから渡されるデータ型 (Matrix<CellBase<any>>) を
@@ -655,10 +660,28 @@ export default function NewLearningDialog({
           </Button>
         </DialogActions>
       </Dialog>
+      <IconButton
+        onClick={() => setIsFolderSelectorOpen(true)}
+        color="primary"
+        title="GitHubフォルダー選択"
+      >
+        <FolderOpenIcon />
+      </IconButton>
       <GitHubFileSelector
         open={isSelectorOpen}
         onClose={() => setIsSelectorOpen(false)}
         onFileSelect={handleFileSelectFromGitHub}
+      />
+      <GitHubFolderSelector
+        open={isFolderSelectorOpen}
+        onClose={() => setIsFolderSelectorOpen(false)}
+        onSelectFolder={(folderPath) => {
+          setGithub_path(folderPath + "/"); // フォルダー選択時は末尾にスラッシュ
+          setIsFolderSelectorOpen(false);
+        }}
+        githubLogin={githubLogin}
+        repoName={repoName}
+        accessToken={accessToken}
       />
     </>
   );
