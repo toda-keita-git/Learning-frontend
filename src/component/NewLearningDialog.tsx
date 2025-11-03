@@ -30,7 +30,7 @@ import type { CellBase, Matrix } from "react-spreadsheet";
 import Tabs from "@mui/material/Tabs"; // ★ MUI Tabsをインポート
 import Tab from "@mui/material/Tab"; // ★ MUI Tabをインポート
 import GitHubFolderSelector from "./GitHubFolderSelector";
-import { AuthContext } from "../context";
+import { AuthContext } from "../Context";
 
 
 // Base64エンコードを行うヘルパー関数
