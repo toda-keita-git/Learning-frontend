@@ -22,6 +22,7 @@ export const AuthContext = createContext<AuthContextType>({
   userId: null,
   githubLogin: null,
   repoName: null, 
+  token: null,
   login: () => {},
 });
 
@@ -29,6 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [octokit, setOctokit] = useState<Octokit | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [githubLogin, setGithubLogin] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const effectRan = useRef(false);
   const repoName = githubLogin ? `learning-site-${githubLogin}` : null;
 
