@@ -86,8 +86,8 @@ export default function NewLearningDialog({
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const { githubLogin, repoName, accessToken } = useContext(AuthContext);
-
+  const { githubLogin, repoName, token } = useContext(AuthContext);
+  const accessToken = token;
 
   // ★ スプレッドシートのセルを表す型
   type SpreadsheetCell = {

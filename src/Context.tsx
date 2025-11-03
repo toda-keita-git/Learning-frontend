@@ -12,6 +12,7 @@ interface AuthContextType {
   userId: number | null;
   githubLogin: string | null;
   repoName: string | null; 
+  token: string | null;
   login: () => void;
 }
 
@@ -84,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     githubLogin,
     repoName,  // ここでリポジトリ名を追加
     userId,
+    token,
     login,
   }}
 >
