@@ -87,7 +87,6 @@ export default function NewLearningDialog({
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const { githubLogin, repoName, token } = useContext(AuthContext);
-  const accessToken = token;
 
   // ★ スプレッドシートのセルを表す型
   type SpreadsheetCell = {
@@ -685,7 +684,7 @@ export default function NewLearningDialog({
         }}
         githubLogin={githubLogin}
         repoName={repoName}
-        accessToken={accessToken}
+        accessToken={token}
       />
     </>
   );
