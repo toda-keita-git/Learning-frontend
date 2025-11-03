@@ -30,6 +30,7 @@ import type { CellBase, Matrix } from "react-spreadsheet";
 import Tabs from "@mui/material/Tabs"; // ★ MUI Tabsをインポート
 import Tab from "@mui/material/Tab"; // ★ MUI Tabをインポート
 import GitHubFolderSelector from "./GitHubFolderSelector";
+import { AuthContext } from "../context/AuthContext";
 
 
 // Base64エンコードを行うヘルパー関数
@@ -84,6 +85,9 @@ export default function NewLearningDialog({
   const [isEditingFile, setIsEditingFile] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const { githubLogin, repoName, accessToken } = useContext(AuthContext);
+
 
   // ★ スプレッドシートのセルを表す型
   type SpreadsheetCell = {
