@@ -86,7 +86,15 @@ export default function NewLearningDialog({
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const { githubLogin, repoName, token } = useContext(AuthContext);
+  // ← AuthContext から値を取得（これらは string | null の可能性がある想定）
+  const auth = useContext(AuthContext);
+
+  // --- 重要：AuthContext の値が null の可能性があるため、安全なフォールバック変数を作る ---
+  const githubLoginSafe: string = (auth && auth.githubLogin) ?? "";
+  const repoNameSafe: string = (auth && auth.repoName) ?? "";
+  const tokenSafe: string = (auth.token) ?? "";
+  // 上の tokenSafe は Context に 'token' ではなく 'accessToken' で入っている場合を念のためカバー
+
 
   // ★ スプレッドシートのセルを表す型
   type SpreadsheetCell = {
@@ -682,9 +690,9 @@ export default function NewLearningDialog({
           setGithub_path(folderPath + "/"); // フォルダー選択時は末尾にスラッシュ
           setIsFolderSelectorOpen(false);
         }}
-        githubLogin={githubLogin}
-        repoName={repoName}
-        accessToken={token}
+        githubLogin={githubLoginSafe}
+        repoName={repoNameSafe}
+        accessToken={tokenSafe}
       />
     </>
   );
