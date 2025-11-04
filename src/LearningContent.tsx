@@ -113,7 +113,7 @@ export default function LearningContent() {
   const tokenSafe: string = (auth.token) ?? "";
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
-  const [githubPath, setGithubPath] = useState("");
+  const [_githubPath, setGithubPath] = useState("");
 
 
 
