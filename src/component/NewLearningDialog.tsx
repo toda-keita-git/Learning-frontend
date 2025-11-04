@@ -671,13 +671,6 @@ export default function NewLearningDialog({
           </Button>
         </DialogActions>
       </Dialog>
-      <IconButton
-        onClick={() => setIsFolderSelectorOpen(true)}
-        color="primary"
-        title="GitHubフォルダー選択"
-      >
-        <FolderOpenIcon />
-      </IconButton>
       <GitHubFileSelector
         open={isSelectorOpen}
         onClose={() => setIsSelectorOpen(false)}

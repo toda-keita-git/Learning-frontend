@@ -44,6 +44,7 @@ interface FileNode {
 interface LeftToolBarProps {
   onAddNewLearning: () => void;
   onAddNewCategory: () => void;
+  onAddNewFolder: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
@@ -153,6 +154,7 @@ function FileTree({
 export default function LeftToolBar({
   onAddNewLearning,
   onAddNewCategory,
+  onAddNewFolder,
   onFileSelect,
   files,
   loading,
@@ -199,6 +201,12 @@ export default function LeftToolBar({
                 <CategoryIcon />
               </ListItemIcon>
               <ListItemText primary="新規カテゴリー" />
+            </ListItemButton>
+            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewFolder}>
+              <ListItemIcon>
+                <FolderOpenIcon />
+              </ListItemIcon>
+              <ListItemText primary="新規フォルダー" />
             </ListItemButton>
           </List>
         </Collapse>

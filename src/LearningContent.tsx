@@ -30,6 +30,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import { decodeBase64Text } from "./component/decodeBase64";
+import GitHubFolderSelector from "./GitHubFolderSelector";
 
 
 const drawerWidth = 240;
@@ -104,6 +105,19 @@ export default function LearningContent() {
       displayName: "システム",
     },
   ]);
+
+  const auth = useContext(AuthContext);
+
+  const githubLoginSafe: string = (auth && auth.githubLogin) ?? "";
+  const repoNameSafe: string = (auth && auth.repoName) ?? "";
+  const tokenSafe: string = (auth.token) ?? "";
+
+  const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
+
+  // ← LeftToolBar から呼ばれる
+  const handleFolderSelect = () => {
+    setIsFolderSelectorOpen(true);
+  };
 
   const fetchFileForDialog = async (
   path: string
@@ -588,6 +602,8 @@ export default function LearningContent() {
     }
   };
 
+
+
   // ★ 新規・更新の両方を処理するハンドラ
   const handleSubmitLearning = async (submissionData: any) => {
     // submissionDataから learningData と editedFile を取り出す
@@ -890,6 +906,7 @@ export default function LearningContent() {
         }}
         onAddNewCategory={handleAddNewCategory}
         onFileSelect={handleFileSelect}
+        onAddNewFolder={handleFolderSelect}
         files={githubFiles}
         loading={filesLoading}
       />
@@ -1016,6 +1033,17 @@ export default function LearningContent() {
         onClose={() => setIsCategoryDialogOpen(false)}
         onSubmit={handleCategorySubmit}
         existingCategories={allCategories.map((category) => category.name)}
+      />
+       <GitHubFolderSelector
+        open={isFolderSelectorOpen}
+        onClose={() => setIsFolderSelectorOpen(false)}
+        onSelectFolder={(folderPath) => {
+          setGithubPath(folderPath + "/"); // 選択結果を格納
+          setIsFolderSelectorOpen(false);
+        }}
+        githubLogin={githubLoginSafe}
+        repoName={repoNameSafe}
+        accessToken={tokenSafe}
       />
     </Box>
   );
