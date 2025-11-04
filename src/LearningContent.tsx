@@ -30,7 +30,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import { decodeBase64Text } from "./component/decodeBase64";
-import GitHubFolderSelector from "./GitHubFolderSelector";
+import GitHubFolderSelector from "./component/GitHubFolderSelector";
 
 
 const drawerWidth = 240;
@@ -113,6 +113,9 @@ export default function LearningContent() {
   const tokenSafe: string = (auth.token) ?? "";
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
+  const [githubPath, setGithubPath] = useState("");
+
+
 
   // ← LeftToolBar から呼ばれる
   const handleFolderSelect = () => {
@@ -1037,7 +1040,7 @@ export default function LearningContent() {
        <GitHubFolderSelector
         open={isFolderSelectorOpen}
         onClose={() => setIsFolderSelectorOpen(false)}
-        onSelectFolder={(folderPath) => {
+        onSelectFolder={(folderPath: string) => {
           setGithubPath(folderPath + "/"); // 選択結果を格納
           setIsFolderSelectorOpen(false);
         }}
