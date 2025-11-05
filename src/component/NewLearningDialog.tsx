@@ -133,9 +133,7 @@ export default function NewLearningDialog({
   };
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
-  // 親コンポーネント (LearningContent.tsx or NewLearningDialog.tsx)
-  const [selectedFolderPath, setSelectedFolderPath] = useState("");
-
+  const [setSelectedFolderPath] = useState("");
 
   const handleSpreadsheetChange = (data: Matrix<CellBase<any>>) => {
     // ライブラリから渡されるデータ型 (Matrix<CellBase<any>>) を
