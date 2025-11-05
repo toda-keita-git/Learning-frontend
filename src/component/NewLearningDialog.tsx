@@ -503,42 +503,92 @@ export default function NewLearningDialog({
               }}
             />
           </Box>
-          {/* === GitHub連携 === */}
-          <Box sx={{ display: "flex", alignItems: "flex-end", mt: 2, gap: 1 }}>
-            <TextField
-              label="GitHub連携ファイル"
-              type="text"
-              fullWidth
-              variant="standard"
-              value={github_path}
-              // ★ ローカルファイル選択時はパスを編集可能にする
-              onChange={(e) => setGithub_path(e.target.value)}
-              placeholder={
-                localFile
-                  ? "コミット先のファイル名"
-                  : "ファイルを選択またはパスを入力"
-              }
-            />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleLocalFileSelect}
-              style={{ display: "none" }}
-            />
-            <IconButton
-              onClick={handleUploadButtonClick}
-              color="primary"
-              title="PCからアップロード"
+          {/* === GitHub連携（フォルダ選択＋ファイル指定） === */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              GitHub連携
+            </Typography>
+
+            {/* --- フォルダ選択エリア --- */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 1,
+                mb: 1.5,
+              }}
             >
-              <UploadFileIcon />
-            </IconButton>
-            <IconButton
-              onClick={() => setIsSelectorOpen(true)}
-              color="primary"
-              title="GitHubから選択"
+              <TextField
+                label="保存先フォルダ"
+                type="text"
+                variant="standard"
+                fullWidth
+                value={github_path.endsWith("/") ? github_path : github_path.split("/").slice(0, -1).join("/")}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // 入力の最後が「/」で終わっていなければ補完
+                  setGithub_path(val.endsWith("/") ? val : val + "/");
+                }}
+                placeholder="例: src/components/"
+              />
+              <IconButton
+                onClick={() => setIsFolderSelectorOpen(true)}
+                color="primary"
+                title="フォルダ選択"
+              >
+                <FolderOpenIcon />
+              </IconButton>
+            </Box>
+
+            {/* --- ファイル名入力＆ローカル／GitHub選択エリア --- */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 1,
+              }}
             >
-              <FolderOpenIcon />
-            </IconButton>
+              <TextField
+                label="ファイル名"
+                type="text"
+                variant="standard"
+                fullWidth
+                value={
+                  github_path.endsWith("/")
+                    ? ""
+                    : github_path.split("/").pop() || ""
+                }
+                onChange={(e) => {
+                  // 現在のフォルダパスを維持しながらファイル名を更新
+                  const folderPath = github_path.endsWith("/")
+                    ? github_path
+                    : github_path.split("/").slice(0, -1).join("/") + "/";
+                  setGithub_path(folderPath + e.target.value);
+                }}
+                placeholder="例: index.tsx"
+              />
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleLocalFileSelect}
+                style={{ display: "none" }}
+              />
+              <IconButton
+                onClick={handleUploadButtonClick}
+                color="primary"
+                title="PCからアップロード"
+              >
+                <UploadFileIcon />
+              </IconButton>
+              <IconButton
+                onClick={() => setIsSelectorOpen(true)}
+                color="primary"
+                title="GitHubからファイル選択"
+              >
+                <FolderOpenIcon />
+              </IconButton>
+            </Box>
           </Box>
           <Box
             sx={{
