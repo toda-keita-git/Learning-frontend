@@ -93,9 +93,11 @@ function buildFileTree(files: GitHubFile[]): FileNode[] {
 function FileTree({
   nodes,
   onFileSelect,
+  depth = 0, // 階層の深さを追加
 }: {
   nodes: FileNode[];
   onFileSelect: (path: string) => void;
+  depth?: number;
 }) {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
 
@@ -106,29 +108,34 @@ function FileTree({
     }));
   };
 
+  const indent = 2 + depth * 2; // 階層ごとにインデントを増やす (2,4,6,...)
+
+
   return (
     <>
       {nodes.map((node) =>
         node.type === "folder" ? (
           <Box key={node.path}>
-            <ListItemButton
-              onClick={() => toggleFolder(node.path)}
-              sx={{ pl: 4 }}
-            >
+            <ListItemButton onClick={() => toggleFolder(node.path)} sx={{ pl: indent }}>
               <ListItemIcon>
                 {openFolders[node.path] ? <FolderOpenIcon /> : <FolderIcon />}
               </ListItemIcon>
               <ListItemText primary={node.name} />
               {openFolders[node.path] ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
+
             <Collapse in={openFolders[node.path]} timeout="auto" unmountOnExit>
-              <FileTree nodes={node.children || []} onFileSelect={onFileSelect} />
+              <FileTree
+                nodes={node.children || []}
+                onFileSelect={onFileSelect}
+                depth={depth + 1} // 再帰呼び出し時に階層を1つ深く
+              />
             </Collapse>
           </Box>
         ) : (
           <ListItemButton
             key={node.path}
-            sx={{ pl: 6 }}
+            sx={{ pl: indent + 2 }} // ファイルは少し余分に
             onClick={() => onFileSelect(node.path)}
           >
             <ListItemIcon>
