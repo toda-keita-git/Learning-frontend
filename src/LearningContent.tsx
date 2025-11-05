@@ -1049,7 +1049,6 @@ export default function LearningContent() {
         githubLogin={githubLoginSafe}
         repoName={repoNameSafe}
         accessToken={tokenSafe}
-         selectedPath={selectedFolderPath} 
          setSelectedPath={setSelectedFolderPath}
       />
     </Box>

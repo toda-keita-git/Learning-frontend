@@ -736,7 +736,6 @@ export default function NewLearningDialog({
         githubLogin={githubLoginSafe}
         repoName={repoNameSafe}
         accessToken={tokenSafe}
-        selectedPath={selectedFolderPath}
         setSelectedPath={setSelectedFolderPath}
       />
     </>
