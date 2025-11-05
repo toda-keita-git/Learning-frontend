@@ -115,7 +115,7 @@ export default function LearningContent() {
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
   const [_githubPath, setGithubPath] = useState("");
 
-  const [selectedFolderPath, setSelectedFolderPath] = useState("");
+  const [setSelectedFolderPath] = useState("");
 
 
 
