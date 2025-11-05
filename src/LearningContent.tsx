@@ -115,7 +115,9 @@ export default function LearningContent() {
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
   const [_githubPath, setGithubPath] = useState("");
 
-  const [setSelectedFolderPath] = useState("");
+  // 親コンポーネント (LearningContent.tsx or NewLearningDialog.tsx)
+  const [selectedFolderPath, setSelectedFolderPath] = useState("");
+
 
 
 
@@ -1049,7 +1051,7 @@ export default function LearningContent() {
         githubLogin={githubLoginSafe}
         repoName={repoNameSafe}
         accessToken={tokenSafe}
-         setSelectedPath={setSelectedFolderPath}
+        setSelectedPath={setSelectedFolderPath}
       />
     </Box>
   );
