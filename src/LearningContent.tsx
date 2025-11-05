@@ -115,6 +115,8 @@ export default function LearningContent() {
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
   const [_githubPath, setGithubPath] = useState("");
 
+  const [selectedFolderPath, setSelectedFolderPath] = useState("");
+
 
 
   // ← LeftToolBar から呼ばれる
@@ -1047,6 +1049,8 @@ export default function LearningContent() {
         githubLogin={githubLoginSafe}
         repoName={repoNameSafe}
         accessToken={tokenSafe}
+         selectedPath={selectedFolderPath} 
+         setSelectedPath={setSelectedFolderPath}
       />
     </Box>
   );
