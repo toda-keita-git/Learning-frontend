@@ -82,7 +82,6 @@ export default function GitHubFolderSelector({
     const dummyFilePath = `${folderPath}/.keep`;
 
     try {
-      // `.keep` ファイルの中身（空フォルダをGitHubに作るため）
       const content = btoa("This folder is intentionally left empty.");
 
       await octokit.repos.createOrUpdateFileContents({
@@ -93,13 +92,9 @@ export default function GitHubFolderSelector({
         content,
       });
 
-      // 入力欄とフォルダ名をクリア
       setNewFolderName("");
-
-      // 再読込して新しいフォルダをリストに表示
       await loadFolders(currentPath);
 
-      // 新規作成したフォルダを選択状態に
       setSelectedFolder(folderPath);
       setSelectedPath(folderPath);
     } catch (err: any) {
@@ -148,26 +143,31 @@ export default function GitHubFolderSelector({
           </>
         )}
 
-        {/* 新規フォルダ作成欄 */}
-        <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+        {/* ✅ 新規フォルダ作成欄（選択中フォルダを上に表示） */}
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+            現在の選択フォルダー:
+          </Typography>
           <TextField
             size="small"
-            label="新しいフォルダー名"
             fullWidth
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
+            value={selectedFolder || "(未選択)"}
+            InputProps={{ readOnly: true }}
           />
-          <Button variant="contained" onClick={handleCreateFolder}>
-            作成
-          </Button>
-        </Box>
 
-        {/* 選択中フォルダ表示 */}
-        {selectedFolder && (
-          <Typography sx={{ mt: 2, fontSize: "0.9rem", color: "text.secondary" }}>
-            選択中のフォルダー: {selectedFolder}
-          </Typography>
-        )}
+          <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+            <TextField
+              size="small"
+              label="新しいフォルダー名"
+              fullWidth
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+            />
+            <Button variant="contained" onClick={handleCreateFolder}>
+              作成
+            </Button>
+          </Box>
+        </Box>
       </DialogContent>
 
       <DialogActions>
