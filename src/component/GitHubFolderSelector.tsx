@@ -37,12 +37,14 @@ export default function GitHubFolderSelector({
   const [currentPath, setCurrentPath] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
 
   const octokit = new Octokit({ auth: accessToken });
 
   useEffect(() => {
     if (open) {
       loadFolders("");
+      setSelectedFolder(null);
     }
   }, [open]);
 
@@ -73,8 +75,6 @@ export default function GitHubFolderSelector({
   const handleCreateFolder = async () => {
     if (!newFolderName) return;
     try {
-      // GitHubのAPIは「空フォルダ作成」が直接できないため、
-      // ダミーファイル (e.g. `.keep`) をアップロードしてフォルダを作る
       const dummyFilePath =
         currentPath === ""
           ? `${newFolderName}/.keep`
@@ -89,9 +89,16 @@ export default function GitHubFolderSelector({
       });
 
       setNewFolderName("");
-      loadFolders(currentPath); // 更新
+      loadFolders(currentPath);
     } catch (err: any) {
       setError("フォルダーの作成に失敗しました。");
+    }
+  };
+
+  const handleSelect = () => {
+    if (selectedFolder) {
+      onSelectFolder(selectedFolder.endsWith("/") ? selectedFolder : selectedFolder + "/");
+      onClose();
     }
   };
 
@@ -116,9 +123,10 @@ export default function GitHubFolderSelector({
               {folders.map((folder) => (
                 <ListItemButton
                   key={folder}
-                  onClick={() => loadFolders(folder)}
+                  selected={selectedFolder === folder}
+                  onClick={() => setSelectedFolder(folder)}
                   onDoubleClick={() => {
-                    onSelectFolder(folder);
+                    onSelectFolder(folder.endsWith("/") ? folder : folder + "/");
                     onClose();
                   }}
                 >
@@ -142,8 +150,16 @@ export default function GitHubFolderSelector({
           </Button>
         </Box>
       </DialogContent>
+
       <DialogActions>
         <Button onClick={onClose}>キャンセル</Button>
+        <Button
+          onClick={handleSelect}
+          variant="contained"
+          disabled={!selectedFolder}
+        >
+          選択
+        </Button>
       </DialogActions>
     </Dialog>
   );
