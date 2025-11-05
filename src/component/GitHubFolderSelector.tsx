@@ -22,6 +22,8 @@ interface GitHubFolderSelectorProps {
   githubLogin: string;
   repoName: string;
   accessToken: string;
+  selectedPath: string;
+  setSelectedPath: (path: string) => void;
 }
 
 export default function GitHubFolderSelector({
@@ -31,20 +33,22 @@ export default function GitHubFolderSelector({
   githubLogin,
   repoName,
   accessToken,
+  selectedPath,
+  setSelectedPath,
 }: GitHubFolderSelectorProps) {
   const [folders, setFolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPath, setCurrentPath] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
 
   const octokit = new Octokit({ auth: accessToken });
 
   useEffect(() => {
     if (open) {
       loadFolders("");
-      setSelectedFolder(null);
+      setSelectedFolder("");
     }
   }, [open]);
 
@@ -64,7 +68,7 @@ export default function GitHubFolderSelector({
 
       setFolders(dirs);
       setCurrentPath(path);
-    } catch (err: any) {
+    } catch {
       setError("フォルダーの読み込みに失敗しました。");
       setFolders([]);
     } finally {
@@ -73,33 +77,42 @@ export default function GitHubFolderSelector({
   };
 
   const handleCreateFolder = async () => {
-    if (!newFolderName) return;
+    if (!newFolderName.trim()) return;
+
+    const folderPath =
+      currentPath === "" ? newFolderName : `${currentPath}/${newFolderName}`;
+    const dummyFilePath = `${folderPath}/.keep`;
+
     try {
-      const dummyFilePath =
-        currentPath === ""
-          ? `${newFolderName}/.keep`
-          : `${currentPath}/${newFolderName}/.keep`;
+      // `.keep` ファイルの中身（空フォルダをGitHubに作るため）
+      const content = btoa("This folder is intentionally left empty.");
 
       await octokit.repos.createOrUpdateFileContents({
         owner: githubLogin,
         repo: repoName,
         path: dummyFilePath,
-        message: `Create folder: ${newFolderName}`,
-        content: btoa(""), // 空ファイル
+        message: `Create folder: ${folderPath}`,
+        content,
       });
 
+      // 入力欄とフォルダ名をクリア
       setNewFolderName("");
-      loadFolders(currentPath);
+
+      // 再読込して新しいフォルダをリストに表示
+      await loadFolders(currentPath);
+
+      // 新規作成したフォルダを選択状態に
+      setSelectedFolder(folderPath);
+      setSelectedPath(folderPath);
     } catch (err: any) {
+      console.error(err);
       setError("フォルダーの作成に失敗しました。");
     }
   };
 
-  const handleSelect = () => {
-    if (selectedFolder) {
-      onSelectFolder(selectedFolder.endsWith("/") ? selectedFolder : selectedFolder + "/");
-      onClose();
-    }
+  const handleSelectFolder = (folder: string) => {
+    setSelectedFolder(folder);
+    setSelectedPath(folder);
   };
 
   return (
@@ -123,12 +136,12 @@ export default function GitHubFolderSelector({
               {folders.map((folder) => (
                 <ListItemButton
                   key={folder}
-                  selected={selectedFolder === folder}
-                  onClick={() => setSelectedFolder(folder)}
+                  onClick={() => handleSelectFolder(folder)}
                   onDoubleClick={() => {
-                    onSelectFolder(folder.endsWith("/") ? folder : folder + "/");
+                    onSelectFolder(folder);
                     onClose();
                   }}
+                  selected={selectedFolder === folder}
                 >
                   <ListItemText primary={folder} />
                 </ListItemButton>
@@ -137,6 +150,7 @@ export default function GitHubFolderSelector({
           </>
         )}
 
+        {/* 新規フォルダ作成欄 */}
         <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
           <TextField
             size="small"
@@ -149,17 +163,17 @@ export default function GitHubFolderSelector({
             作成
           </Button>
         </Box>
+
+        {/* 選択中フォルダ表示 */}
+        {selectedFolder && (
+          <Typography sx={{ mt: 2, fontSize: "0.9rem", color: "text.secondary" }}>
+            選択中のフォルダー: {selectedFolder}
+          </Typography>
+        )}
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>キャンセル</Button>
-        <Button
-          onClick={handleSelect}
-          variant="contained"
-          disabled={!selectedFolder}
-        >
-          選択
-        </Button>
+        <Button onClick={onClose}>閉じる</Button>
       </DialogActions>
     </Dialog>
   );
