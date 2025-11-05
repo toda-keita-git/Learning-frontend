@@ -133,7 +133,7 @@ export default function NewLearningDialog({
   };
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
-  const [setSelectedFolderPath] = useState("");
+  const [_selectedFolderPath, setSelectedFolderPath] = useState("");
 
   const handleSpreadsheetChange = (data: Matrix<CellBase<any>>) => {
     // ライブラリから渡されるデータ型 (Matrix<CellBase<any>>) を
