@@ -22,7 +22,6 @@ interface GitHubFolderSelectorProps {
   githubLogin: string;
   repoName: string;
   accessToken: string;
-  selectedPath: string;
   setSelectedPath: (path: string) => void;
 }
 
@@ -33,7 +32,6 @@ export default function GitHubFolderSelector({
   githubLogin,
   repoName,
   accessToken,
-  selectedPath,
   setSelectedPath,
 }: GitHubFolderSelectorProps) {
   const [folders, setFolders] = useState<string[]>([]);
