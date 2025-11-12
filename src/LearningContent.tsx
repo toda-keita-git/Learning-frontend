@@ -928,7 +928,7 @@ export default function LearningContent() {
                       </button>`
                     : ""
                 }
-                <div style="display: flex; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 400px;">
                   <button 
                     class="action-btn-edit" 
                     data-action="edit" 
@@ -937,7 +937,7 @@ export default function LearningContent() {
                       background-color: #e3f2fd;
                       color: #1976d2;
                       border: 1px solid #90caf9;
-                      padding: 8px 16px;
+                      padding: 10px 16px;
                       border-radius: 8px;
                       cursor: pointer;
                       font-size: 0.9em;
@@ -945,7 +945,9 @@ export default function LearningContent() {
                       transition: all 0.2s ease;
                       display: flex;
                       align-items: center;
+                      justify-content: center;
                       gap: 6px;
+                      width: 100%;
                     "
                     onmouseover="this.style.backgroundColor='#bbdefb'; this.style.borderColor='#64b5f6'"
                     onmouseout="this.style.backgroundColor='#e3f2fd'; this.style.borderColor='#90caf9'">
@@ -959,7 +961,7 @@ export default function LearningContent() {
                       background-color: #ffebee;
                       color: #c62828;
                       border: 1px solid #ef9a9a;
-                      padding: 8px 16px;
+                      padding: 10px 16px;
                       border-radius: 8px;
                       cursor: pointer;
                       font-size: 0.9em;
@@ -967,7 +969,9 @@ export default function LearningContent() {
                       transition: all 0.2s ease;
                       display: flex;
                       align-items: center;
+                      justify-content: center;
                       gap: 6px;
+                      width: 100%;
                     "
                     onmouseover="this.style.backgroundColor='#ffcdd2'; this.style.borderColor='#e57373'"
                     onmouseout="this.style.backgroundColor='#ffebee'; this.style.borderColor='#ef9a9a'">
