@@ -789,63 +789,189 @@ export default function LearningContent() {
 
           // カード形式のHTMLを返す
           return `
-            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; background-color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-              <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 1.1em; color: #1976d2;">${
-                item.title
-              }</h3>
+            <div style="
+              border: 1px solid #e3f2fd;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 16px;
+              background: linear-gradient(to bottom, #ffffff, #fafbff);
+              box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+              transition: box-shadow 0.2s ease;
+            " onmouseover="this.style.boxShadow='0 4px 12px rgba(25, 118, 210, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(25, 118, 210, 0.08)'">
               
-              <div style="font-size: 0.9em; color: #555; margin-bottom: 12px;">
-                <div style="margin-bottom: 6px;">
-                  <span style="font-weight: bold;">カテゴリ:</span> ${
-                    item.category_name
-                  }
+              <!-- タイトル -->
+              <h3 style="
+                margin: 0 0 16px 0;
+                font-size: 1.15em;
+                font-weight: 600;
+                color: #1565c0;
+                letter-spacing: 0.3px;
+              ">${item.title}</h3>
+              
+              <!-- カテゴリとタグ -->
+              <div style="
+                font-size: 0.9em;
+                color: #666;
+                margin-bottom: 16px;
+                padding: 12px;
+                background-color: #f5f9ff;
+                border-radius: 8px;
+                border-left: 3px solid #2196f3;
+              ">
+                <div style="margin-bottom: 8px; display: flex; align-items: center;">
+                  <span style="
+                    font-weight: 600;
+                    color: #555;
+                    min-width: 80px;
+                  ">カテゴリ:</span>
+                  <span style="color: #333;">${item.category_name}</span>
                 </div>
                 <div style="display: flex; align-items: flex-start;">
-                  <span style="font-weight: bold; white-space: nowrap; margin-right: 4px;">タグ:</span>
-                  <div>${tagsHtml}</div>
+                  <span style="
+                    font-weight: 600;
+                    color: #555;
+                    min-width: 80px;
+                    padding-top: 4px;
+                  ">タグ:</span>
+                  <div style="flex: 1;">${tagsHtml}</div>
                 </div>
               </div>
 
-              <p style="font-size: 0.95em; color: #333; line-height: 1.5; margin-top: 0; margin-bottom: 12px; white-space: pre-wrap; word-wrap: break-word;">${
-                item.explanatory_text
-              }</p>
+              <!-- 説明文 -->
+              <p style="
+                font-size: 0.95em;
+                color: #444;
+                line-height: 1.7;
+                margin: 0 0 16px 0;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                padding: 12px;
+                background-color: #ffffff;
+                border-radius: 6px;
+                border: 1px solid #f0f0f0;
+              ">${item.explanatory_text}</p>
               
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; border-top: 1px solid #eee; padding-top: 12px;">
-                <div>
-                  <span style="font-weight: bold;">理解度:</span> ${understandingHtml}
+              <!-- 理解度と参考リンク -->
+              <div style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-bottom: 16px;
+                padding: 12px 0;
+                border-top: 2px solid #e8f4fd;
+                border-bottom: 2px solid #e8f4fd;
+              ">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="
+                    font-weight: 600;
+                    color: #555;
+                    font-size: 0.9em;
+                  ">理解度:</span>
+                  <div style="display: flex; gap: 2px;">
+                    ${understandingHtml}
+                  </div>
                 </div>
                 ${
                   item.reference_url
-                    ? `<a href="${item.reference_url}" target="_blank" rel="noopener noreferrer" style="color: #1976d2; text-decoration: none; font-weight: bold;">参考リンク 🔗</a>`
+                    ? `<a href="${item.reference_url}" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style="
+                          color: #1976d2;
+                          text-decoration: none;
+                          font-weight: 600;
+                          font-size: 0.9em;
+                          display: flex;
+                          align-items: center;
+                          gap: 4px;
+                          transition: color 0.2s ease;
+                        "
+                        onmouseover="this.style.color='#1565c0'; this.style.textDecoration='underline'"
+                        onmouseout="this.style.color='#1976d2'; this.style.textDecoration='none'">
+                        参考リンク 🔗
+                      </a>`
                     : ""
                 }
               </div>
               
-              <div style="display: flex; align-items: center; justify-content: ${justifyContent}; flex-wrap: wrap; gap: 10px;">
+              <!-- アクションボタン -->
+              <div style="
+                display: flex;
+                align-items: center;
+                justify-content: ${justifyContent};
+                flex-wrap: wrap;
+                gap: 12px;
+              ">
                 ${
                   item.github_path
-                    ? `<div>
-                        <button class="view-file-btn" data-action="view-file" data-path="${
-                          item.github_path
-                        }"${commitShaAttribute} 
-                                style="background-color: #1976d2; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
-                          ファイルを見る (${item.github_path.split("/").pop()})
-                        </button>
-                      </div>`
-                    : "<div></div>"
+                    ? `<button 
+                        class="view-file-btn" 
+                        data-action="view-file" 
+                        data-path="${item.github_path}"${commitShaAttribute}
+                        style="
+                          background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+                          color: white;
+                          border: none;
+                          padding: 10px 16px;
+                          border-radius: 8px;
+                          cursor: pointer;
+                          font-size: 0.9em;
+                          font-weight: 500;
+                          box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+                          transition: all 0.2s ease;
+                        "
+                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(25, 118, 210, 0.3)'"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(25, 118, 210, 0.2)'">
+                        📄 ファイルを見る (${item.github_path.split("/").pop()})
+                      </button>`
+                    : ""
                 }
-                <div style="display: flex; gap: 8px; justifyContent: center;">
-                  <button class="action-btn-edit" data-action="edit" data-id="${
-                    item.id
-                  }"
-                          style="background-color: #e3f2fd; color: #1976d2; border: 1px solid #bbdefb; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                    編集
+                <div style="display: flex; gap: 10px;">
+                  <button 
+                    class="action-btn-edit" 
+                    data-action="edit" 
+                    data-id="${item.id}"
+                    style="
+                      background-color: #e3f2fd;
+                      color: #1976d2;
+                      border: 1px solid #90caf9;
+                      padding: 8px 16px;
+                      border-radius: 8px;
+                      cursor: pointer;
+                      font-size: 0.9em;
+                      font-weight: 500;
+                      transition: all 0.2s ease;
+                      display: flex;
+                      align-items: center;
+                      gap: 6px;
+                    "
+                    onmouseover="this.style.backgroundColor='#bbdefb'; this.style.borderColor='#64b5f6'"
+                    onmouseout="this.style.backgroundColor='#e3f2fd'; this.style.borderColor='#90caf9'">
+                    ✏️ 編集
                   </button>
-                  <button class="action-btn-delete" data-action="delete" data-id="${
-                    item.id
-                  }"
-                          style="background-color: #fbe9e7; color: #c62828; border: 1px solid #ffcdd2; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                    削除
+                  <button 
+                    class="action-btn-delete" 
+                    data-action="delete" 
+                    data-id="${item.id}"
+                    style="
+                      background-color: #ffebee;
+                      color: #c62828;
+                      border: 1px solid #ef9a9a;
+                      padding: 8px 16px;
+                      border-radius: 8px;
+                      cursor: pointer;
+                      font-size: 0.9em;
+                      font-weight: 500;
+                      transition: all 0.2s ease;
+                      display: flex;
+                      align-items: center;
+                      gap: 6px;
+                    "
+                    onmouseover="this.style.backgroundColor='#ffcdd2'; this.style.borderColor='#e57373'"
+                    onmouseout="this.style.backgroundColor='#ffebee'; this.style.borderColor='#ef9a9a'">
+                    🗑️ 削除
                   </button>
                 </div>
               </div>
