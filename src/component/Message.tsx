@@ -8,7 +8,6 @@ import Typography from "@mui/material/Typography";
 
 // メッセージ行のベーススタイル
 const MessageRow = styled(Box)({
-  display: "flex",
   marginBottom: "10px",
 });
 
