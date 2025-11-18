@@ -45,7 +45,7 @@ const MessageBlue = styled(MessageBubbleBase)(({}) => ({
   "&:after": {
     content: "''",
     position: "absolute",
-    width: 0,
+    width: "100%",
     height: 0,
     borderTop: "15px solid #A8DDFD",
     borderLeft: "15px solid transparent",
