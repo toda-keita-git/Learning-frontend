@@ -4,98 +4,52 @@ import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
-// --- Styled Components Definition ---
+// --- Styled Components ---
 
-// メッセージ行のベーススタイル
+// メッセージ1行（左右で寄せ方向を切り替える flex 行）
 const MessageRow = styled(Box)({
-  marginBottom: "10px",
+  display: "flex",
+  marginBottom: "14px",
+  alignItems: "flex-end",
+  gap: "8px",
 });
 
-// 他人のメッセージ行（左寄せ）
 const MessageRowLeft = styled(MessageRow)({
   justifyContent: "flex-start",
 });
 
-// 自分のメッセージ行（右寄せ）
 const MessageRowRight = styled(MessageRow)({
   justifyContent: "flex-end",
 });
 
-// メッセージ内容のテキストスタイル
-// const MessageContent = styled(Typography)({
-//   padding: 0,
-//   margin: 0,
-//   font: "400 .9em 'Open Sans', sans-serif", // 元のスタイルを維持
-// });
-
-// メッセージバブルの共通スタイル
-const MessageBubbleBase = styled("div")({
+// バブル共通：内容に合わせて伸縮し、長文は折り返す
+const Bubble = styled("div")({
   position: "relative",
-  padding: "10px",
-  width: "90%",
-  borderRadius: "10px",
+  padding: "10px 14px",
+  maxWidth: "76%",
+  width: "fit-content",
+  borderRadius: "18px",
+  lineHeight: 1.7,
+  wordBreak: "break-word",
+  boxShadow: "0 1px 2px rgba(31,41,55,0.08)",
 });
 
-// 他人のメッセージバブル（青色）
-const MessageBlue = styled(MessageBubbleBase)(({}) => ({
-  marginLeft: "20px",
-  backgroundColor: "#A8DDFD",
-  border: "1px solid #97C6E3",
-  "&:after": {
-    content: "''",
-    position: "absolute",
-    width: "100%",
-    height: 0,
-    borderTop: "15px solid #A8DDFD",
-    borderLeft: "15px solid transparent",
-    borderRight: "15px solid transparent",
-    top: 0,
-    left: "-15px",
-  },
-  "&:before": {
-    content: "''",
-    position: "absolute",
-    width: 0,
-    height: 0,
-    borderTop: "17px solid #97C6E3",
-    borderLeft: "16px solid transparent",
-    borderRight: "16px solid transparent",
-    top: "-1px",
-    left: "-17px",
-  },
-}));
+// 相手（Bot / システム）：白ベースで左下だけ角を落とす
+const BubbleLeft = styled(Bubble)({
+  backgroundColor: "#ffffff",
+  border: "1px solid #e5e7eb",
+  color: "#1f2937",
+  borderBottomLeftRadius: "6px",
+});
 
-// 自分のメッセージバブル（オレンジ色）
-const MessageOrange = styled(MessageBubbleBase)(({}) => ({
-  marginRight: "20px",
-  width: "100%",
-  backgroundColor: "#f8e896",
-  border: "1px solid #dfd087",
-  "&:after": {
-    content: "''",
-    position: "absolute",
-    width: 0,
-    height: 0,
-    borderTop: "15px solid #f8e896",
-    borderLeft: "15px solid transparent",
-    borderRight: "15px solid transparent",
-    top: 0,
-    right: "-15px",
-  },
-  "&:before": {
-    content: "''",
-    position: "absolute",
-    width: 0,
-    height: 0,
-    borderTop: "17px solid #dfd087",
-    borderLeft: "16px solid transparent",
-    borderRight: "16px solid transparent",
-    top: "-1px",
-    right: "-17px",
-  },
-}));
+// 自分：プライマリ（インディゴ）で白文字。右下だけ角を落とす
+const BubbleRight = styled(Bubble)({
+  backgroundColor: "#4f46e5",
+  color: "#ffffff",
+  borderBottomRightRadius: "6px",
+});
 
-// --- Component Props Definition ---
+// --- Props ---
 
 interface MessageLeftProps {
   message?: string;
@@ -111,9 +65,7 @@ interface MessageRightProps {
 
 // --- Components ---
 
-/**
- * 他人のメッセージ（アバターが左）
- */
+/** 相手のメッセージ（アバターが左） */
 export const MessageLeft: React.FC<MessageLeftProps> = ({
   message = "no message",
   timestamp = "",
@@ -122,77 +74,68 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
 }) => {
   return (
     <MessageRowLeft>
-      {/* ★ 修正箇所：全体をBoxで囲むのをやめ、MessageLeftの構成に合わせる */}
-      <Avatar src={photoURL} sx={{ width: 40, height: 40, mr: 2 }} />
-      <Box>
+      <Avatar
+        src={photoURL}
+        sx={{ width: 36, height: 36, bgcolor: "#c7d2fe", flexShrink: 0 }}
+      />
+      <Box sx={{ maxWidth: "80%" }}>
         <Typography
           variant="caption"
-          sx={{
-            color: "text.secondary",
-            display: "block",
-            textAlign: "left",
-          }}
+          sx={{ color: "text.secondary", display: "block", mb: 0.5, ml: 0.5 }}
         >
           {displayName}
         </Typography>
-        <MessageBlue>
+        <BubbleLeft>
           <Typography
-            variant="body1"
+            variant="body2"
+            component="div"
             dangerouslySetInnerHTML={{ __html: message }}
           />
-        </MessageBlue>
-        <Typography
-          variant="caption"
-          sx={{
-            color: "text.secondary",
-            textAlign: "left",
-            display: "block",
-            marginLeft: "20px",
-          }}
-        >
-          {timestamp}
-        </Typography>
+        </BubbleLeft>
+        {timestamp && (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.secondary", display: "block", mt: 0.5, ml: 0.5 }}
+          >
+            {timestamp}
+          </Typography>
+        )}
       </Box>
     </MessageRowLeft>
   );
 };
 
-/**
- * 自分のメッセージ（右寄せ）
- */
+/** 自分のメッセージ（右寄せ） */
 export const MessageRight: React.FC<MessageRightProps> = ({
   message = "no message",
   timestamp = "",
 }) => {
   return (
     <MessageRowRight>
-      {/* ★ 修正箇所：Boxで囲み、タイムスタンプをメッセージの下に配置 */}
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-end",
+          maxWidth: "80%",
         }}
       >
-        <MessageOrange>
-          {/* ★ 修正箇所：MessageLeftの dangerouslySetInnerHTML との整合性を考慮し、
-                         こちらもTypographyでラップ。必要に応じてdangerouslySetInnerHTMLを使用可能にする */}
+        <BubbleRight>
           <Typography
-            variant="body1"
+            variant="body2"
+            component="div"
+            sx={{ "& a": { color: "#e0e7ff" } }}
             dangerouslySetInnerHTML={{ __html: message }}
           />
-        </MessageOrange>
-        <Typography
-          variant="caption"
-          sx={{
-            color: "text.secondary",
-            textAlign: "right", // 右寄せのため right に変更
-            display: "block",
-            marginRight: "20px", // 右端に合わせるため marginRight に変更
-          }}
-        >
-          {timestamp}
-        </Typography>
+        </BubbleRight>
+        {timestamp && (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.secondary", display: "block", mt: 0.5, mr: 0.5 }}
+          >
+            {timestamp}
+          </Typography>
+        )}
       </Box>
     </MessageRowRight>
   );

@@ -1113,7 +1113,8 @@ export default function LearningContent() {
             sx={{
               flexGrow: 1,
               overflowY: "auto",
-              p: { xs: 1, sm: 2 },
+              p: { xs: 1.5, sm: 2.5 },
+              bgcolor: "#f6f7fb",
             }}
           >
             {messages.map((msg) =>
@@ -1145,7 +1146,7 @@ export default function LearningContent() {
           />
 
           {/* 入力欄 */}
-          <Box sx={{ p: { xs: 1, sm: 2 }, borderTop: "1px solid #ddd" }}>
+          <Box sx={{ p: { xs: 1, sm: 2 }, borderTop: "1px solid #e5e7eb", bgcolor: "#fff" }}>
             <TextInputLearning
               onSendMessage={handleSearch}
               onSearchMenuClick={() => setOpenSearchDialog(true)}
