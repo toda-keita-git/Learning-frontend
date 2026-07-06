@@ -23,14 +23,15 @@ const MessageRowRight = styled(MessageRow)({
 });
 
 // バブル共通：内容に合わせて伸縮し、長文は折り返す
+// （max-width は親ラッパー[行の80%]基準にし、短文が縦に割れないよう inline-block + 100%）
 const Bubble = styled("div")({
+  display: "inline-block",
   position: "relative",
   padding: "10px 14px",
-  maxWidth: "76%",
-  width: "fit-content",
+  maxWidth: "100%",
   borderRadius: "18px",
   lineHeight: 1.7,
-  wordBreak: "break-word",
+  overflowWrap: "anywhere",
   boxShadow: "0 1px 2px rgba(31,41,55,0.08)",
 });
 
