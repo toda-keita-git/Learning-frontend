@@ -3,6 +3,7 @@ import { styled } from "@mui/material/styles";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 // --- Styled Components ---
 
@@ -73,12 +74,24 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
   photoURL = "",
   displayName = "名無しさん",
 }) => {
+  // システム/Bot は外部画像に頼らず、統一したブランドアイコンで表示する
+  const isSystem =
+    displayName === "システム" ||
+    !photoURL ||
+    photoURL.includes("placehold.co");
+
   return (
     <MessageRowLeft>
-      <Avatar
-        src={photoURL}
-        sx={{ width: 36, height: 36, bgcolor: "#c7d2fe", flexShrink: 0 }}
-      />
+      {isSystem ? (
+        <Avatar sx={{ width: 36, height: 36, bgcolor: "#4f46e5", flexShrink: 0 }}>
+          <SmartToyIcon fontSize="small" />
+        </Avatar>
+      ) : (
+        <Avatar
+          src={photoURL}
+          sx={{ width: 36, height: 36, bgcolor: "#c7d2fe", flexShrink: 0 }}
+        />
+      )}
       <Box sx={{ maxWidth: "80%" }}>
         <Typography
           variant="caption"

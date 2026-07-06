@@ -18,15 +18,13 @@ export default function FileSearch() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "こんにちは！これはチャットUIのサンプルです。",
+      text: "こんにちは！左下のフォルダアイコンからフォルダを選ぶと、ファイル名やフォルダ名で検索できます。",
       timestamp: new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
         minute: "2-digit",
       }),
       type: "left",
-      photoURL:
-        "https://lh3.googleusercontent.com/a-/AOh14Gi4vkKYlfrbJ0QLJTg_DLjcYyyK7fYoWRpz2r4s=s96-c",
-      displayName: "テストユーザー",
+      displayName: "システム",
     },
   ]);
 
@@ -180,7 +178,8 @@ export default function FileSearch() {
           sx={{
             flexGrow: 1,
             overflowY: "auto",
-            p: 2,
+            p: 2.5,
+            bgcolor: "#f6f7fb",
           }}
         >
           {messages.map((msg) =>
