@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import { Container, Button } from "@mui/material";
+import { Button } from "@mui/material";
 import { MessageLeft, MessageRight } from "./component/Message";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { SearchDialog } from "./component/SearchDialog";
@@ -31,6 +31,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import GitHubIcon from "@mui/icons-material/GitHub";
 
 
 const drawerWidth = 240;
@@ -1007,17 +1009,47 @@ export default function LearningContent() {
   // 未認証時の表示
   if (!isAuthenticated) {
     return (
-      <Container sx={{ textAlign: "center", mt: 10 }}>
-        <Typography variant="h4" gutterBottom>
-          学習管理アプリへようこそ
-        </Typography>
-        <Typography sx={{ mb: 4 }}>
-          機能を利用するにはGitHubアカウントでの認証が必要です。
-        </Typography>
-        <Button variant="contained" size="large" onClick={login}>
-          GitHubでログイン
-        </Button>
-      </Container>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #eef2ff 0%, #f6f7fb 60%)",
+          px: 2,
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: 440,
+            width: "100%",
+            textAlign: "center",
+            bgcolor: "#fff",
+            borderRadius: 4,
+            boxShadow: "0 12px 40px rgba(79,70,229,0.15)",
+            p: { xs: 4, sm: 6 },
+          }}
+        >
+          <MenuBookIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
+            学習ログへようこそ
+          </Typography>
+          <Typography sx={{ mb: 4, color: "text.secondary" }}>
+            学んだことを記録・振り返るには、
+            <br />
+            GitHubアカウントでのログインが必要です。
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            startIcon={<GitHubIcon />}
+            onClick={login}
+          >
+            GitHubでログイン
+          </Button>
+        </Box>
+      </Box>
     );
   }
 
