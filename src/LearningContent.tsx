@@ -757,7 +757,7 @@ export default function LearningContent() {
     });
 
     // 5. 結果メッセージを生成
-    let resultText = `<div style="font-weight: bold; margin-bottom: 10px;">検索結果: ${results.length}件</div>`;
+    let resultText = `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🔎 検索結果: ${results.length}件</div>`;
     if (results.length > 0) {
       resultText += results
         .map((item) => {
@@ -767,10 +767,10 @@ export default function LearningContent() {
               ? item.tags
                   .map(
                     (tag) =>
-                      `<span style="background-color: #e0e0e0; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 4px; display: inline-block;">${tag}</span>`
+                      `<span style="background-color: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 500; display: inline-block;">#${tag}</span>`
                   )
                   .join("")
-              : "<span>タグなし</span>";
+              : `<span style="color:#9ca3af; font-size:0.75em;">タグなし</span>`;
 
           // 理解度を★で表現するHTMLを生成
           const understandingHtml = `<span>${"★".repeat(
@@ -793,111 +793,42 @@ export default function LearningContent() {
           return `
             <div style="
               border: 1px solid #e0e7ff;
-              border-radius: 12px;
-              padding: 20px;
-              margin-bottom: 16px;
-              background: linear-gradient(to bottom, #ffffff, #fafbff);
-              box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
+              border-radius: 10px;
+              padding: 12px 14px;
+              margin-bottom: 10px;
+              background: #ffffff;
+              box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08);
               transition: box-shadow 0.2s ease;
             " onmouseover="this.style.boxShadow='0 4px 12px rgba(79, 70, 229, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(79, 70, 229, 0.08)'">
               
-              <!-- タイトル -->
-              <h3 style="
-                margin: 0 0 16px 0;
-                font-size: 1.15em;
-                font-weight: 600;
-                color: #4338ca;
-                letter-spacing: 0.3px;
-              ">${item.title}</h3>
-              
-              <!-- カテゴリとタグ -->
-              <div style="
-                font-size: 0.9em;
-                color: #666;
-                margin-bottom: 16px;
-                padding: 12px;
-                background-color: #f5f6ff;
-                border-radius: 8px;
-                border-left: 3px solid #4f46e5;
-              ">
-                <div style="margin-bottom: 8px; display: flex; align-items: center;">
-                  <span style="
-                    font-weight: 600;
-                    color: #555;
-                    min-width: 80px;
-                  ">カテゴリ:</span>
-                  <span style="color: #333;">${item.category_name}</span>
-                </div>
-                <div style="display: flex; align-items: flex-start;">
-                  <span style="
-                    font-weight: 600;
-                    color: #555;
-                    min-width: 80px;
-                    padding-top: 4px;
-                  ">タグ:</span>
-                  <div style="flex: 1;">${tagsHtml}</div>
-                </div>
+              <!-- タイトル＋理解度（1行に凝縮） -->
+              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px;">
+                <h3 style="margin: 0; font-size: 1.02em; font-weight: 700; color: #4338ca;">${item.title}</h3>
+                <span style="color: #f59e0b; font-size: 0.82em; white-space: nowrap;">${understandingHtml}</span>
               </div>
 
-              <!-- 説明文 -->
+              <!-- カテゴリ・タグ（インラインのチップ） -->
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 8px;">
+                <span style="background-color: #4f46e5; color: #fff; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 600;">${item.category_name}</span>
+                ${tagsHtml}
+              </div>
+
+              <!-- 説明文（コンパクト） -->
               <p style="
-                font-size: 0.95em;
-                color: #444;
-                line-height: 1.7;
-                margin: 0 0 16px 0;
+                font-size: 0.85em;
+                color: #555;
+                line-height: 1.6;
+                margin: 0 0 8px 0;
                 white-space: pre-wrap;
                 word-wrap: break-word;
-                padding: 12px;
-                background-color: #ffffff;
-                border-radius: 6px;
-                border: 1px solid #f0f0f0;
               ">${item.explanatory_text}</p>
               
-              <!-- 理解度と参考リンク -->
-              <div style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                flex-wrap: wrap;
-                gap: 12px;
-                margin-bottom: 16px;
-                padding: 12px 0;
-                border-top: 2px solid #e8f4fd;
-                border-bottom: 2px solid #e8f4fd;
-              ">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="
-                    font-weight: 600;
-                    color: #555;
-                    font-size: 0.9em;
-                  ">理解度:</span>
-                  <div style="display: flex; gap: 2px;">
-                    ${understandingHtml}
-                  </div>
-                </div>
-                ${
-                  item.reference_url
-                    ? `<a href="${item.reference_url}" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        style="
-                          color: #1976d2;
-                          text-decoration: none;
-                          font-weight: 600;
-                          font-size: 0.9em;
-                          display: flex;
-                          align-items: center;
-                          gap: 4px;
-                          transition: color 0.2s ease;
-                        "
-                        onmouseover="this.style.color='#4338ca'; this.style.textDecoration='underline'"
-                        onmouseout="this.style.color='#1976d2'; this.style.textDecoration='none'">
-                        参考リンク 🔗
-                      </a>`
-                    : ""
-                }
-              </div>
-              
+              ${
+                item.reference_url
+                  ? `<div style="margin-bottom: 8px;"><a href="${item.reference_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.82em;">参考リンク 🔗</a></div>`
+                  : ""
+              }
+
               <!-- アクションボタン -->
               <div style="
                 display: flex;
@@ -916,7 +847,7 @@ export default function LearningContent() {
                           background: linear-gradient(135deg, #1976d2 0%, #4338ca 100%);
                           color: white;
                           border: none;
-                          padding: 10px 16px;
+                          padding: 6px 12px;
                           border-radius: 8px;
                           cursor: pointer;
                           font-size: 0.9em;
@@ -939,7 +870,7 @@ export default function LearningContent() {
                       background-color: #e0e7ff;
                       color: #1976d2;
                       border: 1px solid #90caf9;
-                      padding: 10px 16px;
+                      padding: 6px 12px;
                       border-radius: 8px;
                       cursor: pointer;
                       font-size: 0.9em;
@@ -963,7 +894,7 @@ export default function LearningContent() {
                       background-color: #ffebee;
                       color: #c62828;
                       border: 1px solid #ef9a9a;
-                      padding: 10px 16px;
+                      padding: 6px 12px;
                       border-radius: 8px;
                       cursor: pointer;
                       font-size: 0.9em;
