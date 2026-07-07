@@ -361,7 +361,16 @@ export default function LearningContent() {
         const path = actionButton.dataset.path;
         const commitSha = actionButton.dataset.commitSha;
 
-        if (action === "view-file" && path) {
+        if (action === "toggle-detail") {
+          // 詳細の開閉。対象要素の表示を切り替え、ボタンのラベルも更新する
+          const targetId = actionButton.dataset.target;
+          const detail = targetId ? document.getElementById(targetId) : null;
+          if (detail) {
+            const willOpen = detail.style.display === "none";
+            detail.style.display = willOpen ? "block" : "none";
+            actionButton.textContent = willOpen ? "詳細を閉じる ▲" : "詳細を見る ▼";
+          }
+        } else if (action === "view-file" && path) {
           // commitShaを渡して、特定のバージョンのファイルを表示する
           handleViewFile(path, false, commitSha);
         } else if (action === "edit" && id) {
@@ -808,12 +817,22 @@ export default function LearningContent() {
               </div>
 
               <!-- カテゴリ・タグ（インラインのチップ） -->
-              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 8px;">
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px;">
                 <span style="background-color: #4f46e5; color: #fff; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 600;">${item.category_name}</span>
                 ${tagsHtml}
               </div>
 
-              <!-- 説明文（コンパクト） -->
+              <!-- 詳細トグル（クリックで開閉） -->
+              <button
+                data-action="toggle-detail"
+                data-target="details-${item.id}"
+                style="background:none; border:none; color:#4f46e5; font-size:0.8em; font-weight:600; cursor:pointer; padding:2px 0; display:inline-flex; align-items:center; gap:4px;"
+              >詳細を見る ▼</button>
+
+              <!-- 詳細（初期は非表示。トグルで開く） -->
+              <div id="details-${item.id}" style="display:none; margin-top:8px; border-top:1px solid #eef0f6; padding-top:8px;">
+
+              <!-- 説明文 -->
               <p style="
                 font-size: 0.85em;
                 color: #555;
@@ -912,6 +931,7 @@ export default function LearningContent() {
                   </button>
                 </div>
               </div>
+              </div><!-- /details -->
             </div>
           `;
           // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
