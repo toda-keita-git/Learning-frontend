@@ -6,10 +6,12 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
+import Divider from "@mui/material/Divider";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import SearchIcon from "@mui/icons-material/Search";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 const features = [
   {
@@ -26,6 +28,24 @@ const features = [
     icon: <SearchIcon fontSize="large" color="primary" />,
     title: "学習内容の検索",
     desc: "タイトルやタグから、過去の学びをチャット形式で振り返れます。",
+  },
+];
+
+const steps = [
+  {
+    no: "1",
+    title: "GitHubでログイン",
+    desc: "「使ってみる」を押すとGitHub認証へ。初回ログイン時に、あなた専用の保存先リポジトリが自動で用意されます。",
+  },
+  {
+    no: "2",
+    title: "学んだことを記録",
+    desc: "「新規学習内容」から、タイトル・カテゴリ・タグ・理解度・参考リンクを登録。GitHub上のコードも紐づけられます。",
+  },
+  {
+    no: "3",
+    title: "検索して振り返る",
+    desc: "「学習内容検索」で、タイトルやタグから過去の学びをすぐに呼び出し。詳細は必要な1件だけ開いて確認できます。",
   },
 ];
 
@@ -56,28 +76,123 @@ export default function Home() {
             <br />
             あとからいつでも振り返れる学習記録アプリ。
           </Typography>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
-            justifyContent="center"
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<GitHubIcon />}
+            onClick={() => navigate("/LearningContent")}
           >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<GitHubIcon />}
-              onClick={() => navigate("/LearningContent")}
+            使ってみる（GitHubログイン）
+          </Button>
+        </Container>
+      </Box>
+
+      {/* つかいかた（3ステップ） */}
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
+        >
+          つかいかた
+        </Typography>
+        <Typography
+          sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}
+        >
+          3ステップで、学びの記録と振り返りが始められます。
+        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+          {steps.map((s) => (
+            <Paper
+              key={s.no}
+              elevation={0}
+              sx={{ flex: 1, p: 4, border: "1px solid #eceef3" }}
             >
-              使ってみる（GitHubログイン）
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<SearchIcon />}
-              onClick={() => navigate("/FileSearch")}
-            >
-              ファイルを探す
-            </Button>
-          </Stack>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  bgcolor: "primary.main",
+                  color: "#fff",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 2,
+                }}
+              >
+                {s.no}
+              </Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                {s.title}
+              </Typography>
+              <Typography sx={{ color: "text.secondary" }}>{s.desc}</Typography>
+            </Paper>
+          ))}
+        </Stack>
+      </Container>
+
+      {/* GitHub連携について（リポジトリ自動作成の説明＋注意点） */}
+      <Box sx={{ bgcolor: "#f9fafe", py: { xs: 5, md: 7 } }}>
+        <Container maxWidth="md">
+          <Paper
+            elevation={0}
+            sx={{ p: { xs: 3, md: 4 }, border: "1px solid #e0e7ff" }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
+              <GitHubIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                GitHub連携について
+              </Typography>
+            </Stack>
+            <Typography sx={{ mb: 2, lineHeight: 1.9 }}>
+              初回ログイン時に、あなたのGitHubアカウントへ
+              <Box
+                component="code"
+                sx={{
+                  mx: 0.5,
+                  px: 1,
+                  py: 0.3,
+                  bgcolor: "#eef2ff",
+                  borderRadius: 1,
+                  fontFamily: "monospace",
+                  color: "primary.main",
+                }}
+              >
+                learning-site-&lt;ユーザー名&gt;
+              </Box>
+              という保存先リポジトリが自動で作成されます。学習記録に添付したコードやファイルは、ここに保存されます。
+            </Typography>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+              <InfoOutlinedIcon fontSize="small" sx={{ color: "#b45309" }} />
+              <Typography sx={{ fontWeight: 700, color: "#b45309" }}>
+                ご利用前の注意点
+              </Typography>
+            </Stack>
+            <Box component="ul" sx={{ m: 0, pl: 3, color: "text.secondary", lineHeight: 2 }}>
+              <li>
+                作成されるリポジトリは<b>公開（Public）</b>です。中身は誰でも閲覧できるため、
+                <b>パスワードやAPIキーなどの機密情報は保存しない</b>でください。
+              </li>
+              <li>
+                ログイン時に、GitHubの<b>「repo（リポジトリの読み書き）」権限</b>の許可を求められます。
+                これは上記の保存先リポジトリを作成・更新するために使用します。
+              </li>
+              <li>
+                この
+                <Box
+                  component="code"
+                  sx={{ fontFamily: "monospace", color: "primary.main" }}
+                >
+                  learning-site-…
+                </Box>
+                リポジトリは、アプリのデータ保存に使われます。手動で削除・改名しないでください。
+              </li>
+            </Box>
+          </Paper>
         </Container>
       </Box>
 

@@ -985,7 +985,7 @@ export default function LearningContent() {
           <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
             学習ログへようこそ
           </Typography>
-          <Typography sx={{ mb: 4, color: "text.secondary" }}>
+          <Typography sx={{ mb: 3, color: "text.secondary" }}>
             学んだことを記録・振り返るには、
             <br />
             GitHubアカウントでのログインが必要です。
@@ -999,6 +999,14 @@ export default function LearningContent() {
           >
             GitHubでログイン
           </Button>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", mt: 2, color: "text.secondary", lineHeight: 1.7 }}
+          >
+            ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
+            <br />
+            <code>learning-site-&lt;ユーザー名&gt;</code>（公開）が作成されます。
+          </Typography>
         </Box>
       </Box>
     );
