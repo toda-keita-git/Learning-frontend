@@ -33,6 +33,8 @@ import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
+import Avatar from "@mui/material/Avatar";
 
 
 const drawerWidth = 240;
@@ -96,14 +98,12 @@ export default function LearningContent() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "こんにちは！これは学習内容検索botです。",
+      text: "こんにちは！記録した学びを検索できます。下の入力欄にタイトルやキーワードを入れて送信してください（左のメニューから絞り込み検索もできます）。",
       timestamp: new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
         minute: "2-digit",
       }),
       type: "left",
-      photoURL:
-        "https://lh3.googleusercontent.com/a-/AOh14Gi4vkKYlfrbJ0QLJTg_DLjcYyyK7fYoWRpz2r4s=s96-c",
       displayName: "システム",
     },
   ]);
@@ -792,21 +792,21 @@ export default function LearningContent() {
           // カード形式のHTMLを返す
           return `
             <div style="
-              border: 1px solid #e3f2fd;
+              border: 1px solid #e0e7ff;
               border-radius: 12px;
               padding: 20px;
               margin-bottom: 16px;
               background: linear-gradient(to bottom, #ffffff, #fafbff);
-              box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+              box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
               transition: box-shadow 0.2s ease;
-            " onmouseover="this.style.boxShadow='0 4px 12px rgba(25, 118, 210, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(25, 118, 210, 0.08)'">
+            " onmouseover="this.style.boxShadow='0 4px 12px rgba(79, 70, 229, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(79, 70, 229, 0.08)'">
               
               <!-- タイトル -->
               <h3 style="
                 margin: 0 0 16px 0;
                 font-size: 1.15em;
                 font-weight: 600;
-                color: #1565c0;
+                color: #4338ca;
                 letter-spacing: 0.3px;
               ">${item.title}</h3>
               
@@ -816,9 +816,9 @@ export default function LearningContent() {
                 color: #666;
                 margin-bottom: 16px;
                 padding: 12px;
-                background-color: #f5f9ff;
+                background-color: #f5f6ff;
                 border-radius: 8px;
-                border-left: 3px solid #2196f3;
+                border-left: 3px solid #4f46e5;
               ">
                 <div style="margin-bottom: 8px; display: flex; align-items: center;">
                   <span style="
@@ -890,7 +890,7 @@ export default function LearningContent() {
                           gap: 4px;
                           transition: color 0.2s ease;
                         "
-                        onmouseover="this.style.color='#1565c0'; this.style.textDecoration='underline'"
+                        onmouseover="this.style.color='#4338ca'; this.style.textDecoration='underline'"
                         onmouseout="this.style.color='#1976d2'; this.style.textDecoration='none'">
                         参考リンク 🔗
                       </a>`
@@ -913,7 +913,7 @@ export default function LearningContent() {
                         data-action="view-file" 
                         data-path="${item.github_path}"${commitShaAttribute}
                         style="
-                          background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+                          background: linear-gradient(135deg, #1976d2 0%, #4338ca 100%);
                           color: white;
                           border: none;
                           padding: 10px 16px;
@@ -921,11 +921,11 @@ export default function LearningContent() {
                           cursor: pointer;
                           font-size: 0.9em;
                           font-weight: 500;
-                          box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+                          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
                           transition: all 0.2s ease;
                         "
-                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(25, 118, 210, 0.3)'"
-                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(25, 118, 210, 0.2)'">
+                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(79, 70, 229, 0.3)'"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(79, 70, 229, 0.2)'">
                         📄 ファイルを見る (${item.github_path.split("/").pop()})
                       </button>`
                     : ""
@@ -936,7 +936,7 @@ export default function LearningContent() {
                     data-action="edit" 
                     data-id="${item.id}"
                     style="
-                      background-color: #e3f2fd;
+                      background-color: #e0e7ff;
                       color: #1976d2;
                       border: 1px solid #90caf9;
                       padding: 10px 16px;
@@ -952,7 +952,7 @@ export default function LearningContent() {
                       width: 100%;
                     "
                     onmouseover="this.style.backgroundColor='#bbdefb'; this.style.borderColor='#64b5f6'"
-                    onmouseout="this.style.backgroundColor='#e3f2fd'; this.style.borderColor='#90caf9'">
+                    onmouseout="this.style.backgroundColor='#e0e7ff'; this.style.borderColor='#90caf9'">
                     ✏️ 編集
                   </button>
                   <button 
@@ -1061,9 +1061,19 @@ export default function LearningContent() {
         sx={{ width: `calc(100% - ${drawerWidth}px)`, ml: `${drawerWidth}px` }}
       >
         <Toolbar>
-          <Typography variant="h6" noWrap component="div">
-            学習内容検索チャット
-          </Typography>
+          <Avatar
+            sx={{ bgcolor: "rgba(255,255,255,0.2)", width: 38, height: 38, mr: 1.5 }}
+          >
+            <SmartToyIcon fontSize="small" />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" noWrap component="div" sx={{ lineHeight: 1.2 }}>
+              学習内容検索チャット
+            </Typography>
+            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
+              タイトルやタグで、記録した学びを検索
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
       <LeftToolBar
