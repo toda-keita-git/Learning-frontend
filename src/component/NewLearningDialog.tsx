@@ -25,6 +25,8 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
+import InputAdornment from "@mui/material/InputAdornment";
+import { MicButton } from "./MicButton"; // 音声入力ボタン
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
 import Spreadsheet from "react-spreadsheet"; // ★ react-spreadsheet をインポート
@@ -436,7 +438,7 @@ export default function NewLearningDialog({
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* 内容・メモ */}
+          {/* 内容・メモ（🎤 音声入力対応） */}
           <TextField
             margin="normal"
             label="内容・メモ"
@@ -445,9 +447,26 @@ export default function NewLearningDialog({
             multiline
             rows={4}
             variant="outlined"
-            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
+            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます（🎤で音声入力も可）"
             value={explanatoryText}
             onChange={(e) => setExplanatoryText(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment
+                  position="end"
+                  sx={{ alignSelf: "flex-start", mt: 1 }}
+                >
+                  <MicButton
+                    size="small"
+                    onTranscript={(t) =>
+                      setExplanatoryText((prev) =>
+                        prev ? prev + " " + t : t
+                      )
+                    }
+                  />
+                </InputAdornment>
+              ),
+            }}
           />
 
           {/* 参考URL（任意） */}

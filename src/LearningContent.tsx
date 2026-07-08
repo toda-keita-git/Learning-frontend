@@ -51,7 +51,11 @@ import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import { ColorModeContext } from "./ColorModeContext";
+import StreakDialog from "./component/StreakDialog";
 
 
 const drawerWidth = 240;
@@ -423,6 +427,7 @@ export default function LearningContent() {
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
   // ヘルプ（機能説明）ダイアログ
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
+  const [streakOpen, setStreakOpen] = useState<boolean>(false); // 学習の記録（連続日数）
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
 
@@ -1153,6 +1158,11 @@ export default function LearningContent() {
               <MenuBookOutlinedIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="学習の記録（連続日数・草）">
+            <IconButton color="inherit" onClick={() => setStreakOpen(true)}>
+              <LocalFireDepartmentIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip
             title={
               colorMode.mode === "dark"
@@ -1384,6 +1394,13 @@ export default function LearningContent() {
          setSelectedPath={setSelectedFolderPath}
       />
 
+      {/* 学習の記録（連続日数・草グラフ） */}
+      <StreakDialog
+        open={streakOpen}
+        onClose={() => setStreakOpen(false)}
+        dates={learningData.map((l) => l.created_at)}
+      />
+
       {/* ヘルプ（各機能の説明） */}
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1434,6 +1451,34 @@ export default function LearningContent() {
               <ListItemText
                 primary="絞り込み検索（入力欄の左のアイコン）"
                 secondary="カテゴリ・ハッシュタグ・並び順を指定して、条件で絞り込んで検索できます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><LocalOfferOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="タグでサッと絞り込み（入力欄の上）"
+                secondary="登録済みのタグをタップするだけで、そのタグが付いた学習記録だけを表示します。片手でサッと絞り込めます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><LocalFireDepartmentIcon sx={{ color: "#f97316" }} /></ListItemIcon>
+              <ListItemText
+                primary="学習の記録（ヘッダーの炎アイコン）"
+                secondary="連続で記録した日数（ストリーク）や合計を、GitHubの「草」のようなグラフで振り返れます。続けるモチベーションに。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><MicNoneOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="音声入力（🎤マイクのアイコン）"
+                secondary="入力欄や「新規学習内容」の内容・メモ欄で、マイクを押すと話した内容が文字になります。移動中でも声でサッとメモ・検索できます（対応ブラウザのみ）。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><DarkModeOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="ダークモード（ヘッダーの月／太陽アイコン）"
+                secondary="画面を暗い配色に切り替えられます。夜間のスマホ学習に優しく、設定は次回も保持されます。"
               />
             </ListItem>
           </List>
