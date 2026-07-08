@@ -67,6 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setOctokit(new Octokit({ auth: token }));
           setUserId(id);
           setGithubLogin(loginName);
+          _setToken(token); // ← トークンをContextに保存（フォルダ選択等の認証に必要）
 
           // URLからcodeを削除
           window.history.replaceState({}, document.title, window.location.pathname);

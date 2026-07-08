@@ -35,6 +35,18 @@ import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Avatar from "@mui/material/Avatar";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 
 
 const drawerWidth = 240;
@@ -403,6 +415,8 @@ export default function LearningContent() {
 
   // ダイアログの開閉を管理するStateを追加
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
+  // ヘルプ（機能説明）ダイアログ
+  const [helpOpen, setHelpOpen] = useState<boolean>(false);
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
 
@@ -1049,6 +1063,12 @@ export default function LearningContent() {
               タイトルやタグで、記録した学びを検索
             </Typography>
           </Box>
+          <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title="使い方・機能説明">
+            <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
+              <HelpOutlineIcon />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
       <LeftToolBar
@@ -1199,6 +1219,67 @@ export default function LearningContent() {
         accessToken={tokenSafe}
          setSelectedPath={setSelectedFolderPath}
       />
+
+      {/* ヘルプ（各機能の説明） */}
+      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <HelpOutlineIcon color="primary" /> 使い方・機能の説明
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+            左のメニューと下の入力欄から、次のことができます。
+          </Typography>
+          <List>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="新規学習内容"
+                secondary="学んだことを記録します。タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><CategoryOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="新規カテゴリー"
+                secondary="学習内容を分類するためのカテゴリを追加します（例：Java、AI、ネットワークなど）。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><CreateNewFolderOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="新規フォルダー"
+                secondary="学習ファイルの保存先フォルダーを、あなたのGitHubリポジトリ内に作成・選択します。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><SearchOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="ファイル名で検索（左メニュー）"
+                secondary="保存済みのGitHubファイルを、ファイル名で探します。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><SmartToyIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="学習内容の検索（下の入力欄）"
+                secondary="タイトルやキーワードを入力して送信すると、記録した学びをチャット形式で検索できます。結果は「詳細を見る」で1件ずつ開けます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><FilterListOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="絞り込み検索（入力欄の左のアイコン）"
+                secondary="カテゴリ・ハッシュタグ・並び順を指定して、条件で絞り込んで検索できます。"
+              />
+            </ListItem>
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHelpOpen(false)} variant="contained">
+            とじる
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

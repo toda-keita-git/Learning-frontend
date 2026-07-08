@@ -83,12 +83,22 @@ export default function GitHubFolderSelector({
       setCurrentPath(path || "");
     } catch (err: any) {
       console.error("loadFolders error:", err);
-      // エラーメッセージが取れる場合は詳細を表示
-      const msg =
-        err?.message ||
-        "フォルダーの読み込みに失敗しました（詳細不明）。";
-      setError(`${msg}${err?.status ? ` (status: ${err.status})` : ""}`);
-      setFolders([]);
+      // ルートで 404 = リポジトリがまだ空（初回でファイル未作成）。エラーではなく「フォルダなし」として扱う
+      if (err?.status === 404 && !path) {
+        setFolders([]);
+        setCurrentPath("");
+        setError(null);
+      } else if (err?.status === 401 || err?.status === 403) {
+        setError(
+          "GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。"
+        );
+        setFolders([]);
+      } else {
+        setError(
+          "フォルダーの読み込みに失敗しました。時間をおいて、もう一度お試しください。"
+        );
+        setFolders([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -145,10 +155,13 @@ export default function GitHubFolderSelector({
       setSelectedPath(folderPath);
     } catch (err: any) {
       console.error("create folder error:", err);
-      const msg =
-        err?.message ||
-        "フォルダーの作成に失敗しました（詳細不明）。トークン権限やパスを確認してください。";
-      setError(`${msg}${err?.status ? ` (status: ${err.status})` : ""}`);
+      if (err?.status === 422) {
+        setError("同じ名前のフォルダーが既に存在するようです。別の名前をお試しください。");
+      } else if (err?.status === 401 || err?.status === 403) {
+        setError("GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。");
+      } else {
+        setError("フォルダーの作成に失敗しました。フォルダー名を確認して、もう一度お試しください。");
+      }
     }
   };
 
@@ -174,6 +187,9 @@ export default function GitHubFolderSelector({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>フォルダーを選択または作成</DialogTitle>
       <DialogContent>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+          学習ファイルの保存先フォルダーを選べます。新しく作るには、下の「新しいフォルダー名」に入力して「作成」を押してください。
+        </Typography>
         {loading ? (
           <Box sx={{ textAlign: "center", p: 2 }}>
             <CircularProgress />
