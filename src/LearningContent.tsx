@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import { Button } from "@mui/material";
+import Chip from "@mui/material/Chip";
 import { MessageLeft, MessageRight } from "./component/Message";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { SearchDialog } from "./component/SearchDialog";
@@ -47,6 +48,10 @@ import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
+import { ColorModeContext } from "./ColorModeContext";
 
 
 const drawerWidth = 240;
@@ -121,6 +126,7 @@ export default function LearningContent() {
   ]);
 
   const auth = useContext(AuthContext);
+  const colorMode = useContext(ColorModeContext); // ライト/ダーク切替
 
   const githubLoginSafe: string = (auth && auth.githubLogin) ?? "";
   const repoNameSafe: string = (auth && auth.repoName) ?? "";
@@ -1025,6 +1031,29 @@ export default function LearningContent() {
     postResultCards(candidates, header);
   };
 
+  // タグをタップして、そのタグが付いた学習記録だけをサッと絞り込み表示する
+  const handleTagFilter = (tag: string) => {
+    const userMessage: Message = {
+      id: Date.now(),
+      text: `#${tag}`,
+      timestamp: new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      type: "right",
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    const results = [...learningData]
+      .filter((item) => item.tags.includes(tag))
+      .sort((a, b) => a.title.localeCompare(b.title, "ja"));
+
+    postResultCards(
+      results,
+      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🏷️ タグ「#${tag}」の学習記録: ${results.length}件</div>`
+    );
+  };
+
   // 未認証時の表示
   if (!isAuthenticated) {
     return (
@@ -1124,6 +1153,21 @@ export default function LearningContent() {
               <MenuBookOutlinedIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip
+            title={
+              colorMode.mode === "dark"
+                ? "ライトモードに切り替え"
+                : "ダークモードに切り替え"
+            }
+          >
+            <IconButton color="inherit" onClick={colorMode.toggle}>
+              {colorMode.mode === "dark" ? (
+                <Brightness7Icon />
+              ) : (
+                <Brightness4Icon />
+              )}
+            </IconButton>
+          </Tooltip>
           <Tooltip title="使い方・機能説明">
             <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
               <HelpOutlineIcon />
@@ -1179,7 +1223,7 @@ export default function LearningContent() {
               flexGrow: 1,
               overflowY: "auto",
               p: { xs: 1.5, sm: 2.5 },
-              bgcolor: "#f6f7fb",
+              bgcolor: "background.default",
             }}
           >
             {messages.map((msg) =>
@@ -1210,8 +1254,68 @@ export default function LearningContent() {
             currentFilters={searchFilters}
           />
 
+          {/* タグでサッと絞り込み（タップで、そのタグの記録だけ表示） */}
+          {allTags.length > 0 && (
+            <Box
+              sx={{
+                borderTop: 1,
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                px: { xs: 1, sm: 2 },
+                pt: 0.75,
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
+              >
+                <LocalOfferOutlinedIcon sx={{ fontSize: 15 }} />
+                タグでサッと絞り込み
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 0.75,
+                  overflowX: "auto",
+                  py: 0.75,
+                  // スマホで片手スクロールしやすいよう、細めのスクロールバー
+                  "&::-webkit-scrollbar": { height: 6 },
+                  "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: "rgba(128,128,128,0.4)",
+                    borderRadius: 3,
+                  },
+                }}
+              >
+                {allTags.map((tag) => (
+                  <Chip
+                    key={tag.id}
+                    label={`#${tag.name}`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    clickable
+                    onClick={() => handleTagFilter(tag.name)}
+                    sx={{ flexShrink: 0, fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+
           {/* 入力欄 */}
-          <Box sx={{ p: { xs: 1, sm: 2 }, borderTop: "1px solid #e5e7eb", bgcolor: "#fff" }}>
+          <Box
+            sx={{
+              p: { xs: 1, sm: 2 },
+              borderTop: 1,
+              borderColor: "divider",
+              bgcolor: "background.paper",
+            }}
+          >
             <TextInputLearning
               onSendMessage={handleSearch}
               onSearchMenuClick={() => setOpenSearchDialog(true)}
