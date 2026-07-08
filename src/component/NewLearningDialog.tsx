@@ -57,6 +57,12 @@ interface NewLearningDialogProps {
   allTags: { name: string }[];
   allCategories: { id: number; name: string }[];
   editingData?: any | null;
+  // 共有(Web Share Target)などから、新規登録の初期値を差し込む用
+  prefillData?: {
+    title?: string;
+    explanatory_text?: string;
+    reference_url?: string;
+  } | null;
   onFetchFile: (
     path: string
   ) => Promise<{ content: string; sha: string; base64Content: string } | null>;
@@ -69,6 +75,7 @@ export default function NewLearningDialog({
   allTags = [],
   allCategories = [],
   editingData = null,
+  prefillData = null,
   onFetchFile,
 }: NewLearningDialogProps) {
   // フォーム項目のためのState
@@ -188,12 +195,18 @@ export default function NewLearningDialog({
         if (editingData.github_path) {
           handlePreviewFile(editingData.github_path);
         }
+      } else if (prefillData) {
+        // 共有などからの新規登録：一度リセットしてから初期値を差し込む
+        handleClose(true);
+        setTitle(prefillData.title || "");
+        setExplanatoryText(prefillData.explanatory_text || "");
+        setReferenceUrl(prefillData.reference_url || "");
       } else {
         // 新規作成モードの時はフォームをリセット
         handleClose(true);
       }
     }
-  }, [editingData, open]);
+  }, [editingData, prefillData, open]);
 
   // GitHub上のファイルのプレビュー処理
   const handlePreviewFile = async (path: string) => {

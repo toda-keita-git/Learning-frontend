@@ -33,6 +33,19 @@ export default defineConfig({
             purpose: "maskable",
           },
         ],
+        // 他アプリ（ブラウザ等）の「共有」先に本アプリを表示し、
+        // 共有された記事のタイトル・URLを学習記録の入力に引き渡す。
+        // ※インストール済みPWAでのみ共有シートに出る。
+        share_target: {
+          action: "/LearningContent",
+          method: "GET",
+          enctype: "application/x-www-form-urlencoded",
+          params: {
+            title: "title",
+            text: "text",
+            url: "url",
+          },
+        },
       },
       workbox: {
         // アプリの外枠（HTML/JS/CSS/画像）をキャッシュしてオフライン初期表示・高速化

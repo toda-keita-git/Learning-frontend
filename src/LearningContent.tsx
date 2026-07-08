@@ -54,8 +54,18 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import IosShareOutlinedIcon from "@mui/icons-material/IosShareOutlined";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
+import {
+  isNotificationSupported,
+  isRemindersEnabled,
+  requestAndEnableReminders,
+  setRemindersEnabled,
+  maybeNotifyReview,
+  showTestReminder,
+} from "./notifications";
 
 
 const drawerWidth = 240;
@@ -428,6 +438,16 @@ export default function LearningContent() {
   // ヘルプ（機能説明）ダイアログ
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
   const [streakOpen, setStreakOpen] = useState<boolean>(false); // 学習の記録（連続日数）
+  // 共有(Web Share Target)から渡された新規登録の初期値
+  const [sharePrefill, setSharePrefill] = useState<{
+    title?: string;
+    explanatory_text?: string;
+    reference_url?: string;
+  } | null>(null);
+  // 復習リマインド通知の状態（ヘルプのトグル表示用）
+  const [remindersOn, setRemindersOn] = useState<boolean>(
+    isNotificationSupported() && isRemindersEnabled()
+  );
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
 
@@ -1059,6 +1079,60 @@ export default function LearningContent() {
     );
   };
 
+  // 復習候補（理解度が低め）の件数
+  const reviewCount = learningData.filter(
+    (l) => (l.understanding_level ?? 3) <= 2
+  ).length;
+
+  // 共有(Web Share Target)で開かれたら、共有内容を新規登録フォームに反映する
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const title = params.get("title") || "";
+    const text = params.get("text") || "";
+    const url = params.get("url") || "";
+    if (!title && !text && !url) return;
+
+    const urlFromText = /https?:\/\/\S+/.exec(text)?.[0] || "";
+    const refUrl = url || urlFromText;
+    setSharePrefill({
+      title: title || (text && !refUrl ? text.slice(0, 60) : ""),
+      reference_url: refUrl,
+      explanatory_text: text && text !== refUrl ? text : "",
+    });
+    setEditingItem(null);
+    setOpenNewDialog(true);
+    // URLから共有パラメータを消して、リロードや再オープンを防ぐ
+    window.history.replaceState({}, "", "/LearningContent");
+  }, []);
+
+  // データが揃ったら、条件を満たせば復習リマインドを通知する（1日1回）
+  useEffect(() => {
+    if (learningData.length > 0) {
+      maybeNotifyReview(reviewCount);
+    }
+    // reviewCount は learningData から算出されるため依存はlearningDataで十分
+  }, [learningData]);
+
+  // 復習リマインド通知のオン/オフ
+  const handleToggleReminders = async () => {
+    if (remindersOn) {
+      setRemindersEnabled(false);
+      setRemindersOn(false);
+      return;
+    }
+    const perm = await requestAndEnableReminders();
+    if (perm === "granted") {
+      setRemindersOn(true);
+      showTestReminder(reviewCount);
+    } else if (perm === "denied") {
+      alert(
+        "通知がブロックされています。ブラウザの設定から本サイトの通知を許可してください。"
+      );
+    } else if (perm === "unsupported") {
+      alert("お使いのブラウザは通知に対応していません。");
+    }
+  };
+
   // 未認証時の表示
   if (!isAuthenticated) {
     return (
@@ -1188,6 +1262,7 @@ export default function LearningContent() {
       <LeftToolBar
         onAddNewLearning={() => {
           setEditingItem(null);
+          setSharePrefill(null); // 共有の初期値が残らないようにする
           setOpenNewDialog(true);
         }}
         onAddNewCategory={handleAddNewCategory}
@@ -1336,11 +1411,15 @@ export default function LearningContent() {
 
       <NewLearningDialog
         open={openNewDialog}
-        onClose={() => setOpenNewDialog(false)}
+        onClose={() => {
+          setOpenNewDialog(false);
+          setSharePrefill(null); // 閉じたら共有の初期値をクリア
+        }}
         onSubmit={handleSubmitLearning} // ★ 汎用ハンドラを渡す
         allTags={allTags}
         allCategories={allCategories}
         editingData={editingItem} // ★ 編集データを渡す
+        prefillData={sharePrefill} // ★ 共有からの初期値
         onFetchFile={fetchFileForDialog}
       />
       <GitHubFileViewerDialog
@@ -1481,7 +1560,49 @@ export default function LearningContent() {
                 secondary="画面を暗い配色に切り替えられます。夜間のスマホ学習に優しく、設定は次回も保持されます。"
               />
             </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><IosShareOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="共有で記録（スマホにインストール後）"
+                secondary="スマホのブラウザ等で記事を開き「共有」から本アプリを選ぶと、タイトルとURLが入った状態で新規登録が開きます。「あとで学ぶ」の取りこぼし防止に。※ホーム画面に追加（インストール）が必要です。"
+              />
+            </ListItem>
           </List>
+
+          {/* 復習リマインド通知の設定 */}
+          {isNotificationSupported() && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 2,
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                flexWrap: "wrap",
+              }}
+            >
+              <NotificationsActiveOutlinedIcon color="primary" />
+              <Box sx={{ flex: 1, minWidth: 180 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  復習リマインド通知
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  オンにすると、復習がたまっているときに、次にアプリを開いた際に通知でお知らせします。
+                  （※アプリを閉じている間に届くサーバー通知ではありません）
+                </Typography>
+              </Box>
+              <Button
+                variant={remindersOn ? "outlined" : "contained"}
+                size="small"
+                onClick={handleToggleReminders}
+              >
+                {remindersOn ? "オフにする" : "オンにする"}
+              </Button>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHelpOpen(false)} variant="contained">
