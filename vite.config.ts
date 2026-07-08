@@ -1,8 +1,58 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["pwa-icon.svg"],
+      manifest: {
+        name: "学習ログ",
+        short_name: "学習ログ",
+        description:
+          "学んだことをGitHub上のコードと結びつけて記録・振り返りできる学習記録アプリ",
+        theme_color: "#4f46e5",
+        background_color: "#f6f7fb",
+        display: "standalone",
+        start_url: "/",
+        scope: "/",
+        lang: "ja",
+        icons: [
+          {
+            src: "pwa-icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any",
+          },
+          {
+            src: "pwa-icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // アプリの外枠（HTML/JS/CSS/画像）をキャッシュしてオフライン初期表示・高速化
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        // メインバンドルが大きめなので、プリキャッシュ上限を引き上げる
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // API と GitHub へのアクセスはキャッシュせず、常にネットワークから取得
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith("/api") ||
+              url.hostname.includes("github") ||
+              url.hostname.includes("onrender.com"),
+            handler: "NetworkOnly",
+          },
+        ],
+      },
+    }),
+  ],
   server: {
     // プロキシの設定を追加
     proxy: {
@@ -17,11 +67,11 @@ export default defineConfig({
       },
     },
   },
-   preview: {
-    host: '0.0.0.0',
-    allowedHosts: ['learning-frontend-x5jf.onrender.com']
+  preview: {
+    host: "0.0.0.0",
+    allowedHosts: ["learning-frontend-x5jf.onrender.com"],
   },
   esbuild: {
-    logOverride: { 'unused-import': 'silent' }
-  }
+    logOverride: { "unused-import": "silent" },
+  },
 });

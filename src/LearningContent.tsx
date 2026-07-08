@@ -795,8 +795,16 @@ export default function LearningContent() {
       }
     });
 
-    // 5. 結果メッセージを生成
-    let resultText = `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🔎 検索結果: ${results.length}件</div>`;
+    // 5. 結果メッセージを生成（カード描画は共通関数へ）
+    postResultCards(
+      results,
+      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🔎 検索結果: ${results.length}件</div>`
+    );
+  };
+
+  // 学習記録の配列を、検索結果カードとしてチャットに投稿する共通処理
+  const postResultCards = (results: LearningRecord[], headerHtml: string) => {
+    let resultText = headerHtml;
     if (results.length > 0) {
       resultText += results
         .map((item) => {
@@ -987,6 +995,36 @@ export default function LearningContent() {
     }, 500);
   };
 
+  // 今日の復習：理解度が低い・しばらく見ていない記録を優先して振り返る
+  const handleReview = () => {
+    const userMessage: Message = {
+      id: Date.now(),
+      text: "今日の復習",
+      timestamp: new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      type: "right",
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    const candidates = [...learningData]
+      .sort((a, b) => {
+        // 理解度が低い順 → 同じなら古い順（久しく見ていないもの優先）
+        const lv = (a.understanding_level ?? 3) - (b.understanding_level ?? 3);
+        if (lv !== 0) return lv;
+        return toTime(a.created_at) - toTime(b.created_at);
+      })
+      .slice(0, 5);
+
+    const header =
+      candidates.length > 0
+        ? `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">📖 今日の復習（理解度が低め・振り返り優先の${candidates.length}件）</div>`
+        : `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">📖 今日の復習</div>`;
+    postResultCards(candidates, header);
+  };
+
   // 未認証時の表示
   if (!isAuthenticated) {
     return (
@@ -1064,6 +1102,28 @@ export default function LearningContent() {
             </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
+          <Button
+            color="inherit"
+            size="small"
+            startIcon={<MenuBookOutlinedIcon />}
+            onClick={handleReview}
+            sx={{
+              mr: 0.5,
+              border: "1px solid rgba(255,255,255,0.5)",
+              display: { xs: "none", sm: "inline-flex" },
+            }}
+          >
+            今日の復習
+          </Button>
+          <Tooltip title="今日の復習">
+            <IconButton
+              color="inherit"
+              onClick={handleReview}
+              sx={{ display: { xs: "inline-flex", sm: "none" } }}
+            >
+              <MenuBookOutlinedIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="使い方・機能説明">
             <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
               <HelpOutlineIcon />
