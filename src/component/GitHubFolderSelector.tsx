@@ -7,25 +7,30 @@ import {
   Button,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   TextField,
   CircularProgress,
   Box,
   Typography,
-  FormControlLabel,
-  Checkbox,
-  Stack,
+  Breadcrumbs,
+  Link,
+  Divider,
+  InputAdornment,
 } from "@mui/material";
+import FolderIcon from "@mui/icons-material/Folder";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import { Octokit } from "@octokit/rest";
 
 interface GitHubFolderSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelectFolder: (path: string) => void; // ダブルクリックで確定
+  onSelectFolder: (path: string) => void;
   githubLogin: string;
   repoName: string;
   accessToken: string;
-  setSelectedPath: (path: string) => void; // 選択時に親コンポーネントに反映
+  setSelectedPath: (path: string) => void;
 }
 
 export default function GitHubFolderSelector({
@@ -39,52 +44,49 @@ export default function GitHubFolderSelector({
 }: GitHubFolderSelectorProps) {
   const [folders, setFolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPath, setCurrentPath] = useState(""); // 現在開いている階層（"" はルート）
+  const [currentPath, setCurrentPath] = useState(""); // "" はルート
   const [newFolderName, setNewFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [selectedFolder, setSelectedFolder] = useState<string>("");
-  const [createInSelectedFolder, setCreateInSelectedFolder] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  // OctokitをaccessTokenに応じて再生成（古いインスタンスによる問題回避）
-  const octokit = useMemo(() => {
-    return new Octokit({ auth: accessToken });
-  }, [accessToken]);
+  const octokit = useMemo(
+    () => new Octokit({ auth: accessToken }),
+    [accessToken]
+  );
 
   useEffect(() => {
     if (open) {
-      // ダイアログオープン時にはルートを読み込み、選択をクリア
-      loadFolders("");
-      setSelectedFolder("");
       setCurrentPath("");
-      setError(null);
       setNewFolderName("");
+      setError(null);
+      loadFolders("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // フォルダ名だけ取り出す（path の最後の区切り以降）
+  const baseName = (p: string) => p.split("/").filter(Boolean).pop() || p;
 
   const loadFolders = async (path: string) => {
     setLoading(true);
     setError(null);
     try {
-      // GitHub API: root の場合は "" をそのまま渡す
       const response = await octokit.repos.getContent({
         owner: githubLogin,
         repo: repoName,
         path: path || "",
       });
-
       const dirs = Array.isArray(response.data)
         ? response.data
             .filter((item: any) => item.type === "dir")
             .map((d: any) => d.path)
         : [];
-
       setFolders(dirs);
       setCurrentPath(path || "");
     } catch (err: any) {
       console.error("loadFolders error:", err);
-      // ルートで 404 = リポジトリがまだ空（初回でファイル未作成）。エラーではなく「フォルダなし」として扱う
       if (err?.status === 404 && !path) {
+        // ルートで404 = まだ空のリポジトリ。エラー扱いにしない
         setFolders([]);
         setCurrentPath("");
         setError(null);
@@ -104,38 +106,27 @@ export default function GitHubFolderSelector({
     }
   };
 
-  // フォルダクリック時 -> 選択してその階層を開く（開く/選択を分離することで挙動が明確）
-  const handleClickFolder = (folder: string) => {
-    // 選択はするが、開くのは loadFolders を呼ぶ（ユーザーが中に入る挙動）
-    setSelectedFolder(folder);
-  };
-
-  // フォルダを開く（フォルダ名をダブルクリック、または「開く」ボタン）
-  const handleOpenFolder = async (folder: string) => {
-    await loadFolders(folder);
-    // 開いたら選択は空にする or 維持するかは要件次第。ここでは選択は継続。
-    setSelectedFolder(folder);
-  };
-
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (/[\\/]/.test(name)) {
+      setError("フォルダー名に「/」や「\\」は使えません。");
+      return;
+    }
     setError(null);
+    setCreating(true);
 
-    // basePath の決定：選択中フォルダに作るモードか、今開いている階層に作るか
-    const basePath =
-      createInSelectedFolder && selectedFolder ? selectedFolder : currentPath;
-
-    const folderPath = basePath ? `${basePath}/${newFolderName}` : newFolderName;
+    // 「いま開いている階層」の中に作る（直感的）
+    const folderPath = currentPath ? `${currentPath}/${name}` : name;
     const dummyFilePath = `${folderPath}/.keep`;
 
     try {
-      // content は base64
-      const content = typeof window !== "undefined" && (window as any).btoa
-        ? (window as any).btoa("This folder is intentionally left empty.")
-        : Buffer.from("This folder is intentionally left empty.").toString(
-            "base64"
-          );
+      const content =
+        typeof window !== "undefined" && (window as any).btoa
+          ? (window as any).btoa("This folder is intentionally left empty.")
+          : Buffer.from("This folder is intentionally left empty.").toString(
+              "base64"
+            );
 
       await octokit.repos.createOrUpdateFileContents({
         owner: githubLogin,
@@ -145,14 +136,9 @@ export default function GitHubFolderSelector({
         content,
       });
 
-      // 作成後は入力リセット、一覧更新（basePath の階層を再読み込み）
       setNewFolderName("");
-      // basePath があるならその階層を再読み込みして新規フォルダを見えるようにする
-      await loadFolders(basePath || "");
-
-      // 選択を新規フォルダに変更して親コンポーネントにも反映
-      setSelectedFolder(folderPath);
-      setSelectedPath(folderPath);
+      // 作った直後にその中へ移動（作成できたことが体感で分かる）
+      await loadFolders(folderPath);
     } catch (err: any) {
       console.error("create folder error:", err);
       if (err?.status === 422) {
@@ -162,155 +148,149 @@ export default function GitHubFolderSelector({
       } else {
         setError("フォルダーの作成に失敗しました。フォルダー名を確認して、もう一度お試しください。");
       }
+    } finally {
+      setCreating(false);
     }
   };
 
-  const handleSelectFolder = () => {
-    if (!selectedFolder) {
-      setError("フォルダーが選択されていません。");
-      return;
-    }
-    // 親コンポーネントへ選択を通知（「選択して決定」）
-    setSelectedPath(selectedFolder);
-  };
-
-  const handleConfirmAndClose = () => {
-    if (selectedFolder) {
-      onSelectFolder(selectedFolder);
-      onClose();
+  // パンくず（ルート > A > B ...）
+  const segments = currentPath ? currentPath.split("/").filter(Boolean) : [];
+  const goToSegment = (index: number) => {
+    if (index < 0) {
+      loadFolders("");
     } else {
-      setError("フォルダーが選択されていません。");
+      loadFolders(segments.slice(0, index + 1).join("/"));
     }
+  };
+
+  const handleUseThisFolder = () => {
+    // いま開いているフォルダーを保存先に決定
+    setSelectedPath(currentPath);
+    onSelectFolder(currentPath);
+    onClose();
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>フォルダーを選択または作成</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          学習ファイルの保存先フォルダーを選べます。新しく作るには、下の「新しいフォルダー名」に入力して「作成」を押してください。
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <FolderIcon color="primary" /> 保存先フォルダーを選ぶ
+      </DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
+          フォルダーをクリックすると中に入ります。保存先が決まったら「このフォルダーに保存」を押してください。
         </Typography>
-        {loading ? (
-          <Box sx={{ textAlign: "center", p: 2 }}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Typography color="error" sx={{ mb: 2 }}>
+
+        {/* 現在地（パンくず） */}
+        <Breadcrumbs sx={{ mb: 1 }} separator="›">
+          <Link
+            component="button"
+            underline="hover"
+            color={segments.length === 0 ? "text.primary" : "primary"}
+            onClick={() => goToSegment(-1)}
+          >
+            ルート
+          </Link>
+          {segments.map((seg, i) => (
+            <Link
+              key={i}
+              component="button"
+              underline="hover"
+              color={i === segments.length - 1 ? "text.primary" : "primary"}
+              onClick={() => goToSegment(i)}
+            >
+              {seg}
+            </Link>
+          ))}
+        </Breadcrumbs>
+
+        {error && (
+          <Typography color="error" variant="body2" sx={{ mb: 1 }}>
             {error}
           </Typography>
-        ) : null}
-
-        {/* ナビゲーション（ルートに戻る / 現在のパス表示） */}
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-          <Button
-            size="small"
-            onClick={() => loadFolders("")}
-            disabled={loading || currentPath === ""}
-          >
-            ルートに戻る
-          </Button>
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            開いている階層: {currentPath || "(ルート)"}
-          </Typography>
-        </Stack>
+        )}
 
         {/* フォルダ一覧 */}
-        <List dense>
-          {folders.map((folder) => (
-            <ListItemButton
-              key={folder}
-              onClick={() => handleClickFolder(folder)}
-              onDoubleClick={() => handleOpenFolder(folder)}
-              selected={selectedFolder === folder}
-            >
-              <ListItemText primary={folder} />
-            </ListItemButton>
-          ))}
-          {folders.length === 0 && !loading && (
-            <Typography variant="body2" sx={{ color: "text.secondary", p: 1 }}>
-              この階層にフォルダはありません。
-            </Typography>
+        <Box
+          sx={{
+            border: "1px solid #eceef3",
+            borderRadius: 2,
+            minHeight: 160,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
+          {loading ? (
+            <Box sx={{ textAlign: "center", p: 3 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : folders.length > 0 ? (
+            <List dense disablePadding>
+              {folders.map((folder) => (
+                <ListItemButton
+                  key={folder}
+                  onClick={() => loadFolders(folder)}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <FolderIcon sx={{ color: "#f0ad4e" }} />
+                  </ListItemIcon>
+                  <ListItemText primary={baseName(folder)} />
+                  <ChevronRightIcon sx={{ color: "text.disabled" }} />
+                </ListItemButton>
+              ))}
+            </List>
+          ) : (
+            <Box sx={{ textAlign: "center", color: "text.secondary", p: 3 }}>
+              <Typography variant="body2">
+                このフォルダーの中に、サブフォルダーはありません。
+              </Typography>
+              <Typography variant="caption">
+                下の入力欄から新しいフォルダーを作れます。
+              </Typography>
+            </Box>
           )}
-        </List>
-
-        {/* 選択操作ボタン */}
-        <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-          <Button
-            size="small"
-            onClick={() => selectedFolder && handleOpenFolder(selectedFolder)}
-            disabled={!selectedFolder}
-          >
-            開く
-          </Button>
-          <Button
-            size="small"
-            onClick={handleSelectFolder}
-            disabled={!selectedFolder}
-          >
-            選択（一覧に反映）
-          </Button>
-          <Button
-            size="small"
-            onClick={() => {
-              setSelectedFolder("");
-              setSelectedPath("");
-            }}
-          >
-            選択クリア
-          </Button>
         </Box>
 
-        {/* 新規フォルダ作成 */}
-        <Box sx={{ mt: 3 }}>
-          <Typography
-            variant="body2"
-            sx={{ mb: 1, color: "text.secondary" }}
-          >
-            現在の選択フォルダー:
-          </Typography>
+        <Divider sx={{ my: 2 }} />
+
+        {/* 新規作成（今いる場所に作る） */}
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+          「{segments.length === 0 ? "ルート" : baseName(currentPath)}」の中に新しいフォルダーを作る
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
             size="small"
             fullWidth
-            value={selectedFolder || "(未選択)"}
-            InputProps={{ readOnly: true }}
+            placeholder="新しいフォルダー名"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreateFolder();
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <CreateNewFolderIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
           />
-
-          <Box sx={{ mt: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={createInSelectedFolder}
-                  onChange={(e) => setCreateInSelectedFolder(e.target.checked)}
-                />
-              }
-              label="選択中のフォルダの中に作成する（未選択時は現在の階層に作成）"
-            />
-          </Box>
-
-          <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
-            <TextField
-              size="small"
-              label="新しいフォルダー名"
-              fullWidth
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleCreateFolder();
-                }
-              }}
-            />
-            <Button variant="contained" onClick={handleCreateFolder}>
-              作成
-            </Button>
-          </Box>
+          <Button
+            variant="outlined"
+            onClick={handleCreateFolder}
+            disabled={creating || !newFolderName.trim()}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            {creating ? "作成中…" : "作成"}
+          </Button>
         </Box>
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>閉じる</Button>
-        <Button onClick={handleConfirmAndClose} variant="contained">
-          選択して決定
+        <Button onClick={onClose} color="inherit">
+          キャンセル
+        </Button>
+        <Button onClick={handleUseThisFolder} variant="contained">
+          このフォルダーに保存
         </Button>
       </DialogActions>
     </Dialog>
