@@ -1084,25 +1084,59 @@ export default function LearningContent() {
     (l) => (l.understanding_level ?? 3) <= 2
   ).length;
 
-  // 共有(Web Share Target)で開かれたら、共有内容を新規登録フォームに反映する
+  // 共有(Web Share Target)で開かれたら、共有内容を新規登録フォームに反映する。
+  // 未ログインだとGitHubログインのリダイレクトを挟むため、共有内容は一旦
+  // localStorageへ退避し、ログイン往復後の再マウントで復元してフォームを開く。
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const title = params.get("title") || "";
     const text = params.get("text") || "";
     const url = params.get("url") || "";
-    if (!title && !text && !url) return;
 
-    const urlFromText = /https?:\/\/\S+/.exec(text)?.[0] || "";
-    const refUrl = url || urlFromText;
-    setSharePrefill({
-      title: title || (text && !refUrl ? text.slice(0, 60) : ""),
-      reference_url: refUrl,
-      explanatory_text: text && text !== refUrl ? text : "",
-    });
-    setEditingItem(null);
-    setOpenNewDialog(true);
-    // URLから共有パラメータを消して、リロードや再オープンを防ぐ
-    window.history.replaceState({}, "", "/LearningContent");
+    let prefill: {
+      title?: string;
+      explanatory_text?: string;
+      reference_url?: string;
+    } | null = null;
+
+    if (title || text || url) {
+      const urlFromText = /https?:\/\/\S+/.exec(text)?.[0] || "";
+      const refUrl = url || urlFromText;
+      prefill = {
+        title: title || (text && !refUrl ? text.slice(0, 60) : ""),
+        reference_url: refUrl,
+        explanatory_text: text && text !== refUrl ? text : "",
+      };
+      // ログインのリダイレクトを挟んでも復元できるよう退避
+      localStorage.setItem(
+        "sharePrefillPending",
+        JSON.stringify({ prefill, ts: Date.now() })
+      );
+      // URLから共有パラメータを消して、リロードでの再発火を防ぐ
+      window.history.replaceState({}, "", "/LearningContent");
+    } else {
+      // URLに無ければ、退避済みの共有内容（ログイン往復後など）を復元
+      const saved = localStorage.getItem("sharePrefillPending");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // 10分以内のものだけ有効（古い残骸で誤爆しない）
+          if (parsed?.ts && Date.now() - parsed.ts < 10 * 60 * 1000) {
+            prefill = parsed.prefill;
+          } else {
+            localStorage.removeItem("sharePrefillPending");
+          }
+        } catch {
+          localStorage.removeItem("sharePrefillPending");
+        }
+      }
+    }
+
+    if (prefill) {
+      setSharePrefill(prefill);
+      setEditingItem(null);
+      setOpenNewDialog(true);
+    }
   }, []);
 
   // データが揃ったら、条件を満たせば復習リマインドを通知する（1日1回）
@@ -1263,6 +1297,7 @@ export default function LearningContent() {
         onAddNewLearning={() => {
           setEditingItem(null);
           setSharePrefill(null); // 共有の初期値が残らないようにする
+          localStorage.removeItem("sharePrefillPending");
           setOpenNewDialog(true);
         }}
         onAddNewCategory={handleAddNewCategory}
@@ -1414,6 +1449,7 @@ export default function LearningContent() {
         onClose={() => {
           setOpenNewDialog(false);
           setSharePrefill(null); // 閉じたら共有の初期値をクリア
+          localStorage.removeItem("sharePrefillPending"); // 退避した共有内容も消費済みに
         }}
         onSubmit={handleSubmitLearning} // ★ 汎用ハンドラを渡す
         allTags={allTags}
