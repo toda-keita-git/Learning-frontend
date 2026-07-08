@@ -10,6 +10,8 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import FormHelperText from "@mui/material/FormHelperText";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -409,50 +411,68 @@ export default function NewLearningDialog({
   return (
     <>
       <Dialog open={open} onClose={() => handleClose()} fullWidth maxWidth="md">
-        <DialogTitle>
-          {editingData ? "学習内容の編集" : "新しい学習内容の追加"}
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <MenuBookOutlinedIcon color="primary" />
+          {editingData ? "学習内容の編集" : "学んだことを記録する"}
         </DialogTitle>
-        <DialogContent>
-          {/* === タイトル === */}
+        <DialogContent dividers>
+          {/* === 基本情報 === */}
+          <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontWeight: 700, color: "primary.main" }}>
+            基本情報
+          </Typography>
+
+          {/* タイトル（必須） */}
           <TextField
             autoFocus
-            margin="dense"
+            margin="normal"
             label="タイトル"
+            required
             type="text"
             fullWidth
-            variant="standard"
+            variant="outlined"
+            placeholder="例: XLOOKUP関数の使い方"
+            helperText="何について学んだかを短く書きます（必須）"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* === 内容 === */}
+          {/* 内容・メモ */}
           <TextField
-            margin="dense"
-            label="内容"
+            margin="normal"
+            label="内容・メモ"
             type="text"
             fullWidth
             multiline
             rows={4}
-            variant="standard"
+            variant="outlined"
+            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
             value={explanatoryText}
             onChange={(e) => setExplanatoryText(e.target.value)}
           />
 
-          {/* === 参考URL === */}
+          {/* 参考URL（任意） */}
           <TextField
-            margin="dense"
-            label="参考URL"
+            margin="normal"
+            label="参考URL（任意）"
             type="url"
             fullWidth
-            variant="standard"
+            variant="outlined"
+            placeholder="https://..."
+            helperText="参考にした記事やドキュメントのURL"
             value={referenceUrl}
             onChange={(e) => setReferenceUrl(e.target.value)}
           />
 
-          {/* === カテゴリー (単一選択) === */}
-          <FormControl variant="standard" fullWidth margin="dense">
+          {/* === 分類 === */}
+          <Typography variant="subtitle2" sx={{ mt: 3, mb: 1, fontWeight: 700, color: "primary.main" }}>
+            分類
+          </Typography>
+
+          {/* カテゴリー（単一選択） */}
+          <FormControl variant="outlined" fullWidth margin="normal">
             <InputLabel>カテゴリー</InputLabel>
             <Select
+              label="カテゴリー"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
@@ -462,9 +482,10 @@ export default function NewLearningDialog({
                 </MenuItem>
               ))}
             </Select>
+            <FormHelperText>学習内容を分類するカテゴリを選びます</FormHelperText>
           </FormControl>
 
-          {/* === ハッシュタグ (複数選択) === */}
+          {/* ハッシュタグ（複数選択・自由入力可） */}
           <Autocomplete
             multiple
             options={allTags.map((tag: any) => tag.name)}
@@ -485,28 +506,37 @@ export default function NewLearningDialog({
             renderInput={(params) => (
               <TextField
                 {...params}
-                variant="standard"
-                label="ハッシュタグ"
-                placeholder="タグを追加"
+                variant="outlined"
+                label="ハッシュタグ（任意）"
+                placeholder="入力してEnterで追加"
+                helperText="複数OK。一覧にない言葉も新しく追加できます"
               />
             )}
             sx={{ mt: 2 }}
           />
 
           {/* === 理解度 === */}
-          <Box sx={{ mt: 2 }}>
-            <Typography component="legend">理解度</Typography>
+          <Box sx={{ mt: 3 }}>
+            <Typography component="legend" sx={{ fontWeight: 600 }}>
+              理解度
+            </Typography>
             <Rating
               value={understandingLevel}
               onChange={(_event, newValue: any) => {
                 setUnderstandingLevel(newValue);
               }}
             />
+            <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+              ★が多いほど「よく理解できた」。あとで復習の優先度に使えます。
+            </Typography>
           </Box>
           {/* === GitHub連携（フォルダ選択＋ファイル指定） === */}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              GitHub連携
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, color: "primary.main" }}>
+              GitHub連携（任意）
+            </Typography>
+            <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mb: 1.5 }}>
+              学んだコードやファイルを紐づけたいときに使います。使わなくても登録できます。
             </Typography>
 
             {/* --- フォルダ選択エリア --- */}
@@ -521,7 +551,8 @@ export default function NewLearningDialog({
               <TextField
                 label="保存先フォルダ"
                 type="text"
-                variant="standard"
+                variant="outlined"
+                size="small"
                 fullWidth
                 value={github_path.endsWith("/") ? github_path : github_path.split("/").slice(0, -1).join("/")}
                 onChange={(e) => {
@@ -551,7 +582,8 @@ export default function NewLearningDialog({
               <TextField
                 label="ファイル名"
                 type="text"
-                variant="standard"
+                variant="outlined"
+                size="small"
                 fullWidth
                 value={
                   github_path.endsWith("/")
@@ -714,10 +746,12 @@ export default function NewLearningDialog({
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleClose()}>キャンセル</Button>
-          <Button onClick={handleSubmit}>
-            {editingData ? "更新" : "登録"}
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => handleClose()} color="inherit">
+            キャンセル
+          </Button>
+          <Button onClick={handleSubmit} variant="contained" disabled={!title.trim()}>
+            {editingData ? "変更を保存" : "この内容で登録"}
           </Button>
         </DialogActions>
       </Dialog>
