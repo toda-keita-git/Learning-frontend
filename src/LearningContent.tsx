@@ -162,11 +162,18 @@ export default function LearningContent() {
       content = `data:image/${ext};base64,${base64Content}`;
     } else {
       // ⚠️ Base64が空（LFSや大容量ファイルなど）
-      // ✅ 日本語・スペースをURLエンコードしてGitHub raw URLを生成
-      const encodedPath = encodeURIComponent(path)
-        .replace(/%2F/g, "/") // パス区切りは残す
-        .replace(/%20/g, " "); // 空白はGitHub上ではそのまま扱われる
-      content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${encodedPath}`;
+      // ✅ 認証付きで blob を取得（プライベートリポジトリでも表示できる）
+      try {
+        const blob = await octokit.request(
+          "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+          { owner: githubLogin, repo: repoName, file_sha: data.sha }
+        );
+        base64Content = ((blob.data as any).content || "").replace(/\r?\n/g, "");
+        content = base64Content ? `data:image/${ext};base64,${base64Content}` : "";
+      } catch (e) {
+        console.error("画像の取得に失敗:", e);
+        content = "";
+      }
     }
   } else if (data.content) {
     // ✅ テキストの場合：Base64デコード
@@ -316,9 +323,18 @@ export default function LearningContent() {
         base64Content = response.data.content.replace(/\r?\n/g, "");
         content = `data:image/${ext};base64,${base64Content}`;
       } else {
-        // ⚠️ LFSや大容量ファイルなどの場合
-        // 公開リポジトリなら raw.githubusercontent.com 経由で直接表示
-        content = `https://raw.githubusercontent.com/${githubLogin}/${repoName}/main/${path}`;
+        // ⚠️ LFSや大容量ファイルなど：認証付きで blob を取得（プライベートリポジトリ対応）
+        try {
+          const blob = await octokit.request(
+            "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+            { owner: githubLogin, repo: repoName, file_sha: response.data.sha }
+          );
+          const b64 = ((blob.data as any).content || "").replace(/\r?\n/g, "");
+          content = b64 ? `data:image/${ext};base64,${b64}` : "";
+        } catch (e) {
+          console.error("画像の取得に失敗:", e);
+          content = "";
+        }
       }
     } else {
       // テキストの場合は通常のBase64デコード
@@ -1005,7 +1021,7 @@ export default function LearningContent() {
           >
             ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
             <br />
-            <code>learning-site-&lt;ユーザー名&gt;</code>（公開）が作成されます。
+            <code>learning-site-&lt;ユーザー名&gt;</code>（非公開）が作成されます。
           </Typography>
         </Box>
       </Box>

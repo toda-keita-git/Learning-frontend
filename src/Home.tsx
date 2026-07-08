@@ -174,8 +174,8 @@ export default function Home() {
             </Stack>
             <Box component="ul" sx={{ m: 0, pl: 3, color: "text.secondary", lineHeight: 2 }}>
               <li>
-                作成されるリポジトリは<b>公開（Public）</b>です。中身は誰でも閲覧できるため、
-                <b>パスワードやAPIキーなどの機密情報は保存しない</b>でください。
+                作成されるリポジトリは<b>非公開（Private）</b>です。あなたと、あなたが許可した相手だけが閲覧できます。
+                とはいえ念のため、<b>パスワードやAPIキーなどの機密情報は保存しない</b>ことをおすすめします。
               </li>
               <li>
                 ログイン時に、GitHubの<b>「repo（リポジトリの読み書き）」権限</b>の許可を求められます。
