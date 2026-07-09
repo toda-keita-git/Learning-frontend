@@ -19,6 +19,8 @@ import ArticleIcon from "@mui/icons-material/Article";
 import CategoryIcon from "@mui/icons-material/Category";
 import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import TuneIcon from "@mui/icons-material/Tune";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import BackButton from "./BackButton";
@@ -39,7 +41,9 @@ interface FileNode {
 interface LeftToolBarProps {
   onAddNewLearning: () => void;
   onAddNewCategory: () => void;
+  onAddNewTag: () => void;
   onAddNewFolder: () => void;
+  onManage: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
@@ -159,7 +163,9 @@ function FileTree({
 export default function LeftToolBar({
   onAddNewLearning,
   onAddNewCategory,
+  onAddNewTag,
   onAddNewFolder,
+  onManage,
   onFileSelect,
   files,
   loading,
@@ -209,6 +215,12 @@ export default function LeftToolBar({
               </ListItemIcon>
               <ListItemText primary="新規カテゴリー" />
             </ListItemButton>
+            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewTag}>
+              <ListItemIcon>
+                <LocalOfferIcon />
+              </ListItemIcon>
+              <ListItemText primary="新規タグ" />
+            </ListItemButton>
             <ListItemButton sx={{ pl: 4 }} onClick={onAddNewFolder}>
               <ListItemIcon>
                 <FolderOpenIcon />
@@ -217,6 +229,14 @@ export default function LeftToolBar({
             </ListItemButton>
           </List>
         </Collapse>
+
+        {/* --- カテゴリー・タグの管理（編集・削除） --- */}
+        <ListItemButton onClick={onManage}>
+          <ListItemIcon>
+            <TuneIcon />
+          </ListItemIcon>
+          <ListItemText primary="カテゴリー・タグの管理" />
+        </ListItemButton>
 
         {/* --- GitHubファイル編集セクション --- */}
         <ListItemButton onClick={() => setOpen2(!open2)}>

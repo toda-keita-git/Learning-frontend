@@ -20,6 +20,7 @@ import {
   updateLearningApi,
   deleteLearningApi,
   createCategoryApi,
+  createTagApi,
 } from "./component/Api";
 import NewLearningDialog from "./component/NewLearningDialog";
 import { AuthContext } from "./Context";
@@ -30,6 +31,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
+import NewTagDialog from "./component/NewTagDialog";
+import ManageDialog from "./component/ManageDialog";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -452,6 +455,8 @@ export default function LearningContent() {
   );
   // ★ カテゴリー追加ダイアログ用のStateを追加
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
+  const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
+  const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
 
   useEffect(() => {
     if (userId) {
@@ -678,6 +683,36 @@ export default function LearningContent() {
     } catch (error) {
       console.error("Failed to create category:", error);
       alert(`カテゴリーの登録に失敗しました: ${error}`);
+    }
+  };
+
+  // 新規タグ追加ダイアログを開く
+  const handleAddNewTag = () => {
+    setIsTagDialogOpen(true);
+  };
+
+  // 新規タグを登録するハンドラ
+  const handleTagSubmit = async (tagName: string) => {
+    try {
+      await createTagApi({ name: tagName });
+      await refetchData();
+      setIsTagDialogOpen(false);
+
+      const systemMessage: Message = {
+        id: Date.now(),
+        text: `新しいタグ「#${tagName}」を登録しました。`,
+        timestamp: new Date().toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        type: "left",
+        photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
+        displayName: "システム",
+      };
+      setMessages((prev) => [...prev, systemMessage]);
+    } catch (error) {
+      console.error("Failed to create tag:", error);
+      alert(`タグの登録に失敗しました: ${error}`);
     }
   };
 
@@ -1348,12 +1383,20 @@ export default function LearningContent() {
           handleAddNewCategory();
           setMobileNavOpen(false);
         }}
+        onAddNewTag={() => {
+          handleAddNewTag();
+          setMobileNavOpen(false);
+        }}
         onFileSelect={(path) => {
           handleFileSelect(path);
           setMobileNavOpen(false);
         }}
         onAddNewFolder={() => {
           handleFolderSelect();
+          setMobileNavOpen(false);
+        }}
+        onManage={() => {
+          setIsManageOpen(true);
           setMobileNavOpen(false);
         }}
         files={githubFiles}
@@ -1550,6 +1593,21 @@ export default function LearningContent() {
         onClose={() => setIsCategoryDialogOpen(false)}
         onSubmit={handleCategorySubmit}
         existingCategories={allCategories.map((category) => category.name)}
+      />
+      {/* 新規タグ追加ダイアログ */}
+      <NewTagDialog
+        open={isTagDialogOpen}
+        onClose={() => setIsTagDialogOpen(false)}
+        onSubmit={handleTagSubmit}
+        existingTags={allTags.map((tag) => tag.name)}
+      />
+      {/* カテゴリー・タグの管理（編集・削除）ダイアログ */}
+      <ManageDialog
+        open={isManageOpen}
+        onClose={() => setIsManageOpen(false)}
+        categories={allCategories}
+        tags={allTags}
+        onChanged={refetchData}
       />
        <GitHubFolderSelector
         open={isFolderSelectorOpen}

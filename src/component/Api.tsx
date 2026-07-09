@@ -102,7 +102,62 @@ export const createCategoryApi = async (categoryData: { name: string }) => {
     const response = await axios.post(`/category_insert`, categoryData);
     return response.data;
   } catch (error) {
-    console.error("ERROR!! occurred in deleteLearningApi.", error);
+    console.error("ERROR!! occurred in createCategoryApi.", error);
+    throw error;
+  }
+};
+
+// カテゴリーの名前を変更するAPI
+export const updateCategoryApi = async (id: number, name: string) => {
+  try {
+    const response = await axios.post(`/category_update/${id}`, { name });
+    return response.data;
+  } catch (error) {
+    console.error("ERROR!! occurred in updateCategoryApi.", error);
+    throw error;
+  }
+};
+
+// カテゴリーを削除するAPI（使用中の場合は409が返る）
+export const deleteCategoryApi = async (id: number) => {
+  try {
+    const response = await axios.post(`/category_delete/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("ERROR!! occurred in deleteCategoryApi.", error);
+    throw error;
+  }
+};
+
+// タグを追加するAPI
+export const createTagApi = async (tagData: { name: string }) => {
+  try {
+    const response = await axios.post(`/tag_insert`, tagData);
+    return response.data;
+  } catch (error) {
+    console.error("ERROR!! occurred in createTagApi.", error);
+    throw error;
+  }
+};
+
+// タグの名前を変更するAPI
+export const updateTagApi = async (id: number, name: string) => {
+  try {
+    const response = await axios.post(`/tag_update/${id}`, { name });
+    return response.data;
+  } catch (error) {
+    console.error("ERROR!! occurred in updateTagApi.", error);
+    throw error;
+  }
+};
+
+// タグを削除するAPI（使用中の場合は409が返る）
+export const deleteTagApi = async (id: number) => {
+  try {
+    const response = await axios.post(`/tag_delete/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("ERROR!! occurred in deleteTagApi.", error);
     throw error;
   }
 };
