@@ -33,6 +33,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
+import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -61,6 +62,7 @@ import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsAc
 import MenuIcon from "@mui/icons-material/Menu";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
+import ReviewFlashcards from "./component/ReviewFlashcards";
 import {
   isNotificationSupported,
   isRemindersEnabled,
@@ -441,6 +443,8 @@ export default function LearningContent() {
   // ヘルプ（機能説明）ダイアログ
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
   const [streakOpen, setStreakOpen] = useState<boolean>(false); // 学習の記録（連続日数）
+  const [reviewOpen, setReviewOpen] = useState<boolean>(false); // 今日の復習（フラッシュカード）
+  const [reviewItems, setReviewItems] = useState<LearningRecord[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false); // スマホの左メニュー開閉
   // 共有(Web Share Target)から渡された新規登録の初期値
   const [sharePrefill, setSharePrefill] = useState<{
@@ -508,13 +512,31 @@ export default function LearningContent() {
         // 他のstateも必要であれば更新
         setAllTags(tags);
         setAllCategories(categories);
+        // オフライン表示用にキャッシュへ保存
+        saveLearningCache(userId, {
+          learnings: processedLearnings,
+          tags,
+          categories,
+        });
       } else {
-        // データ取得に失敗した場合のフォールバック処理
+        // 取得失敗（オフライン等）：キャッシュがあればそれを表示に使う
         console.error("Failed to fetch some of the required data.");
-        setLearningData([]); // エラー時はデータを空にするなど
+        const cache = loadLearningCache(userId);
+        if (cache) {
+          setLearningData(cache.learnings);
+          setAllTags(cache.tags);
+          setAllCategories(cache.categories);
+        }
       }
     } catch (error) {
       console.error("An error occurred during refetchData:", error);
+      // 例外時もキャッシュがあれば維持
+      const cache = loadLearningCache(userId);
+      if (cache && learningData.length === 0) {
+        setLearningData(cache.learnings);
+        setAllTags(cache.tags);
+        setAllCategories(cache.categories);
+      }
     }
   };
 
@@ -529,6 +551,14 @@ export default function LearningContent() {
 
   // コンポーネントが最初に描画された時にAPIからデータを取得する
   useEffect(() => {
+    // まずキャッシュがあれば即表示（オフライン／コールドスタート中でも過去の記録を閲覧できる）
+    const cache = loadLearningCache(userId);
+    if (cache) {
+      setLearningData(cache.learnings);
+      setAllTags(cache.tags);
+      setAllCategories(cache.categories);
+    }
+
     const fetchData = async () => {
       // 4つのAPIを並行して呼び出し、すべてのデータが揃うのを待つ
       const [learnings, tags, learningTags, categories] = await Promise.all([
@@ -567,6 +597,12 @@ export default function LearningContent() {
         setLearningData(processedLearnings);
         setAllTags(tags); // SearchDialogで使うための全タグリストをStateに保存
         setAllCategories(categories); // 取得したカテゴリーデータをStateに保存
+        // オフライン表示用にキャッシュへ保存
+        saveLearningCache(userId, {
+          learnings: processedLearnings,
+          tags,
+          categories,
+        });
       }
     };
     fetchData();
@@ -1062,19 +1098,8 @@ export default function LearningContent() {
     }, 500);
   };
 
-  // 今日の復習：理解度が低い・しばらく見ていない記録を優先して振り返る
+  // 今日の復習：理解度が低い・しばらく見ていない記録を優先し、フラッシュカードで振り返る
   const handleReview = () => {
-    const userMessage: Message = {
-      id: Date.now(),
-      text: "今日の復習",
-      timestamp: new Date().toLocaleTimeString("ja-JP", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "right",
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
     const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
     const candidates = [...learningData]
       .sort((a, b) => {
@@ -1084,12 +1109,28 @@ export default function LearningContent() {
         return toTime(a.created_at) - toTime(b.created_at);
       })
       .slice(0, 5);
+    setReviewItems(candidates);
+    setReviewOpen(true);
+  };
 
-    const header =
-      candidates.length > 0
-        ? `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">📖 今日の復習（理解度が低め・振り返り優先の${candidates.length}件）</div>`
-        : `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">📖 今日の復習</div>`;
-    postResultCards(candidates, header);
+  // フラッシュカードの「わかった/まだ」で理解度を更新する
+  const handleRateReview = async (item: LearningRecord, newLevel: number) => {
+    // category_name から category_id を解決（更新APIはidが必要）
+    const category = allCategories.find((c) => c.name === item.category_name);
+    const payload = {
+      id: item.id,
+      title: item.title,
+      explanatory_text: item.explanatory_text,
+      understanding_level: newLevel,
+      reference_url: item.reference_url,
+      created_at: item.created_at,
+      category_id: category ? category.id : null,
+      tags: item.tags,
+      github_path: item.github_path,
+      commit_sha: item.commit_sha,
+    };
+    await updateLearningApi(item.id, payload, userId ?? 0);
+    await refetchData();
   };
 
   // タグをタップして、そのタグが付いた学習記録だけをサッと絞り込み表示する
@@ -1626,6 +1667,25 @@ export default function LearningContent() {
         open={streakOpen}
         onClose={() => setStreakOpen(false)}
         dates={learningData.map((l) => l.created_at)}
+      />
+
+      {/* 今日の復習（フラッシュカード） */}
+      <ReviewFlashcards
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        items={reviewItems.map((it) => ({
+          id: it.id,
+          title: it.title,
+          explanatory_text: it.explanatory_text,
+          understanding_level: it.understanding_level,
+          category_name: it.category_name,
+          tags: it.tags,
+          reference_url: it.reference_url,
+        }))}
+        onRate={(fi, newLevel) => {
+          const rec = reviewItems.find((r) => r.id === fi.id);
+          return rec ? handleRateReview(rec, newLevel) : Promise.resolve();
+        }}
       />
 
       {/* ヘルプ（各機能の説明） */}

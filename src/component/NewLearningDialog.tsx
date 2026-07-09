@@ -26,6 +26,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
 import InputAdornment from "@mui/material/InputAdornment";
+import ContentPasteGoOutlinedIcon from "@mui/icons-material/ContentPasteGoOutlined";
 import { MicButton } from "./MicButton"; // 音声入力ボタン
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
@@ -88,6 +89,7 @@ export default function NewLearningDialog({
   const [github_path, setGithub_path] = useState("");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localFile, setLocalFile] = useState<File | null>(null);
+  const [pasteMsg, setPasteMsg] = useState(""); // クリップボード貼り付けの結果メッセージ
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ファイルプレビュー用のState
@@ -183,6 +185,7 @@ export default function NewLearningDialog({
 
   useEffect(() => {
     if (open) {
+      setPasteMsg("");
       if (editingData) {
         setTitle(editingData.title || "");
         setExplanatoryText(editingData.explanatory_text || "");
@@ -420,6 +423,41 @@ export default function NewLearningDialog({
     fileInputRef.current?.click();
   };
 
+  // クリップボードの内容（コピーした記事URL/テキスト）を取り込んで各欄に反映する。
+  // iOS・Android両方で動作し、iOSで使えない「共有で記録」の代わりになる。
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        setPasteMsg("このブラウザではクリップボードの読み取りに対応していません。");
+        return;
+      }
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text) {
+        setPasteMsg("クリップボードが空です。コピーしてからお試しください。");
+        return;
+      }
+      const urlMatch = text.match(/https?:\/\/[^\s]+/);
+      const url = urlMatch ? urlMatch[0] : "";
+      const textWithoutUrl = url ? text.replace(url, "").trim() : text;
+
+      if (url) setReferenceUrl(url);
+
+      if (!title.trim()) {
+        if (textWithoutUrl) setTitle(textWithoutUrl.slice(0, 80));
+        else if (url)
+          setTitle(url.replace(/^https?:\/\//, "").split(/[/?#]/)[0]); // ドメインを仮タイトルに
+      } else if (textWithoutUrl && !url) {
+        // タイトルが既にあり、純テキストならメモに追記
+        setExplanatoryText((prev) => (prev ? prev + "\n" + text : text));
+      }
+      setPasteMsg("クリップボードの内容を反映しました。");
+    } catch (e) {
+      setPasteMsg(
+        "貼り付けできませんでした（ブラウザで貼り付けの許可が必要な場合があります）。"
+      );
+    }
+  };
+
   const fileType = getFileType(github_path);
 
 
@@ -432,9 +470,38 @@ export default function NewLearningDialog({
         </DialogTitle>
         <DialogContent dividers>
           {/* === 基本情報 === */}
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontWeight: 700, color: "primary.main" }}>
-            基本情報
-          </Typography>
+          <Box
+            sx={{
+              mt: 1,
+              mb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
+              基本情報
+            </Typography>
+            {/* コピー済みの記事URL/テキストを取り込む（iOSの共有の代わり） */}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ContentPasteGoOutlinedIcon />}
+              onClick={handlePasteFromClipboard}
+            >
+              クリップボードから貼り付け
+            </Button>
+          </Box>
+          {pasteMsg && (
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", display: "block", mb: 1 }}
+            >
+              {pasteMsg}
+            </Typography>
+          )}
 
           {/* タイトル（必須） */}
           <TextField
