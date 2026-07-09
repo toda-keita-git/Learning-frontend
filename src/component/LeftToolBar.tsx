@@ -232,10 +232,13 @@ export default function LeftToolBar({
 
         {/* --- カテゴリー・タグの管理（編集・削除） --- */}
         <ListItemButton onClick={onManage}>
-          <ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 40 }}>
             <TuneIcon />
           </ListItemIcon>
-          <ListItemText primary="カテゴリー・タグの管理" />
+          <ListItemText
+            primary="カテゴリー・タグの管理"
+            primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+          />
         </ListItemButton>
 
         {/* --- GitHubファイル編集セクション --- */}

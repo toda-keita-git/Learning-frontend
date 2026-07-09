@@ -58,7 +58,6 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import IosShareOutlinedIcon from "@mui/icons-material/IosShareOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
@@ -1707,13 +1706,6 @@ export default function LearningContent() {
               <ListItemText
                 primary="ダークモード（ヘッダーの月／太陽アイコン）"
                 secondary="画面を暗い配色に切り替えられます。夜間のスマホ学習に優しく、設定は次回も保持されます。"
-              />
-            </ListItem>
-            <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><IosShareOutlinedIcon color="primary" /></ListItemIcon>
-              <ListItemText
-                primary="共有で記録（スマホにインストール後）"
-                secondary="スマホのブラウザ等で記事を開き「共有」から本アプリを選ぶと、タイトルとURLが入った状態で新規登録が開きます。「あとで学ぶ」の取りこぼし防止に。※ホーム画面に追加（インストール）が必要です。"
               />
             </ListItem>
           </List>
