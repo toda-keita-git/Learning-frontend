@@ -56,6 +56,7 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import IosShareOutlinedIcon from "@mui/icons-material/IosShareOutlined";
+import MenuIcon from "@mui/icons-material/Menu";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
 import {
@@ -438,6 +439,7 @@ export default function LearningContent() {
   // ヘルプ（機能説明）ダイアログ
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
   const [streakOpen, setStreakOpen] = useState<boolean>(false); // 学習の記録（連続日数）
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false); // スマホの左メニュー開閉
   // 共有(Web Share Target)から渡された新規登録の初期値
   const [sharePrefill, setSharePrefill] = useState<{
     title?: string;
@@ -1227,19 +1229,51 @@ export default function LearningContent() {
       <CssBaseline />
       <AppBar
         position="fixed"
-        sx={{ width: `calc(100% - ${drawerWidth}px)`, ml: `${drawerWidth}px` }}
+        sx={{
+          // スマホでは全幅、PCでは左メニュー分だけ右に寄せる
+          width: { xs: "100%", sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { xs: 0, sm: `${drawerWidth}px` },
+        }}
       >
-        <Toolbar>
+        <Toolbar sx={{ gap: 0.5 }}>
+          {/* スマホ用：左メニューを開くハンバーガー */}
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={() => setMobileNavOpen(true)}
+            sx={{ display: { xs: "inline-flex", sm: "none" }, mr: 0.5 }}
+            aria-label="メニューを開く"
+          >
+            <MenuIcon />
+          </IconButton>
           <Avatar
-            sx={{ bgcolor: "rgba(255,255,255,0.2)", width: 38, height: 38, mr: 1.5 }}
+            sx={{
+              bgcolor: "rgba(255,255,255,0.2)",
+              width: 38,
+              height: 38,
+              mr: 1.5,
+              display: { xs: "none", sm: "flex" }, // スマホでは省スペースのため非表示
+            }}
           >
             <SmartToyIcon fontSize="small" />
           </Avatar>
-          <Box>
-            <Typography variant="h6" noWrap component="div" sx={{ lineHeight: 1.2 }}>
-              学習内容検索チャット
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ lineHeight: 1.2, fontSize: { xs: "1rem", sm: "1.25rem" } }}
+            >
+              学習ログ
             </Typography>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                color: "rgba(255,255,255,0.8)",
+                display: { xs: "none", sm: "block" }, // スマホでは非表示
+              }}
+            >
               タイトルやタグで、記録した学びを検索
             </Typography>
           </Box>
@@ -1260,6 +1294,7 @@ export default function LearningContent() {
           <Tooltip title="今日の復習">
             <IconButton
               color="inherit"
+              size="small"
               onClick={handleReview}
               sx={{ display: { xs: "inline-flex", sm: "none" } }}
             >
@@ -1267,7 +1302,11 @@ export default function LearningContent() {
             </IconButton>
           </Tooltip>
           <Tooltip title="学習の記録（連続日数・草）">
-            <IconButton color="inherit" onClick={() => setStreakOpen(true)}>
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setStreakOpen(true)}
+            >
               <LocalFireDepartmentIcon />
             </IconButton>
           </Tooltip>
@@ -1278,7 +1317,7 @@ export default function LearningContent() {
                 : "ダークモードに切り替え"
             }
           >
-            <IconButton color="inherit" onClick={colorMode.toggle}>
+            <IconButton color="inherit" size="small" onClick={colorMode.toggle}>
               {colorMode.mode === "dark" ? (
                 <Brightness7Icon />
               ) : (
@@ -1287,7 +1326,11 @@ export default function LearningContent() {
             </IconButton>
           </Tooltip>
           <Tooltip title="使い方・機能説明">
-            <IconButton color="inherit" onClick={() => setHelpOpen(true)}>
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setHelpOpen(true)}
+            >
               <HelpOutlineIcon />
             </IconButton>
           </Tooltip>
@@ -1299,12 +1342,24 @@ export default function LearningContent() {
           setSharePrefill(null); // 共有の初期値が残らないようにする
           localStorage.removeItem("sharePrefillPending");
           setOpenNewDialog(true);
+          setMobileNavOpen(false); // スマホでは選択後にメニューを閉じる
         }}
-        onAddNewCategory={handleAddNewCategory}
-        onFileSelect={handleFileSelect}
-        onAddNewFolder={handleFolderSelect}
+        onAddNewCategory={() => {
+          handleAddNewCategory();
+          setMobileNavOpen(false);
+        }}
+        onFileSelect={(path) => {
+          handleFileSelect(path);
+          setMobileNavOpen(false);
+        }}
+        onAddNewFolder={() => {
+          handleFolderSelect();
+          setMobileNavOpen(false);
+        }}
         files={githubFiles}
         loading={filesLoading}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
       />
       <Box
         component="main"

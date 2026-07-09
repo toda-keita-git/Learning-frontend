@@ -10,13 +10,8 @@ import {
   TextField,
   Box,
   CircularProgress,
-  IconButton,
-  AppBar,
-  Toolbar,
-  Typography,
   useMediaQuery,
 } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
 import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
 import UpdateIcon from "@mui/icons-material/Update";
@@ -48,6 +43,9 @@ interface LeftToolBarProps {
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
+  // スマホの左メニュー開閉（親のヘッダーのハンバーガーから制御）
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 // --- ファイルリストをフォルダー構造に変換 ---
@@ -165,16 +163,18 @@ export default function LeftToolBar({
   onFileSelect,
   files,
   loading,
+  mobileOpen: mobileOpenProp,
+  onMobileClose,
 }: LeftToolBarProps) {
   const [open1, setOpen1] = useState(true);
   const [open2, setOpen2] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width:600px)");
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  // 親から制御されていればそれを使い、なければ内部状態でフォールバック
+  const mobileOpen = mobileOpenProp ?? internalMobileOpen;
+  const closeMobile = onMobileClose ?? (() => setInternalMobileOpen(false));
 
   const filteredFiles = files.filter((file) =>
     file.path.toLowerCase().includes(searchQuery.toLowerCase())
@@ -257,31 +257,12 @@ export default function LeftToolBar({
 
   return (
     <>
-      {/* モバイル用 AppBar */}
-      {isMobile && (
-        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              学習内容検索チャット
-            </Typography>
-          </Toolbar>
-        </AppBar>
-      )}
-
-      {/* Drawer表示 */}
+      {/* Drawer表示（スマホのヘッダーは親[LearningContent]に統合済み） */}
       {isMobile ? (
         <Drawer
           variant="temporary"
           open={mobileOpen}
-          onClose={handleDrawerToggle}
+          onClose={closeMobile}
           ModalProps={{ keepMounted: true }}
           sx={{
             "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
