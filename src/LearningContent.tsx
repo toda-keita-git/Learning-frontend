@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import { Button } from "@mui/material";
 import Chip from "@mui/material/Chip";
 import { MessageLeft, MessageRight } from "./component/Message";
+import LearningResultCards from "./component/LearningResultCards";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { SearchDialog } from "./component/SearchDialog";
 import Toolbar from "@mui/material/Toolbar";
-import LeftToolBar from "./component/LeftToolBar";
+import LeftToolBar, {
+  DRAWER_WIDTH_EXPANDED,
+  DRAWER_WIDTH_COLLAPSED,
+} from "./component/LeftToolBar";
 import Typography from "@mui/material/Typography";
 import CssBaseline from "@mui/material/CssBaseline";
 import AppBar from "@mui/material/AppBar";
+import LinearProgress from "@mui/material/LinearProgress";
+import Skeleton from "@mui/material/Skeleton";
+import { alpha } from "@mui/material/styles";
 import {
   learningApi,
   TagsApi,
@@ -33,6 +40,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
+import LearningListDialog from "./component/LearningListDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
@@ -60,8 +68,10 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
+import TableRowsIcon from "@mui/icons-material/TableRows";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
+import { useToast } from "./ToastContext";
 import ReviewFlashcards from "./component/ReviewFlashcards";
 import {
   isNotificationSupported,
@@ -73,7 +83,6 @@ import {
 } from "./notifications";
 
 
-const drawerWidth = 240;
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
@@ -122,13 +131,18 @@ type Message = {
   type: "left" | "right";
   photoURL?: string;
   displayName?: string;
+  // 検索結果などをカード一覧として表示する場合に使用（textはヘッダー文言として使う）
+  cards?: LearningRecord[];
 };
 
 
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
+  const { showToast } = useToast();
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
+  const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
+  const emptyGuideShownRef = useRef(false); // 「まだ記録がありません」案内の二重表示防止
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
   const [allCategories, setAllCategories] = useState<Categories[]>([]);
   const [messages, setMessages] = useState<Message[]>([
@@ -304,12 +318,12 @@ export default function LearningContent() {
 
     // 成功した場合、新しいコミットSHAを返す
     setViewerOpen(false);
-    alert("ファイルを更新しました。");
+    showToast("ファイルを更新しました。", "success");
 
     return response.data.commit.sha;
   } catch (error: any) {
     console.error("Failed to update file:", error);
-    alert(`ファイルの更新に失敗しました。\n${error.message || error}`);
+    showToast(`ファイルの更新に失敗しました。${error.message || error}`, "error");
     return null;
   }
 };
@@ -389,7 +403,7 @@ export default function LearningContent() {
     setViewerOpen(true);
   } catch (error: any) {
     console.error("Failed to fetch file:", error);
-    alert(`ファイルの取得に失敗しました。\n${error.message || error}`);
+    showToast(`ファイルの取得に失敗しました。${error.message || error}`, "error");
   }
 };
 
@@ -398,45 +412,6 @@ export default function LearningContent() {
     // LeftToolBarから呼ばれた場合は「編集可能」としてビューアを開く
     handleViewFile(path, true);
   };
-
-  // ★ クリックイベントをリッスンするuseEffectを修正（重複を削除し、内容を統合）
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // クリックされた要素またはその親から、data-action属性を持つ要素を探す
-      const actionButton = target.closest<HTMLElement>("[data-action]");
-
-      // actionButtonが見つかった場合のみ処理を実行
-      if (actionButton) {
-        // ★★★ action, id, path, commitShaはすべてactionButtonから取得する
-        const action = actionButton.dataset.action;
-        const id = actionButton.dataset.id;
-        const path = actionButton.dataset.path;
-        const commitSha = actionButton.dataset.commitSha;
-
-        if (action === "toggle-detail") {
-          // 詳細の開閉。対象要素の表示を切り替え、ボタンのラベルも更新する
-          const targetId = actionButton.dataset.target;
-          const detail = targetId ? document.getElementById(targetId) : null;
-          if (detail) {
-            const willOpen = detail.style.display === "none";
-            detail.style.display = willOpen ? "block" : "none";
-            actionButton.textContent = willOpen ? "詳細を閉じる ▲" : "詳細を見る ▼";
-          }
-        } else if (action === "view-file" && path) {
-          // commitShaを渡して、特定のバージョンのファイルを表示する
-          handleViewFile(path, false, commitSha);
-        } else if (action === "edit" && id) {
-          openEditDialog(parseInt(id, 10));
-        } else if (action === "delete" && id) {
-          openDeleteConfirm(parseInt(id, 10));
-        }
-      }
-    };
-
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, [learningData, allCategories]); // 依存配列を維持
 
   // ダイアログの開閉を管理するStateを追加
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
@@ -460,6 +435,9 @@ export default function LearningContent() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
+  const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false); // PCでの左メニュー折りたたみ
+  const drawerWidth = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
   useEffect(() => {
     if (userId) {
@@ -605,9 +583,27 @@ export default function LearningContent() {
         });
       }
     };
-    fetchData();
+    fetchData().finally(() => setDataLoading(false));
     fetchGitHubFiles();
   }, [userId]); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
+
+  // 初回取得が完了して学習記録が0件だった場合、最初の記録作成を促す案内を表示する
+  useEffect(() => {
+    if (!dataLoading && learningData.length === 0 && !emptyGuideShownRef.current) {
+      emptyGuideShownRef.current = true;
+      const guideMessage: Message = {
+        id: Date.now() + 2,
+        text: "まだ学習記録がありません。左のメニューの「新規学習内容」から、最初の学びを記録してみましょう。",
+        timestamp: new Date().toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        type: "left",
+        displayName: "システム",
+      };
+      setMessages((prev) => [...prev, guideMessage]);
+    }
+  }, [dataLoading, learningData]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -620,6 +616,15 @@ export default function LearningContent() {
   }) => {
     setSearchFilters(filters);
 
+    const sortLabels: Record<string, string> = {
+      "name-asc": "タイトル (昇順)",
+      "name-desc": "タイトル (降順)",
+      "understanding-desc": "理解度が高い順",
+      "understanding-asc": "理解度が低い順",
+      "date-desc": "更新日が新しい順",
+      "date-asc": "更新日が古い順",
+    };
+
     let filterSummary = "<b>検索条件が更新されました</b><br>";
     filterSummary += `カテゴリー: ${
       filters.category === "all" ? "すべて" : filters.category
@@ -627,9 +632,7 @@ export default function LearningContent() {
     filterSummary += `ハッシュタグ: ${
       filters.hashtags.length > 0 ? filters.hashtags.join(", ") : "指定なし"
     }<br>`;
-    filterSummary += `ソート: ${
-      filters.sort === "name-asc" ? "ファイル名 (昇順)" : "ファイル名 (降順)"
-    }`;
+    filterSummary += `ソート: ${sortLabels[filters.sort] ?? filters.sort}`;
 
     const systemMessage: Message = {
       id: Date.now(),
@@ -676,7 +679,7 @@ export default function LearningContent() {
       ]);
     } catch (error) {
       console.error("Failed to delete learning record:", error);
-      alert("削除に失敗しました。");
+      showToast("削除に失敗しました。", "error");
     }
   };
 
@@ -717,7 +720,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create category:", error);
-      alert(`カテゴリーの登録に失敗しました: ${error}`);
+      showToast(`カテゴリーの登録に失敗しました: ${error}`, "error");
     }
   };
 
@@ -747,7 +750,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create tag:", error);
-      alert(`タグの登録に失敗しました: ${error}`);
+      showToast(`タグの登録に失敗しました: ${error}`, "error");
     }
   };
 
@@ -821,7 +824,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to save learning record:", error);
-      alert(`登録またはファイルの更新に失敗しました: ${error}`);
+      showToast(`登録またはファイルの更新に失敗しました: ${error}`, "error");
     }
   };
 
@@ -842,6 +845,37 @@ export default function LearningContent() {
       });
       setOpenNewDialog(true);
     }
+  };
+
+  // 検索結果・タグ絞り込み結果を、選択中のソート条件で並べ替える共通処理
+  const sortLearningRecords = (
+    records: LearningRecord[],
+    sort: string
+  ): LearningRecord[] => {
+    const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    const sorted = [...records];
+    switch (sort) {
+      case "name-desc":
+        sorted.sort((a, b) => b.title.localeCompare(a.title, "ja"));
+        break;
+      case "understanding-desc":
+        sorted.sort((a, b) => b.understanding_level - a.understanding_level);
+        break;
+      case "understanding-asc":
+        sorted.sort((a, b) => a.understanding_level - b.understanding_level);
+        break;
+      case "date-desc":
+        sorted.sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
+        break;
+      case "date-asc":
+        sorted.sort((a, b) => toTime(a.created_at) - toTime(b.created_at));
+        break;
+      case "name-asc":
+      default:
+        sorted.sort((a, b) => a.title.localeCompare(b.title, "ja"));
+        break;
+    }
+    return sorted;
   };
 
   const handleSearch = (query: string) => {
@@ -889,210 +923,25 @@ export default function LearningContent() {
     }
 
     // 4. 結果をソート
-    results.sort((a, b) => {
-      if (searchFilters.sort === "name-asc") {
-        return a.title.localeCompare(b.title, "ja");
-      } else {
-        // 'name-desc'
-        return b.title.localeCompare(a.title, "ja");
-      }
-    });
+    results = sortLearningRecords(results, searchFilters.sort);
 
     // 5. 結果メッセージを生成（カード描画は共通関数へ）
-    postResultCards(
-      results,
-      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🔎 検索結果: ${results.length}件</div>`
-    );
+    postResultCards(results, `🔎 検索結果: ${results.length}件`);
   };
 
   // 学習記録の配列を、検索結果カードとしてチャットに投稿する共通処理
-  const postResultCards = (results: LearningRecord[], headerHtml: string) => {
-    let resultText = headerHtml;
-    if (results.length > 0) {
-      resultText += results
-        .map((item) => {
-          // タグを装飾するHTMLを生成
-          const tagsHtml =
-            item.tags.length > 0
-              ? item.tags
-                  .map(
-                    (tag) =>
-                      `<span style="background-color: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 500; display: inline-block;">#${tag}</span>`
-                  )
-                  .join("")
-              : `<span style="color:#9ca3af; font-size:0.75em;">タグなし</span>`;
-
-          // 理解度を★で表現するHTMLを生成
-          const understandingHtml = `<span>${"★".repeat(
-            item.understanding_level
-          )}${"☆".repeat(5 - item.understanding_level)}</span>`;
-
-          const commitShaAttribute = item.commit_sha
-            ? `data-commit-sha="${item.commit_sha}"`
-            : "";
-
-          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-          // ★★★ 変更箇所 ★★★
-          // ボタンの配置（justify-content）を、「ファイルを見る」ボタンの有無によって動的に変更します。
-          // また、「編集」ボタンのスタイルを分かりやすく変更しました。
-          const justifyContent: string = item.github_path
-            ? "space-between"
-            : "flex-end";
-
-          // カード形式のHTMLを返す
-          return `
-            <div style="
-              border: 1px solid #e0e7ff;
-              border-radius: 10px;
-              padding: 12px 14px;
-              margin-bottom: 10px;
-              background: #ffffff;
-              box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08);
-              transition: box-shadow 0.2s ease;
-            " onmouseover="this.style.boxShadow='0 4px 12px rgba(79, 70, 229, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(79, 70, 229, 0.08)'">
-              
-              <!-- タイトル＋理解度（1行に凝縮） -->
-              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px;">
-                <h3 style="margin: 0; font-size: 1.02em; font-weight: 700; color: #4338ca;">${item.title}</h3>
-                <span style="color: #f59e0b; font-size: 0.82em; white-space: nowrap;">${understandingHtml}</span>
-              </div>
-
-              <!-- カテゴリ・タグ（インラインのチップ） -->
-              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px;">
-                <span style="background-color: #4f46e5; color: #fff; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 600;">${item.category_name}</span>
-                ${tagsHtml}
-              </div>
-
-              <!-- 詳細トグル（クリックで開閉） -->
-              <button
-                data-action="toggle-detail"
-                data-target="details-${item.id}"
-                style="background:none; border:none; color:#4f46e5; font-size:0.8em; font-weight:600; cursor:pointer; padding:2px 0; display:inline-flex; align-items:center; gap:4px;"
-              >詳細を見る ▼</button>
-
-              <!-- 詳細（初期は非表示。トグルで開く） -->
-              <div id="details-${item.id}" style="display:none; margin-top:8px; border-top:1px solid #eef0f6; padding-top:8px;">
-
-              <!-- 説明文 -->
-              <p style="
-                font-size: 0.85em;
-                color: #555;
-                line-height: 1.6;
-                margin: 0 0 8px 0;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-              ">${item.explanatory_text}</p>
-              
-              ${
-                item.reference_url
-                  ? `<div style="margin-bottom: 8px;"><a href="${item.reference_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.82em;">参考リンク 🔗</a></div>`
-                  : ""
-              }
-
-              <!-- アクションボタン -->
-              <div style="
-                display: flex;
-                align-items: center;
-                justify-content: ${justifyContent};
-                flex-wrap: wrap;
-                gap: 12px;
-              ">
-                ${
-                  item.github_path
-                    ? `<button 
-                        class="view-file-btn" 
-                        data-action="view-file" 
-                        data-path="${item.github_path}"${commitShaAttribute}
-                        style="
-                          background: linear-gradient(135deg, #1976d2 0%, #4338ca 100%);
-                          color: white;
-                          border: none;
-                          padding: 6px 12px;
-                          border-radius: 8px;
-                          cursor: pointer;
-                          font-size: 0.9em;
-                          font-weight: 500;
-                          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
-                          transition: all 0.2s ease;
-                        "
-                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(79, 70, 229, 0.3)'"
-                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(79, 70, 229, 0.2)'">
-                        📄 ファイルを見る (${item.github_path.split("/").pop()})
-                      </button>`
-                    : ""
-                }
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 400px;">
-                  <button 
-                    class="action-btn-edit" 
-                    data-action="edit" 
-                    data-id="${item.id}"
-                    style="
-                      background-color: #e0e7ff;
-                      color: #1976d2;
-                      border: 1px solid #90caf9;
-                      padding: 6px 12px;
-                      border-radius: 8px;
-                      cursor: pointer;
-                      font-size: 0.9em;
-                      font-weight: 500;
-                      transition: all 0.2s ease;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      gap: 6px;
-                      width: 100%;
-                    "
-                    onmouseover="this.style.backgroundColor='#bbdefb'; this.style.borderColor='#64b5f6'"
-                    onmouseout="this.style.backgroundColor='#e0e7ff'; this.style.borderColor='#90caf9'">
-                    ✏️ 編集
-                  </button>
-                  <button 
-                    class="action-btn-delete" 
-                    data-action="delete" 
-                    data-id="${item.id}"
-                    style="
-                      background-color: #ffebee;
-                      color: #c62828;
-                      border: 1px solid #ef9a9a;
-                      padding: 6px 12px;
-                      border-radius: 8px;
-                      cursor: pointer;
-                      font-size: 0.9em;
-                      font-weight: 500;
-                      transition: all 0.2s ease;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      gap: 6px;
-                      width: 100%;
-                    "
-                    onmouseover="this.style.backgroundColor='#ffcdd2'; this.style.borderColor='#e57373'"
-                    onmouseout="this.style.backgroundColor='#ffebee'; this.style.borderColor='#ef9a9a'">
-                    🗑️ 削除
-                  </button>
-                </div>
-              </div>
-              </div><!-- /details -->
-            </div>
-          `;
-          // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-        })
-        .join("");
-    } else {
-      resultText += "一致する学習記録は見つかりませんでした。";
-    }
-
+  const postResultCards = (results: LearningRecord[], header: string) => {
     setTimeout(() => {
       const searchResultMessage: Message = {
         id: Date.now() + 1,
-        text: resultText,
+        text: header,
         timestamp: new Date().toLocaleTimeString("ja-JP", {
           hour: "2-digit",
           minute: "2-digit",
         }),
         type: "left",
-        photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
         displayName: "システム",
+        cards: results,
       };
       setMessages((prev) => [...prev, searchResultMessage]);
     }, 500);
@@ -1146,14 +995,10 @@ export default function LearningContent() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    const results = [...learningData]
-      .filter((item) => item.tags.includes(tag))
-      .sort((a, b) => a.title.localeCompare(b.title, "ja"));
+    const filtered = learningData.filter((item) => item.tags.includes(tag));
+    const results = sortLearningRecords(filtered, searchFilters.sort);
 
-    postResultCards(
-      results,
-      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🏷️ タグ「#${tag}」の学習記録: ${results.length}件</div>`
-    );
+    postResultCards(results, `🏷️ タグ「#${tag}」の学習記録: ${results.length}件`);
   };
 
   // 復習候補（理解度が低め）の件数
@@ -1236,11 +1081,12 @@ export default function LearningContent() {
       setRemindersOn(true);
       showTestReminder(reviewCount);
     } else if (perm === "denied") {
-      alert(
-        "通知がブロックされています。ブラウザの設定から本サイトの通知を許可してください。"
+      showToast(
+        "通知がブロックされています。ブラウザの設定から本サイトの通知を許可してください。",
+        "warning"
       );
     } else if (perm === "unsupported") {
-      alert("お使いのブラウザは通知に対応していません。");
+      showToast("お使いのブラウザは通知に対応していません。", "warning");
     }
   };
 
@@ -1253,7 +1099,11 @@ export default function LearningContent() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #eef2ff 0%, #f6f7fb 60%)",
+          background: (theme) =>
+            `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.18 : 0.08
+            )} 0%, ${theme.palette.background.default} 60%)`,
           px: 2,
         }}
       >
@@ -1262,9 +1112,10 @@ export default function LearningContent() {
             maxWidth: 440,
             width: "100%",
             textAlign: "center",
-            bgcolor: "#fff",
+            bgcolor: "background.paper",
             borderRadius: 4,
-            boxShadow: "0 12px 40px rgba(79,70,229,0.15)",
+            boxShadow: (theme) =>
+              `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
             p: { xs: 4, sm: 6 },
           }}
         >
@@ -1305,9 +1156,14 @@ export default function LearningContent() {
       <AppBar
         position="fixed"
         sx={{
-          // スマホでは全幅、PCでは左メニュー分だけ右に寄せる
+          // スマホでは全幅、PCでは左メニュー分（折りたたみ時は縮小分）だけ右に寄せる
           width: { xs: "100%", sm: `calc(100% - ${drawerWidth}px)` },
           ml: { xs: 0, sm: `${drawerWidth}px` },
+          transition: (theme) =>
+            theme.transitions.create(["width", "margin"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
         }}
       >
         <Toolbar sx={{ gap: 0.5 }}>
@@ -1385,6 +1241,15 @@ export default function LearningContent() {
               <LocalFireDepartmentIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="一覧表示（テーブルで見比べる）">
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setListDialogOpen(true)}
+            >
+              <TableRowsIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip
             title={
               colorMode.mode === "dark"
@@ -1410,6 +1275,12 @@ export default function LearningContent() {
             </IconButton>
           </Tooltip>
         </Toolbar>
+        {dataLoading && (
+          <LinearProgress
+            color="secondary"
+            sx={{ height: 2, position: "absolute", bottom: 0, left: 0, right: 0 }}
+          />
+        )}
       </AppBar>
       <LeftToolBar
         onAddNewLearning={() => {
@@ -1443,6 +1314,8 @@ export default function LearningContent() {
         loading={filesLoading}
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
       />
       <Box
         component="main"
@@ -1486,13 +1359,27 @@ export default function LearningContent() {
           >
             {messages.map((msg) =>
               msg.type === "left" ? (
-                <MessageLeft
-                  key={msg.id}
-                  message={msg.text}
-                  timestamp={msg.timestamp}
-                  photoURL={msg.photoURL}
-                  displayName={msg.displayName}
-                />
+                msg.cards ? (
+                  <LearningResultCards
+                    key={msg.id}
+                    header={msg.text}
+                    timestamp={msg.timestamp}
+                    items={msg.cards}
+                    onViewFile={(path, commitSha) =>
+                      handleViewFile(path, false, commitSha ?? undefined)
+                    }
+                    onEdit={openEditDialog}
+                    onDelete={openDeleteConfirm}
+                  />
+                ) : (
+                  <MessageLeft
+                    key={msg.id}
+                    message={msg.text}
+                    timestamp={msg.timestamp}
+                    photoURL={msg.photoURL}
+                    displayName={msg.displayName}
+                  />
+                )
               ) : (
                 <MessageRight
                   key={msg.id}
@@ -1500,6 +1387,15 @@ export default function LearningContent() {
                   timestamp={msg.timestamp}
                 />
               )
+            )}
+            {dataLoading && (
+              <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.75 }}>
+                <Skeleton variant="circular" width={36} height={36} />
+                <Box sx={{ width: "60%", maxWidth: 240 }}>
+                  <Skeleton variant="rounded" height={18} width="40%" sx={{ mb: 0.5 }} />
+                  <Skeleton variant="rounded" height={48} />
+                </Box>
+              </Box>
             )}
             <div ref={messageEndRef} />
           </Box>
@@ -1667,6 +1563,25 @@ export default function LearningContent() {
         open={streakOpen}
         onClose={() => setStreakOpen(false)}
         dates={learningData.map((l) => l.created_at)}
+      />
+
+      {/* 一覧(テーブル)表示：まとめて見比べたいとき用 */}
+      <LearningListDialog
+        open={listDialogOpen}
+        onClose={() => setListDialogOpen(false)}
+        items={learningData}
+        categories={allCategories}
+        onViewFile={(path, commitSha) =>
+          handleViewFile(path, false, commitSha ?? undefined)
+        }
+        onEdit={(id) => {
+          setListDialogOpen(false);
+          openEditDialog(id);
+        }}
+        onDelete={(id) => {
+          setListDialogOpen(false);
+          openDeleteConfirm(id);
+        }}
       />
 
       {/* 今日の復習（フラッシュカード） */}

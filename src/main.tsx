@@ -7,6 +7,7 @@ import "./css/index.css";
 import App from "./App.tsx";
 import { getTheme } from "./theme";
 import { ColorModeContext } from "./ColorModeContext";
+import { ToastProvider } from "./ToastContext";
 
 function Root() {
   // 保存済みの設定 → なければ端末の設定（OSのダークモード）を初期値にする
@@ -38,7 +39,9 @@ function Root() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );

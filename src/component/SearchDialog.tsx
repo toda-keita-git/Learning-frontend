@@ -130,8 +130,12 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
             label="ソート"
             onChange={(e: SelectChangeEvent) => setSort(e.target.value)}
           >
-            <MenuItem value="name-asc">ファイル名 (昇順)</MenuItem>
-            <MenuItem value="name-desc">ファイル名 (降順)</MenuItem>
+            <MenuItem value="name-asc">タイトル (昇順)</MenuItem>
+            <MenuItem value="name-desc">タイトル (降順)</MenuItem>
+            <MenuItem value="understanding-desc">理解度が高い順</MenuItem>
+            <MenuItem value="understanding-asc">理解度が低い順</MenuItem>
+            <MenuItem value="date-desc">更新日が新しい順</MenuItem>
+            <MenuItem value="date-asc">更新日が古い順</MenuItem>
           </Select>
         </FormControl>
       </DialogContent>

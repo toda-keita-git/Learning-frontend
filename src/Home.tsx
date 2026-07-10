@@ -7,6 +7,7 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import Divider from "@mui/material/Divider";
+import { alpha } from "@mui/material/styles";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import SearchIcon from "@mui/icons-material/Search";
@@ -59,7 +60,11 @@ export default function Home() {
       {/* ヒーロー */}
       <Box
         sx={{
-          background: "linear-gradient(135deg, #eef2ff 0%, #f6f7fb 60%)",
+          background: (theme) =>
+            `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.18 : 0.08
+            )} 0%, ${theme.palette.background.default} 60%)`,
           py: { xs: 6, md: 10 },
         }}
       >
@@ -105,7 +110,7 @@ export default function Home() {
             <Paper
               key={s.no}
               elevation={0}
-              sx={{ flex: 1, p: 4, border: "1px solid #eceef3" }}
+              sx={{ flex: 1, p: 4, border: "1px solid", borderColor: "divider" }}
             >
               <Box
                 sx={{
@@ -133,11 +138,15 @@ export default function Home() {
       </Container>
 
       {/* GitHub連携について（リポジトリ自動作成の説明＋注意点） */}
-      <Box sx={{ bgcolor: "#f9fafe", py: { xs: 5, md: 7 } }}>
+      <Box sx={{ bgcolor: "action.hover", py: { xs: 5, md: 7 } }}>
         <Container maxWidth="md">
           <Paper
             elevation={0}
-            sx={{ p: { xs: 3, md: 4 }, border: "1px solid #e0e7ff" }}
+            sx={{
+              p: { xs: 3, md: 4 },
+              border: "1px solid",
+              borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
+            }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
               <GitHubIcon color="primary" />
@@ -153,7 +162,7 @@ export default function Home() {
                   mx: 0.5,
                   px: 1,
                   py: 0.3,
-                  bgcolor: "#eef2ff",
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
                   borderRadius: 1,
                   fontFamily: "monospace",
                   color: "primary.main",
@@ -167,8 +176,8 @@ export default function Home() {
             <Divider sx={{ my: 2 }} />
 
             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
-              <InfoOutlinedIcon fontSize="small" sx={{ color: "#b45309" }} />
-              <Typography sx={{ fontWeight: 700, color: "#b45309" }}>
+              <InfoOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
+              <Typography sx={{ fontWeight: 700, color: "warning.main" }}>
                 ご利用前の注意点
               </Typography>
             </Stack>
@@ -211,11 +220,13 @@ export default function Home() {
                 flex: 1,
                 p: 4,
                 textAlign: "center",
-                border: "1px solid #eceef3",
+                border: "1px solid",
+                borderColor: "divider",
                 transition: "transform .2s, box-shadow .2s",
                 "&:hover": {
                   transform: "translateY(-4px)",
-                  boxShadow: "0 12px 28px rgba(79,70,229,0.12)",
+                  boxShadow: (theme) =>
+                    `0 12px 28px ${alpha(theme.palette.primary.main, 0.12)}`,
                 },
               }}
             >
