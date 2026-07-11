@@ -85,6 +85,7 @@ import {
   setRemindersEnabled,
   maybeNotifyReview,
   showTestReminder,
+  updateAppBadge,
 } from "./notifications";
 
 
@@ -1059,6 +1060,7 @@ export default function LearningContent() {
   // 今日の復習：理解度が低い・しばらく見ていない記録を優先し、フラッシュカードで振り返る
   const handleReview = () => {
     const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    // 件数は絞らず並べ替えだけ行い、実際に何件やるかはスキマ時間の選択(ReviewFlashcards側)に委ねる
     const candidates = [...learningData]
       .sort((a, b) => {
         // 理解度が低い順 → 同じなら古い順（久しく見ていないもの優先）
@@ -1066,10 +1068,21 @@ export default function LearningContent() {
         if (lv !== 0) return lv;
         return toTime(a.created_at) - toTime(b.created_at);
       })
-      .slice(0, 5);
+      .slice(0, 20);
     setReviewItems(candidates);
     setReviewOpen(true);
   };
+
+  // 復習リマインド通知の「今すぐ復習」から開かれた場合、データ読み込み後に自動で復習を開始する
+  useEffect(() => {
+    if (dataLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("review") === "1") {
+      handleReview();
+      window.history.replaceState({}, "", "/LearningContent");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading]);
 
   // フラッシュカードの「わかった/まだ」で理解度を更新する
   const handleRateReview = async (item: LearningRecord, newLevel: number) => {
@@ -1114,6 +1127,11 @@ export default function LearningContent() {
   const reviewCount = learningData.filter(
     (l) => (l.understanding_level ?? 3) <= 2
   ).length;
+
+  // アプリアイコンに未読の復習件数バッジを表示（対応ブラウザ・PWAインストール時のみ）
+  useEffect(() => {
+    updateAppBadge(reviewCount);
+  }, [reviewCount]);
 
   // 共有(Web Share Target)で開かれたら、共有内容を新規登録フォームに反映する。
   // 未ログインだとGitHubログインのリダイレクトを挟むため、共有内容は一旦

@@ -54,6 +54,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // API と GitHub へのアクセスはキャッシュせず、常にネットワークから取得
         navigateFallbackDenylist: [/^\/api/],
+        // 復習リマインド通知のクリック処理（notificationclick）を生成されるSWに追加
+        importScripts: ["notification-sw.js"],
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>

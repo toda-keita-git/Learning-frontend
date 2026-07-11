@@ -34,12 +34,21 @@ interface Props {
 
 const stars = (n: number) => "★".repeat(n) + "☆".repeat(Math.max(0, 5 - n));
 
+// スキマ時間の目安（1枚あたり約40秒で見積もり）
+const TIME_PRESETS = [
+  { label: "3分で", minutes: 3, count: 3 },
+  { label: "10分で", minutes: 10, count: 8 },
+  { label: "じっくり", minutes: null, count: Infinity },
+] as const;
+
 export default function ReviewFlashcards({ open, onClose, items, onRate }: Props) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dragX, setDragX] = useState(0);
   const startX = useRef<number | null>(null);
+  // スキマ時間モード: 何件やるかをまだ選んでいなければnull（選択画面を出す）
+  const [sessionSize, setSessionSize] = useState<number | null>(null);
 
   // 開くたびに最初のカードから
   useEffect(() => {
@@ -47,11 +56,14 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
       setIndex(0);
       setRevealed(false);
       setDragX(0);
+      setSessionSize(null);
     }
   }, [open]);
 
-  const total = items.length;
-  const current = items[index];
+  const sessionItems =
+    sessionSize === null ? [] : items.slice(0, sessionSize);
+  const total = sessionItems.length;
+  const current = sessionItems[index];
   const done = index >= total;
 
   const goNext = () => {
@@ -115,12 +127,44 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
       </DialogTitle>
 
       <DialogContent dividers sx={{ minHeight: 340 }}>
-        {total === 0 ? (
+        {items.length === 0 ? (
           <Box sx={{ textAlign: "center", py: 6 }}>
             <SentimentSatisfiedAltIcon
               sx={{ fontSize: 48, color: "success.main", mb: 1 }}
             />
             <Typography>復習が必要な記録はありません。よくできています！</Typography>
+          </Box>
+        ) : sessionSize === null ? (
+          <Box sx={{ textAlign: "center", py: 4 }}>
+            <Typography sx={{ mb: 0.5, fontWeight: 700 }}>
+              今、どれくらい時間がありますか？
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", mb: 3, display: "block" }}>
+              スキマ時間に合わせて件数を調整します（理解度が低いものから優先）
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 260, mx: "auto" }}>
+              {TIME_PRESETS.map((preset) => {
+                const count = Math.min(preset.count, items.length);
+                return (
+                  <Button
+                    key={preset.label}
+                    variant="outlined"
+                    onClick={() => setSessionSize(count)}
+                    sx={{ justifyContent: "space-between" }}
+                    endIcon={
+                      <Chip
+                        component="span"
+                        size="small"
+                        label={`${count}件`}
+                        sx={{ ml: 1 }}
+                      />
+                    }
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              })}
+            </Box>
           </Box>
         ) : done ? (
           <Box sx={{ textAlign: "center", py: 6 }}>
