@@ -74,6 +74,7 @@ import TableRowsIcon from "@mui/icons-material/TableRows";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
 import { useToast } from "./ToastContext";
@@ -89,6 +90,8 @@ import {
 } from "./notifications";
 
 
+
+const BOTTOM_NAV_HEIGHT = 56; // スマホ用ボトムナビの高さ(px)
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
@@ -1073,12 +1076,16 @@ export default function LearningContent() {
     setReviewOpen(true);
   };
 
-  // 復習リマインド通知の「今すぐ復習」から開かれた場合、データ読み込み後に自動で復習を開始する
+  // 通知の「今すぐ復習」や、ホーム画面ショートカットの「クイック記録」から開かれた場合、
+  // データ読み込み後に該当の画面を自動で開く
   useEffect(() => {
     if (dataLoading) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("review") === "1") {
       handleReview();
+      window.history.replaceState({}, "", "/LearningContent");
+    } else if (params.get("quickadd") === "1") {
+      openNewLearningDialog();
       window.history.replaceState({}, "", "/LearningContent");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1121,6 +1128,14 @@ export default function LearningContent() {
     const results = sortLearningRecords(filtered, searchFilters.sort);
 
     postResultCards(results, `🏷️ タグ「#${tag}」の学習記録: ${results.length}件`);
+  };
+
+  // 新規学習内容ダイアログを開く（左メニュー・下部ナビ両方から使う共通処理）
+  const openNewLearningDialog = () => {
+    setEditingItem(null);
+    setSharePrefill(null); // 共有の初期値が残らないようにする
+    localStorage.removeItem("sharePrefillPending");
+    setOpenNewDialog(true);
   };
 
   // 復習候補（理解度が低め）の件数
@@ -1455,10 +1470,7 @@ export default function LearningContent() {
       </AppBar>
       <LeftToolBar
         onAddNewLearning={() => {
-          setEditingItem(null);
-          setSharePrefill(null); // 共有の初期値が残らないようにする
-          localStorage.removeItem("sharePrefillPending");
-          setOpenNewDialog(true);
+          openNewLearningDialog();
           setMobileNavOpen(false); // スマホでは選択後にメニューを閉じる
         }}
         onAddNewCategory={() => {
@@ -1496,18 +1508,18 @@ export default function LearningContent() {
           flexGrow: 1,
           bgcolor: "background.default",
           p: { xs: 0, sm: 3 }, // スマホでは余白を削除
-          height: { xs: "100vh", sm: "auto" }, // スマホでは全画面
+          height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "auto" }, // スマホは下部ナビの分を除いた全画面
           display: "flex",
           flexDirection: "column",
         }}
       >
         <Toolbar sx={{ display: { xs: "none", sm: "flex" } }} /> {/* スマホでは非表示 */}
-        
+
         <Paper
           elevation={3}
           sx={{
             width: { xs: "100vw", sm: "80vw" },
-            height: { xs: "100vh", sm: "85vh" },
+            height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "85vh" },
             maxWidth: { sm: "600px" },
             maxHeight: { sm: "900px" },
             display: "flex",
@@ -1650,6 +1662,57 @@ export default function LearningContent() {
           </Box>
         </Paper>
       </Box>
+
+      {/* スマホ用ボトムナビ：片手操作で主要な導線に届くように画面下部へ集約 */}
+      <Paper
+        elevation={8}
+        sx={{
+          display: { xs: "flex", sm: "none" },
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: BOTTOM_NAV_HEIGHT,
+          zIndex: (theme) => theme.zIndex.appBar + 1,
+          justifyContent: "space-around",
+          alignItems: "stretch",
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        {[
+          { label: "記録", icon: <AddCircleOutlineIcon />, onClick: openNewLearningDialog },
+          { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
+          { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
+          { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
+          { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
+        ].map((item) => (
+          <Box
+            key={item.label}
+            component="button"
+            onClick={item.onClick}
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.25,
+              border: "none",
+              background: "none",
+              color: "text.secondary",
+              cursor: "pointer",
+              font: "inherit",
+              "& svg": { fontSize: 22 },
+            }}
+          >
+            {item.icon}
+            <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
+              {item.label}
+            </Box>
+          </Box>
+        ))}
+      </Paper>
 
       <NewLearningDialog
         open={openNewDialog}

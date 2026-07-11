@@ -43,6 +43,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         autoHideDuration={4000}
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ mb: { xs: 7, sm: 0 } }} // スマホ用ボトムナビ(56px)に隠れないよう底上げ
       >
         <Alert
           onClose={handleClose}
