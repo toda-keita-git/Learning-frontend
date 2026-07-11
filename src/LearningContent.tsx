@@ -42,6 +42,8 @@ import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
 import LearningListDialog from "./component/LearningListDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
+import { enqueueAction, flushQueue, queueLength } from "./component/offlineQueue";
+import { isDataSaverEnabled, setDataSaverEnabled, prefersSaveData } from "./settings";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -69,6 +71,9 @@ import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import TableRowsIcon from "@mui/icons-material/TableRows";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
+import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
 import { useToast } from "./ToastContext";
@@ -254,7 +259,10 @@ export default function LearningContent() {
 
 
   const [githubFiles, setGithubFiles] = useState<GitHubFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(true);
+  const [filesLoading, setFilesLoading] = useState(
+    () => !(isDataSaverEnabled() || prefersSaveData())
+  );
+  const [hasFetchedFiles, setHasFetchedFiles] = useState(false); // 省データモードで未取得かどうかの判定用
 
   // ★ GitHubからファイルリストを取得する関数 (旧fetchRepoFiles)
  const fetchGitHubFiles = async () => {
@@ -263,6 +271,7 @@ export default function LearningContent() {
   if (!octokit || !githubLogin || !repoName) {
     console.error("Octokitまたはリポジトリ情報がありません");
     setFilesLoading(false);
+    setHasFetchedFiles(true);
     return;
   }
 
@@ -285,6 +294,7 @@ export default function LearningContent() {
     console.error("Failed to fetch repository tree from GitHub:", error);
   } finally {
     setFilesLoading(false);
+    setHasFetchedFiles(true);
   }
 };
 
@@ -436,6 +446,13 @@ export default function LearningContent() {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [syncQueueCount, setSyncQueueCount] = useState<number>(0); // オフライン中に保留した変更の件数
+  const [dataSaverOn, setDataSaverOn] = useState<boolean>(
+    () => isDataSaverEnabled() || prefersSaveData()
+  ); // 省データモード
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false); // PCでの左メニュー折りたたみ
   const drawerWidth = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
@@ -518,6 +535,43 @@ export default function LearningContent() {
     }
   };
 
+  // オフライン中に保留した変更（追加・更新・削除）を、オンライン復帰時にまとめて送信する
+  const handleFlushQueue = async () => {
+    if (!userId || queueLength(userId) === 0) return;
+    const { succeeded, failed } = await flushQueue(userId);
+    setSyncQueueCount(queueLength(userId));
+    if (succeeded > 0) {
+      await refetchData();
+      showToast(`オフライン中の変更を${succeeded}件同期しました。`, "success");
+    }
+    if (failed > 0) {
+      showToast(`${failed}件の同期に失敗しました。次回オンライン時に再試行します。`, "error");
+    }
+  };
+
+  // オンライン/オフラインの切り替えを監視し、復帰時に自動同期する
+  useEffect(() => {
+    if (userId) {
+      setSyncQueueCount(queueLength(userId));
+      if (navigator.onLine) {
+        handleFlushQueue();
+      }
+    }
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      handleFlushQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [userId]);
+
   const messageEndRef = React.useRef<HTMLDivElement>(null);
 
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
@@ -584,7 +638,10 @@ export default function LearningContent() {
       }
     };
     fetchData().finally(() => setDataLoading(false));
-    fetchGitHubFiles();
+    // 省データモード中は、使うまでGitHubファイル一覧を自動取得しない
+    if (!dataSaverOn) {
+      fetchGitHubFiles();
+    }
   }, [userId]); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
 
   // 初回取得が完了して学習記録が0件だった場合、最初の記録作成を促す案内を表示する
@@ -657,6 +714,18 @@ export default function LearningContent() {
   // ★ 削除処理を実行する関数
   const handleDeleteLearning = async () => {
     if (deletingItemId === null) return;
+
+    if (!navigator.onLine) {
+      // オフライン時は削除を保留し、ローカル表示からは即座に消す（楽観的更新）
+      enqueueAction(userId, { kind: "delete", id: deletingItemId, label: "" });
+      setSyncQueueCount(queueLength(userId));
+      setLearningData((prev) => prev.filter((item) => item.id !== deletingItemId));
+      setDeleteConfirmOpen(false);
+      setDeletingItemId(null);
+      showToast("オフラインのため削除を保留しました。オンライン復帰時に反映します。", "warning");
+      return;
+    }
+
     try {
       await deleteLearningApi(deletingItemId);
       setDeleteConfirmOpen(false);
@@ -760,6 +829,46 @@ export default function LearningContent() {
   const handleSubmitLearning = async (submissionData: any) => {
     // submissionDataから learningData と editedFile を取り出す
     const { learningData, editedFile } = submissionData;
+
+    if (!navigator.onLine) {
+      // GitHub上のファイル添付・編集はネットワークが必須のため、オフラインでは保留できない
+      if (editedFile) {
+        showToast(
+          "オフラインではファイル添付を伴う保存はできません。オンライン復帰後にもう一度お試しください。",
+          "error"
+        );
+        throw new Error("offline: file attachment requires network");
+      }
+
+      const finalLearningData = { ...learningData, user_id: userId };
+      if (finalLearningData.category_id === "") {
+        finalLearningData.category_id = null;
+      }
+      const label = finalLearningData.title || "無題の学習記録";
+
+      if (finalLearningData.id) {
+        enqueueAction(userId, {
+          kind: "update",
+          id: finalLearningData.id,
+          payload: finalLearningData,
+          userId: userId ?? 0,
+          label,
+        });
+      } else {
+        enqueueAction(userId, {
+          kind: "create",
+          payload: finalLearningData,
+          userId: userId ?? 0,
+          label,
+        });
+      }
+      setSyncQueueCount(queueLength(userId));
+      showToast(
+        `オフラインのため保存を保留しました。「${label}」はオンライン復帰時に自動送信します。`,
+        "warning"
+      );
+      return;
+    }
 
     try {
       let finalLearningData = { ...learningData };
@@ -1090,6 +1199,23 @@ export default function LearningContent() {
     }
   };
 
+  // 省データモードのON/OFF切り替え
+  const handleToggleDataSaver = () => {
+    const next = !dataSaverOn;
+    setDataSaverOn(next);
+    setDataSaverEnabled(next);
+    if (!next && !hasFetchedFiles) {
+      // OFFに戻したら、まだ取得していなければすぐ取りに行く
+      fetchGitHubFiles();
+    }
+    showToast(
+      next
+        ? "省データモードをONにしました。画像やファイル一覧は必要な時だけ読み込みます。"
+        : "省データモードをOFFにしました。",
+      "info"
+    );
+  };
+
   // 未認証時の表示
   if (!isAuthenticated) {
     return (
@@ -1209,6 +1335,33 @@ export default function LearningContent() {
             </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
+          {!isOnline && (
+            <Tooltip title="オフラインです。変更はオンライン復帰時に自動送信します">
+              <Chip
+                icon={<WifiOffIcon />}
+                label="オフライン"
+                size="small"
+                color="warning"
+                sx={{ mr: 1, color: "#fff", "& .MuiChip-icon": { color: "#fff" } }}
+              />
+            </Tooltip>
+          )}
+          {syncQueueCount > 0 && (
+            <Tooltip title="オンライン復帰時に自動で同期されます">
+              <Chip
+                icon={<CloudSyncIcon />}
+                label={`${syncQueueCount}件 同期待ち`}
+                size="small"
+                onClick={handleFlushQueue}
+                sx={{
+                  mr: 1,
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  color: "#fff",
+                  "& .MuiChip-icon": { color: "#fff" },
+                }}
+              />
+            </Tooltip>
+          )}
           <Button
             color="inherit"
             size="small"
@@ -1312,6 +1465,8 @@ export default function LearningContent() {
         }}
         files={githubFiles}
         loading={filesLoading}
+        filesNotFetched={!hasFetchedFiles}
+        onRequestFiles={fetchGitHubFiles}
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
         collapsed={sidebarCollapsed}
@@ -1503,6 +1658,7 @@ export default function LearningContent() {
           await handleUpdateFile(path, newContent, viewingContent.sha);
           return;
         }}
+        dataSaverOn={dataSaverOn}
       />
       <Dialog
         open={deleteConfirmOpen}
@@ -1719,6 +1875,38 @@ export default function LearningContent() {
               </Button>
             </Box>
           )}
+
+          {/* 省データモードの設定 */}
+          <Box
+            sx={{
+              mt: 1.5,
+              p: 2,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <DataSaverOnIcon color="primary" />
+            <Box sx={{ flex: 1, minWidth: 180 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                省データモード
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                外出先のモバイル回線向け。GitHubファイル一覧の自動取得や画像の自動表示を止め、必要な時だけ読み込みます。
+              </Typography>
+            </Box>
+            <Button
+              variant={dataSaverOn ? "outlined" : "contained"}
+              size="small"
+              onClick={handleToggleDataSaver}
+            >
+              {dataSaverOn ? "オフにする" : "オンにする"}
+            </Button>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHelpOpen(false)} variant="contained">

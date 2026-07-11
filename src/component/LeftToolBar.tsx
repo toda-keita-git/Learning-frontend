@@ -13,6 +13,8 @@ import {
   IconButton,
   Tooltip,
   useMediaQuery,
+  Typography,
+  Button,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AddIcon from "@mui/icons-material/Add";
@@ -54,6 +56,9 @@ interface LeftToolBarProps {
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
+  // 省データモードなどでまだ取得していない場合に、取得を促すボタンを出す
+  filesNotFetched?: boolean;
+  onRequestFiles?: () => void;
   // スマホの左メニュー開閉（親のヘッダーのハンバーガーから制御）
   mobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -179,6 +184,8 @@ export default function LeftToolBar({
   onFileSelect,
   files,
   loading,
+  filesNotFetched = false,
+  onRequestFiles,
   mobileOpen: mobileOpenProp,
   onMobileClose,
   collapsed = false,
@@ -337,6 +344,15 @@ export default function LeftToolBar({
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                 <CircularProgress size={24} />
+              </Box>
+            ) : filesNotFetched && onRequestFiles ? (
+              <Box sx={{ p: 2, textAlign: "center" }}>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+                  省データモードのため、ファイル一覧はまだ取得していません。
+                </Typography>
+                <Button size="small" variant="outlined" onClick={onRequestFiles}>
+                  取得する
+                </Button>
               </Box>
             ) : (
               <FileTree nodes={fileTree} onFileSelect={onFileSelect} />
