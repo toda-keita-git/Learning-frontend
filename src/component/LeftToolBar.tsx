@@ -31,6 +31,8 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import BackButton from "./BackButton";
 
 export const DRAWER_WIDTH_EXPANDED = 240;
@@ -53,6 +55,8 @@ interface LeftToolBarProps {
   onAddNewTag: () => void;
   onAddNewFolder: () => void;
   onManage: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenPlans?: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
@@ -181,6 +185,8 @@ export default function LeftToolBar({
   onAddNewTag,
   onAddNewFolder,
   onManage,
+  onOpenAnalytics,
+  onOpenPlans,
   onFileSelect,
   files,
   loading,
@@ -247,6 +253,20 @@ export default function LeftToolBar({
           <TuneIcon />
         </IconButton>
       </Tooltip>
+      {onOpenAnalytics && (
+        <Tooltip title="学習分析ダッシュボード" placement="right">
+          <IconButton onClick={onOpenAnalytics} sx={{ mb: 0.5 }}>
+            <InsightsOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onOpenPlans && (
+        <Tooltip title="プラン" placement="right">
+          <IconButton onClick={onOpenPlans} sx={{ mb: 0.5 }}>
+            <WorkspacePremiumOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title="最新データ編集（展開して検索）" placement="right">
         <IconButton onClick={onToggleCollapsed} sx={{ mb: 0.5 }}>
           <UpdateIcon />
@@ -316,6 +336,32 @@ export default function LeftToolBar({
             primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
           />
         </ListItemButton>
+
+        {/* --- 学習分析ダッシュボード --- */}
+        {onOpenAnalytics && (
+          <ListItemButton onClick={onOpenAnalytics}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <InsightsOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="学習分析ダッシュボード"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
+
+        {/* --- プラン --- */}
+        {onOpenPlans && (
+          <ListItemButton onClick={onOpenPlans}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <WorkspacePremiumOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="プラン"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
 
         {/* --- GitHubファイル編集セクション --- */}
         <ListItemButton onClick={() => setOpen2(!open2)}>

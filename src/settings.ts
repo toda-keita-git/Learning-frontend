@@ -11,7 +11,10 @@ export const setDataSaverEnabled = (v: boolean) => {
 // Network Information API（Chrome/Androidなど一部ブラウザのみ対応）。
 // 対応していない場合はfalseを返し、機能自体は使えるがヒントは出さない。
 export const prefersSaveData = (): boolean => {
-  const conn = (navigator as any).connection;
+  const nav = navigator as unknown as {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  };
+  const conn = nav.connection;
   if (!conn) return false;
-  return Boolean(conn.saveData) || ["slow-2g", "2g", "3g"].includes(conn.effectiveType);
+  return Boolean(conn.saveData) || ["slow-2g", "2g", "3g"].includes(conn.effectiveType ?? "");
 };

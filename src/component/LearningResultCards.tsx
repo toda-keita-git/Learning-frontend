@@ -14,6 +14,8 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import { findRelatedItems } from "./relatedNotes";
 
 interface LearningResultItem {
   id: number;
@@ -32,9 +34,13 @@ interface LearningResultCardsProps {
   timestamp?: string;
   items: LearningResultItem[];
   emptyText?: string;
+  // 関連メモのサジェスト計算に使う全学習記録（未指定ならitemsのみで計算）
+  allItems?: LearningResultItem[];
   onViewFile: (path: string, commitSha?: string | null) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
+  // 関連メモをタップしたときの遷移先（省略時は関連メモ欄自体を出さない）
+  onOpenRelated?: (id: number) => void;
 }
 
 /** 検索・タグ絞り込み結果を、システムメッセージの一部としてカード一覧で表示する */
@@ -43,9 +49,11 @@ export default function LearningResultCards({
   timestamp,
   items,
   emptyText = "一致する学習記録は見つかりませんでした。",
+  allItems,
   onViewFile,
   onEdit,
   onDelete,
+  onOpenRelated,
 }: LearningResultCardsProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -85,6 +93,8 @@ export default function LearningResultCards({
           <Stack spacing={1.25}>
             {items.map((item) => {
               const isOpen = expandedIds.has(item.id);
+              const relatedItems =
+                allItems && onOpenRelated ? findRelatedItems(item, allItems) : [];
               return (
                 <Card
                   key={item.id}
@@ -189,6 +199,38 @@ export default function LearningResultCards({
                               参考リンク 🔗
                             </Box>
                           </Typography>
+                        )}
+
+                        {relatedItems.length > 0 && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                                mb: 0.5,
+                              }}
+                            >
+                              <AutoAwesomeOutlinedIcon
+                                sx={{ fontSize: 14, color: "text.secondary" }}
+                              />
+                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                関連する過去の記録
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                              {relatedItems.map((related) => (
+                                <Chip
+                                  key={related.id}
+                                  label={related.title}
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => onOpenRelated?.(related.id)}
+                                  sx={{ maxWidth: 220 }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
                         )}
 
                         <Box

@@ -41,6 +41,8 @@ import NewCategoryDialog from "./component/NewCategoryDialog";
 import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
 import LearningListDialog from "./component/LearningListDialog";
+import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
+import PlanComparisonDialog from "./component/PlanComparisonDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
 import { enqueueAction, flushQueue, queueLength } from "./component/offlineQueue";
 import { isDataSaverEnabled, setDataSaverEnabled, prefersSaveData } from "./settings";
@@ -75,6 +77,7 @@ import WifiOffIcon from "@mui/icons-material/WifiOff";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
 import { useToast } from "./ToastContext";
@@ -450,6 +453,8 @@ export default function LearningContent() {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
+  const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
+  const [planDialogOpen, setPlanDialogOpen] = useState<boolean>(false); // プラン比較
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
@@ -1436,6 +1441,16 @@ export default function LearningContent() {
               <TableRowsIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="学習分析ダッシュボード">
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setAnalyticsOpen(true)}
+              sx={{ display: { xs: "none", sm: "inline-flex" } }}
+            >
+              <InsightsOutlinedIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip
             title={
               colorMode.mode === "dark"
@@ -1491,6 +1506,14 @@ export default function LearningContent() {
         }}
         onManage={() => {
           setIsManageOpen(true);
+          setMobileNavOpen(false);
+        }}
+        onOpenAnalytics={() => {
+          setAnalyticsOpen(true);
+          setMobileNavOpen(false);
+        }}
+        onOpenPlans={() => {
+          setPlanDialogOpen(true);
           setMobileNavOpen(false);
         }}
         files={githubFiles}
@@ -1550,11 +1573,13 @@ export default function LearningContent() {
                     header={msg.text}
                     timestamp={msg.timestamp}
                     items={msg.cards}
+                    allItems={learningData}
                     onViewFile={(path, commitSha) =>
                       handleViewFile(path, false, commitSha ?? undefined)
                     }
                     onEdit={openEditDialog}
                     onDelete={openDeleteConfirm}
+                    onOpenRelated={openEditDialog}
                   />
                 ) : (
                   <MessageLeft
@@ -1819,6 +1844,19 @@ export default function LearningContent() {
           setListDialogOpen(false);
           openDeleteConfirm(id);
         }}
+      />
+
+      {/* 学習分析ダッシュボード */}
+      <LearningAnalyticsDialog
+        open={analyticsOpen}
+        onClose={() => setAnalyticsOpen(false)}
+        items={learningData}
+      />
+
+      {/* プラン比較（課金ロジックなし） */}
+      <PlanComparisonDialog
+        open={planDialogOpen}
+        onClose={() => setPlanDialogOpen(false)}
       />
 
       {/* 今日の復習（フラッシュカード） */}
