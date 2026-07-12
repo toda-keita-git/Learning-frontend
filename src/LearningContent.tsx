@@ -77,7 +77,6 @@ import WifiOffIcon from "@mui/icons-material/WifiOff";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
 import { useToast } from "./ToastContext";
@@ -1331,16 +1330,7 @@ export default function LearningContent() {
         }}
       >
         <Toolbar sx={{ gap: 0.5 }}>
-          {/* スマホ用：左メニューを開くハンバーガー */}
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={() => setMobileNavOpen(true)}
-            sx={{ display: { xs: "inline-flex", sm: "none" }, mr: 0.5 }}
-            aria-label="メニューを開く"
-          >
-            <MenuIcon />
-          </IconButton>
+          {/* スマホ用のメニューは下部ナビの「メニュー」に統一（重複を避けるためハンバーガーは非表示） */}
           <Avatar
             sx={{
               bgcolor: "rgba(255,255,255,0.2)",
@@ -1400,6 +1390,7 @@ export default function LearningContent() {
               />
             </Tooltip>
           )}
+          {/* 「今日の復習」はスマホでは下部ナビと重複するため、PCのみボタンで表示する */}
           <Button
             color="inherit"
             size="small"
@@ -1413,16 +1404,6 @@ export default function LearningContent() {
           >
             今日の復習
           </Button>
-          <Tooltip title="今日の復習">
-            <IconButton
-              color="inherit"
-              size="small"
-              onClick={handleReview}
-              sx={{ display: { xs: "inline-flex", sm: "none" } }}
-            >
-              <MenuBookOutlinedIcon />
-            </IconButton>
-          </Tooltip>
           <Tooltip title="学習の記録（連続日数・草）">
             <IconButton
               color="inherit"
@@ -1432,25 +1413,7 @@ export default function LearningContent() {
               <LocalFireDepartmentIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="一覧表示（テーブルで見比べる）">
-            <IconButton
-              color="inherit"
-              size="small"
-              onClick={() => setListDialogOpen(true)}
-            >
-              <TableRowsIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="学習分析ダッシュボード">
-            <IconButton
-              color="inherit"
-              size="small"
-              onClick={() => setAnalyticsOpen(true)}
-              sx={{ display: { xs: "none", sm: "inline-flex" } }}
-            >
-              <InsightsOutlinedIcon />
-            </IconButton>
-          </Tooltip>
+          {/* 「一覧表示」「学習分析ダッシュボード」は左メニューと重複するため、AppBarには置かない */}
           <Tooltip
             title={
               colorMode.mode === "dark"
@@ -1506,6 +1469,10 @@ export default function LearningContent() {
         }}
         onManage={() => {
           setIsManageOpen(true);
+          setMobileNavOpen(false);
+        }}
+        onOpenList={() => {
+          setListDialogOpen(true);
           setMobileNavOpen(false);
         }}
         onOpenAnalytics={() => {

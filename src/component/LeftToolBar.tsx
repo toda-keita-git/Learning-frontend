@@ -33,6 +33,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
+import TableRowsIcon from "@mui/icons-material/TableRows";
 import BackButton from "./BackButton";
 
 export const DRAWER_WIDTH_EXPANDED = 240;
@@ -55,6 +56,7 @@ interface LeftToolBarProps {
   onAddNewTag: () => void;
   onAddNewFolder: () => void;
   onManage: () => void;
+  onOpenList?: () => void;
   onOpenAnalytics?: () => void;
   onOpenPlans?: () => void;
   onFileSelect: (path: string) => void;
@@ -185,6 +187,7 @@ export default function LeftToolBar({
   onAddNewTag,
   onAddNewFolder,
   onManage,
+  onOpenList,
   onOpenAnalytics,
   onOpenPlans,
   onFileSelect,
@@ -253,6 +256,13 @@ export default function LeftToolBar({
           <TuneIcon />
         </IconButton>
       </Tooltip>
+      {onOpenList && (
+        <Tooltip title="一覧表示（テーブルで見比べる）" placement="right">
+          <IconButton onClick={onOpenList} sx={{ mb: 0.5 }}>
+            <TableRowsIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       {onOpenAnalytics && (
         <Tooltip title="学習分析ダッシュボード" placement="right">
           <IconButton onClick={onOpenAnalytics} sx={{ mb: 0.5 }}>
@@ -336,6 +346,19 @@ export default function LeftToolBar({
             primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
           />
         </ListItemButton>
+
+        {/* --- 一覧(テーブル)表示 --- */}
+        {onOpenList && (
+          <ListItemButton onClick={onOpenList}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <TableRowsIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="一覧表示（テーブルで見比べる）"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
 
         {/* --- 学習分析ダッシュボード --- */}
         {onOpenAnalytics && (
