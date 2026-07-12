@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import { Button } from "@mui/material";
 import Chip from "@mui/material/Chip";
 import { MessageLeft, MessageRight } from "./component/Message";
+import LearningResultCards from "./component/LearningResultCards";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { SearchDialog } from "./component/SearchDialog";
 import Toolbar from "@mui/material/Toolbar";
-import LeftToolBar from "./component/LeftToolBar";
+import LeftToolBar, {
+  DRAWER_WIDTH_EXPANDED,
+  DRAWER_WIDTH_COLLAPSED,
+} from "./component/LeftToolBar";
 import Typography from "@mui/material/Typography";
 import CssBaseline from "@mui/material/CssBaseline";
 import AppBar from "@mui/material/AppBar";
+import LinearProgress from "@mui/material/LinearProgress";
+import Skeleton from "@mui/material/Skeleton";
+import { alpha } from "@mui/material/styles";
 import {
   learningApi,
   TagsApi,
@@ -33,7 +40,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 import NewCategoryDialog from "./component/NewCategoryDialog";
 import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
+import LearningListDialog from "./component/LearningListDialog";
+import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
+import PlanComparisonDialog from "./component/PlanComparisonDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
+import { enqueueAction, flushQueue, queueLength } from "./component/offlineQueue";
+import { isDataSaverEnabled, setDataSaverEnabled, prefersSaveData } from "./settings";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -60,8 +72,15 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
+import TableRowsIcon from "@mui/icons-material/TableRows";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
+import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
+import { useToast } from "./ToastContext";
 import ReviewFlashcards from "./component/ReviewFlashcards";
 import {
   isNotificationSupported,
@@ -70,10 +89,12 @@ import {
   setRemindersEnabled,
   maybeNotifyReview,
   showTestReminder,
+  updateAppBadge,
 } from "./notifications";
 
 
-const drawerWidth = 240;
+
+const BOTTOM_NAV_HEIGHT = 56; // スマホ用ボトムナビの高さ(px)
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
@@ -122,13 +143,18 @@ type Message = {
   type: "left" | "right";
   photoURL?: string;
   displayName?: string;
+  // 検索結果などをカード一覧として表示する場合に使用（textはヘッダー文言として使う）
+  cards?: LearningRecord[];
 };
 
 
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
+  const { showToast } = useToast();
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
+  const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
+  const emptyGuideShownRef = useRef(false); // 「まだ記録がありません」案内の二重表示防止
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
   const [allCategories, setAllCategories] = useState<Categories[]>([]);
   const [messages, setMessages] = useState<Message[]>([
@@ -240,7 +266,10 @@ export default function LearningContent() {
 
 
   const [githubFiles, setGithubFiles] = useState<GitHubFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(true);
+  const [filesLoading, setFilesLoading] = useState(
+    () => !(isDataSaverEnabled() || prefersSaveData())
+  );
+  const [hasFetchedFiles, setHasFetchedFiles] = useState(false); // 省データモードで未取得かどうかの判定用
 
   // ★ GitHubからファイルリストを取得する関数 (旧fetchRepoFiles)
  const fetchGitHubFiles = async () => {
@@ -249,6 +278,7 @@ export default function LearningContent() {
   if (!octokit || !githubLogin || !repoName) {
     console.error("Octokitまたはリポジトリ情報がありません");
     setFilesLoading(false);
+    setHasFetchedFiles(true);
     return;
   }
 
@@ -271,6 +301,7 @@ export default function LearningContent() {
     console.error("Failed to fetch repository tree from GitHub:", error);
   } finally {
     setFilesLoading(false);
+    setHasFetchedFiles(true);
   }
 };
 
@@ -304,12 +335,12 @@ export default function LearningContent() {
 
     // 成功した場合、新しいコミットSHAを返す
     setViewerOpen(false);
-    alert("ファイルを更新しました。");
+    showToast("ファイルを更新しました。", "success");
 
     return response.data.commit.sha;
   } catch (error: any) {
     console.error("Failed to update file:", error);
-    alert(`ファイルの更新に失敗しました。\n${error.message || error}`);
+    showToast(`ファイルの更新に失敗しました。${error.message || error}`, "error");
     return null;
   }
 };
@@ -389,7 +420,7 @@ export default function LearningContent() {
     setViewerOpen(true);
   } catch (error: any) {
     console.error("Failed to fetch file:", error);
-    alert(`ファイルの取得に失敗しました。\n${error.message || error}`);
+    showToast(`ファイルの取得に失敗しました。${error.message || error}`, "error");
   }
 };
 
@@ -398,45 +429,6 @@ export default function LearningContent() {
     // LeftToolBarから呼ばれた場合は「編集可能」としてビューアを開く
     handleViewFile(path, true);
   };
-
-  // ★ クリックイベントをリッスンするuseEffectを修正（重複を削除し、内容を統合）
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // クリックされた要素またはその親から、data-action属性を持つ要素を探す
-      const actionButton = target.closest<HTMLElement>("[data-action]");
-
-      // actionButtonが見つかった場合のみ処理を実行
-      if (actionButton) {
-        // ★★★ action, id, path, commitShaはすべてactionButtonから取得する
-        const action = actionButton.dataset.action;
-        const id = actionButton.dataset.id;
-        const path = actionButton.dataset.path;
-        const commitSha = actionButton.dataset.commitSha;
-
-        if (action === "toggle-detail") {
-          // 詳細の開閉。対象要素の表示を切り替え、ボタンのラベルも更新する
-          const targetId = actionButton.dataset.target;
-          const detail = targetId ? document.getElementById(targetId) : null;
-          if (detail) {
-            const willOpen = detail.style.display === "none";
-            detail.style.display = willOpen ? "block" : "none";
-            actionButton.textContent = willOpen ? "詳細を閉じる ▲" : "詳細を見る ▼";
-          }
-        } else if (action === "view-file" && path) {
-          // commitShaを渡して、特定のバージョンのファイルを表示する
-          handleViewFile(path, false, commitSha);
-        } else if (action === "edit" && id) {
-          openEditDialog(parseInt(id, 10));
-        } else if (action === "delete" && id) {
-          openDeleteConfirm(parseInt(id, 10));
-        }
-      }
-    };
-
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, [learningData, allCategories]); // 依存配列を維持
 
   // ダイアログの開閉を管理するStateを追加
   const [openNewDialog, setOpenNewDialog] = React.useState(false);
@@ -460,6 +452,18 @@ export default function LearningContent() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
   const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
+  const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
+  const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
+  const [planDialogOpen, setPlanDialogOpen] = useState<boolean>(false); // プラン比較
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [syncQueueCount, setSyncQueueCount] = useState<number>(0); // オフライン中に保留した変更の件数
+  const [dataSaverOn, setDataSaverOn] = useState<boolean>(
+    () => isDataSaverEnabled() || prefersSaveData()
+  ); // 省データモード
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false); // PCでの左メニュー折りたたみ
+  const drawerWidth = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
   useEffect(() => {
     if (userId) {
@@ -540,6 +544,43 @@ export default function LearningContent() {
     }
   };
 
+  // オフライン中に保留した変更（追加・更新・削除）を、オンライン復帰時にまとめて送信する
+  const handleFlushQueue = async () => {
+    if (!userId || queueLength(userId) === 0) return;
+    const { succeeded, failed } = await flushQueue(userId);
+    setSyncQueueCount(queueLength(userId));
+    if (succeeded > 0) {
+      await refetchData();
+      showToast(`オフライン中の変更を${succeeded}件同期しました。`, "success");
+    }
+    if (failed > 0) {
+      showToast(`${failed}件の同期に失敗しました。次回オンライン時に再試行します。`, "error");
+    }
+  };
+
+  // オンライン/オフラインの切り替えを監視し、復帰時に自動同期する
+  useEffect(() => {
+    if (userId) {
+      setSyncQueueCount(queueLength(userId));
+      if (navigator.onLine) {
+        handleFlushQueue();
+      }
+    }
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      handleFlushQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [userId]);
+
   const messageEndRef = React.useRef<HTMLDivElement>(null);
 
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
@@ -605,9 +646,30 @@ export default function LearningContent() {
         });
       }
     };
-    fetchData();
-    fetchGitHubFiles();
+    fetchData().finally(() => setDataLoading(false));
+    // 省データモード中は、使うまでGitHubファイル一覧を自動取得しない
+    if (!dataSaverOn) {
+      fetchGitHubFiles();
+    }
   }, [userId]); // 空の依存配列[]を指定することで、初回レンダリング時に一度だけ実行される
+
+  // 初回取得が完了して学習記録が0件だった場合、最初の記録作成を促す案内を表示する
+  useEffect(() => {
+    if (!dataLoading && learningData.length === 0 && !emptyGuideShownRef.current) {
+      emptyGuideShownRef.current = true;
+      const guideMessage: Message = {
+        id: Date.now() + 2,
+        text: "まだ学習記録がありません。左のメニューの「新規学習内容」から、最初の学びを記録してみましょう。",
+        timestamp: new Date().toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        type: "left",
+        displayName: "システム",
+      };
+      setMessages((prev) => [...prev, guideMessage]);
+    }
+  }, [dataLoading, learningData]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -620,6 +682,15 @@ export default function LearningContent() {
   }) => {
     setSearchFilters(filters);
 
+    const sortLabels: Record<string, string> = {
+      "name-asc": "タイトル (昇順)",
+      "name-desc": "タイトル (降順)",
+      "understanding-desc": "理解度が高い順",
+      "understanding-asc": "理解度が低い順",
+      "date-desc": "更新日が新しい順",
+      "date-asc": "更新日が古い順",
+    };
+
     let filterSummary = "<b>検索条件が更新されました</b><br>";
     filterSummary += `カテゴリー: ${
       filters.category === "all" ? "すべて" : filters.category
@@ -627,9 +698,7 @@ export default function LearningContent() {
     filterSummary += `ハッシュタグ: ${
       filters.hashtags.length > 0 ? filters.hashtags.join(", ") : "指定なし"
     }<br>`;
-    filterSummary += `ソート: ${
-      filters.sort === "name-asc" ? "ファイル名 (昇順)" : "ファイル名 (降順)"
-    }`;
+    filterSummary += `ソート: ${sortLabels[filters.sort] ?? filters.sort}`;
 
     const systemMessage: Message = {
       id: Date.now(),
@@ -654,6 +723,18 @@ export default function LearningContent() {
   // ★ 削除処理を実行する関数
   const handleDeleteLearning = async () => {
     if (deletingItemId === null) return;
+
+    if (!navigator.onLine) {
+      // オフライン時は削除を保留し、ローカル表示からは即座に消す（楽観的更新）
+      enqueueAction(userId, { kind: "delete", id: deletingItemId, label: "" });
+      setSyncQueueCount(queueLength(userId));
+      setLearningData((prev) => prev.filter((item) => item.id !== deletingItemId));
+      setDeleteConfirmOpen(false);
+      setDeletingItemId(null);
+      showToast("オフラインのため削除を保留しました。オンライン復帰時に反映します。", "warning");
+      return;
+    }
+
     try {
       await deleteLearningApi(deletingItemId);
       setDeleteConfirmOpen(false);
@@ -676,7 +757,7 @@ export default function LearningContent() {
       ]);
     } catch (error) {
       console.error("Failed to delete learning record:", error);
-      alert("削除に失敗しました。");
+      showToast("削除に失敗しました。", "error");
     }
   };
 
@@ -717,7 +798,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create category:", error);
-      alert(`カテゴリーの登録に失敗しました: ${error}`);
+      showToast(`カテゴリーの登録に失敗しました: ${error}`, "error");
     }
   };
 
@@ -747,7 +828,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create tag:", error);
-      alert(`タグの登録に失敗しました: ${error}`);
+      showToast(`タグの登録に失敗しました: ${error}`, "error");
     }
   };
 
@@ -757,6 +838,46 @@ export default function LearningContent() {
   const handleSubmitLearning = async (submissionData: any) => {
     // submissionDataから learningData と editedFile を取り出す
     const { learningData, editedFile } = submissionData;
+
+    if (!navigator.onLine) {
+      // GitHub上のファイル添付・編集はネットワークが必須のため、オフラインでは保留できない
+      if (editedFile) {
+        showToast(
+          "オフラインではファイル添付を伴う保存はできません。オンライン復帰後にもう一度お試しください。",
+          "error"
+        );
+        throw new Error("offline: file attachment requires network");
+      }
+
+      const finalLearningData = { ...learningData, user_id: userId };
+      if (finalLearningData.category_id === "") {
+        finalLearningData.category_id = null;
+      }
+      const label = finalLearningData.title || "無題の学習記録";
+
+      if (finalLearningData.id) {
+        enqueueAction(userId, {
+          kind: "update",
+          id: finalLearningData.id,
+          payload: finalLearningData,
+          userId: userId ?? 0,
+          label,
+        });
+      } else {
+        enqueueAction(userId, {
+          kind: "create",
+          payload: finalLearningData,
+          userId: userId ?? 0,
+          label,
+        });
+      }
+      setSyncQueueCount(queueLength(userId));
+      showToast(
+        `オフラインのため保存を保留しました。「${label}」はオンライン復帰時に自動送信します。`,
+        "warning"
+      );
+      return;
+    }
 
     try {
       let finalLearningData = { ...learningData };
@@ -821,7 +942,7 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to save learning record:", error);
-      alert(`登録またはファイルの更新に失敗しました: ${error}`);
+      showToast(`登録またはファイルの更新に失敗しました: ${error}`, "error");
     }
   };
 
@@ -842,6 +963,37 @@ export default function LearningContent() {
       });
       setOpenNewDialog(true);
     }
+  };
+
+  // 検索結果・タグ絞り込み結果を、選択中のソート条件で並べ替える共通処理
+  const sortLearningRecords = (
+    records: LearningRecord[],
+    sort: string
+  ): LearningRecord[] => {
+    const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    const sorted = [...records];
+    switch (sort) {
+      case "name-desc":
+        sorted.sort((a, b) => b.title.localeCompare(a.title, "ja"));
+        break;
+      case "understanding-desc":
+        sorted.sort((a, b) => b.understanding_level - a.understanding_level);
+        break;
+      case "understanding-asc":
+        sorted.sort((a, b) => a.understanding_level - b.understanding_level);
+        break;
+      case "date-desc":
+        sorted.sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
+        break;
+      case "date-asc":
+        sorted.sort((a, b) => toTime(a.created_at) - toTime(b.created_at));
+        break;
+      case "name-asc":
+      default:
+        sorted.sort((a, b) => a.title.localeCompare(b.title, "ja"));
+        break;
+    }
+    return sorted;
   };
 
   const handleSearch = (query: string) => {
@@ -889,210 +1041,25 @@ export default function LearningContent() {
     }
 
     // 4. 結果をソート
-    results.sort((a, b) => {
-      if (searchFilters.sort === "name-asc") {
-        return a.title.localeCompare(b.title, "ja");
-      } else {
-        // 'name-desc'
-        return b.title.localeCompare(a.title, "ja");
-      }
-    });
+    results = sortLearningRecords(results, searchFilters.sort);
 
     // 5. 結果メッセージを生成（カード描画は共通関数へ）
-    postResultCards(
-      results,
-      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🔎 検索結果: ${results.length}件</div>`
-    );
+    postResultCards(results, `🔎 検索結果: ${results.length}件`);
   };
 
   // 学習記録の配列を、検索結果カードとしてチャットに投稿する共通処理
-  const postResultCards = (results: LearningRecord[], headerHtml: string) => {
-    let resultText = headerHtml;
-    if (results.length > 0) {
-      resultText += results
-        .map((item) => {
-          // タグを装飾するHTMLを生成
-          const tagsHtml =
-            item.tags.length > 0
-              ? item.tags
-                  .map(
-                    (tag) =>
-                      `<span style="background-color: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 500; display: inline-block;">#${tag}</span>`
-                  )
-                  .join("")
-              : `<span style="color:#9ca3af; font-size:0.75em;">タグなし</span>`;
-
-          // 理解度を★で表現するHTMLを生成
-          const understandingHtml = `<span>${"★".repeat(
-            item.understanding_level
-          )}${"☆".repeat(5 - item.understanding_level)}</span>`;
-
-          const commitShaAttribute = item.commit_sha
-            ? `data-commit-sha="${item.commit_sha}"`
-            : "";
-
-          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-          // ★★★ 変更箇所 ★★★
-          // ボタンの配置（justify-content）を、「ファイルを見る」ボタンの有無によって動的に変更します。
-          // また、「編集」ボタンのスタイルを分かりやすく変更しました。
-          const justifyContent: string = item.github_path
-            ? "space-between"
-            : "flex-end";
-
-          // カード形式のHTMLを返す
-          return `
-            <div style="
-              border: 1px solid #e0e7ff;
-              border-radius: 10px;
-              padding: 12px 14px;
-              margin-bottom: 10px;
-              background: #ffffff;
-              box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08);
-              transition: box-shadow 0.2s ease;
-            " onmouseover="this.style.boxShadow='0 4px 12px rgba(79, 70, 229, 0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(79, 70, 229, 0.08)'">
-              
-              <!-- タイトル＋理解度（1行に凝縮） -->
-              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px;">
-                <h3 style="margin: 0; font-size: 1.02em; font-weight: 700; color: #4338ca;">${item.title}</h3>
-                <span style="color: #f59e0b; font-size: 0.82em; white-space: nowrap;">${understandingHtml}</span>
-              </div>
-
-              <!-- カテゴリ・タグ（インラインのチップ） -->
-              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px;">
-                <span style="background-color: #4f46e5; color: #fff; padding: 2px 8px; border-radius: 9999px; font-size: 0.72em; font-weight: 600;">${item.category_name}</span>
-                ${tagsHtml}
-              </div>
-
-              <!-- 詳細トグル（クリックで開閉） -->
-              <button
-                data-action="toggle-detail"
-                data-target="details-${item.id}"
-                style="background:none; border:none; color:#4f46e5; font-size:0.8em; font-weight:600; cursor:pointer; padding:2px 0; display:inline-flex; align-items:center; gap:4px;"
-              >詳細を見る ▼</button>
-
-              <!-- 詳細（初期は非表示。トグルで開く） -->
-              <div id="details-${item.id}" style="display:none; margin-top:8px; border-top:1px solid #eef0f6; padding-top:8px;">
-
-              <!-- 説明文 -->
-              <p style="
-                font-size: 0.85em;
-                color: #555;
-                line-height: 1.6;
-                margin: 0 0 8px 0;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-              ">${item.explanatory_text}</p>
-              
-              ${
-                item.reference_url
-                  ? `<div style="margin-bottom: 8px;"><a href="${item.reference_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.82em;">参考リンク 🔗</a></div>`
-                  : ""
-              }
-
-              <!-- アクションボタン -->
-              <div style="
-                display: flex;
-                align-items: center;
-                justify-content: ${justifyContent};
-                flex-wrap: wrap;
-                gap: 12px;
-              ">
-                ${
-                  item.github_path
-                    ? `<button 
-                        class="view-file-btn" 
-                        data-action="view-file" 
-                        data-path="${item.github_path}"${commitShaAttribute}
-                        style="
-                          background: linear-gradient(135deg, #1976d2 0%, #4338ca 100%);
-                          color: white;
-                          border: none;
-                          padding: 6px 12px;
-                          border-radius: 8px;
-                          cursor: pointer;
-                          font-size: 0.9em;
-                          font-weight: 500;
-                          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
-                          transition: all 0.2s ease;
-                        "
-                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(79, 70, 229, 0.3)'"
-                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(79, 70, 229, 0.2)'">
-                        📄 ファイルを見る (${item.github_path.split("/").pop()})
-                      </button>`
-                    : ""
-                }
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 400px;">
-                  <button 
-                    class="action-btn-edit" 
-                    data-action="edit" 
-                    data-id="${item.id}"
-                    style="
-                      background-color: #e0e7ff;
-                      color: #1976d2;
-                      border: 1px solid #90caf9;
-                      padding: 6px 12px;
-                      border-radius: 8px;
-                      cursor: pointer;
-                      font-size: 0.9em;
-                      font-weight: 500;
-                      transition: all 0.2s ease;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      gap: 6px;
-                      width: 100%;
-                    "
-                    onmouseover="this.style.backgroundColor='#bbdefb'; this.style.borderColor='#64b5f6'"
-                    onmouseout="this.style.backgroundColor='#e0e7ff'; this.style.borderColor='#90caf9'">
-                    ✏️ 編集
-                  </button>
-                  <button 
-                    class="action-btn-delete" 
-                    data-action="delete" 
-                    data-id="${item.id}"
-                    style="
-                      background-color: #ffebee;
-                      color: #c62828;
-                      border: 1px solid #ef9a9a;
-                      padding: 6px 12px;
-                      border-radius: 8px;
-                      cursor: pointer;
-                      font-size: 0.9em;
-                      font-weight: 500;
-                      transition: all 0.2s ease;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      gap: 6px;
-                      width: 100%;
-                    "
-                    onmouseover="this.style.backgroundColor='#ffcdd2'; this.style.borderColor='#e57373'"
-                    onmouseout="this.style.backgroundColor='#ffebee'; this.style.borderColor='#ef9a9a'">
-                    🗑️ 削除
-                  </button>
-                </div>
-              </div>
-              </div><!-- /details -->
-            </div>
-          `;
-          // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-        })
-        .join("");
-    } else {
-      resultText += "一致する学習記録は見つかりませんでした。";
-    }
-
+  const postResultCards = (results: LearningRecord[], header: string) => {
     setTimeout(() => {
       const searchResultMessage: Message = {
         id: Date.now() + 1,
-        text: resultText,
+        text: header,
         timestamp: new Date().toLocaleTimeString("ja-JP", {
           hour: "2-digit",
           minute: "2-digit",
         }),
         type: "left",
-        photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
         displayName: "システム",
+        cards: results,
       };
       setMessages((prev) => [...prev, searchResultMessage]);
     }, 500);
@@ -1101,6 +1068,7 @@ export default function LearningContent() {
   // 今日の復習：理解度が低い・しばらく見ていない記録を優先し、フラッシュカードで振り返る
   const handleReview = () => {
     const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    // 件数は絞らず並べ替えだけ行い、実際に何件やるかはスキマ時間の選択(ReviewFlashcards側)に委ねる
     const candidates = [...learningData]
       .sort((a, b) => {
         // 理解度が低い順 → 同じなら古い順（久しく見ていないもの優先）
@@ -1108,10 +1076,25 @@ export default function LearningContent() {
         if (lv !== 0) return lv;
         return toTime(a.created_at) - toTime(b.created_at);
       })
-      .slice(0, 5);
+      .slice(0, 20);
     setReviewItems(candidates);
     setReviewOpen(true);
   };
+
+  // 通知の「今すぐ復習」や、ホーム画面ショートカットの「クイック記録」から開かれた場合、
+  // データ読み込み後に該当の画面を自動で開く
+  useEffect(() => {
+    if (dataLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("review") === "1") {
+      handleReview();
+      window.history.replaceState({}, "", "/LearningContent");
+    } else if (params.get("quickadd") === "1") {
+      openNewLearningDialog();
+      window.history.replaceState({}, "", "/LearningContent");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading]);
 
   // フラッシュカードの「わかった/まだ」で理解度を更新する
   const handleRateReview = async (item: LearningRecord, newLevel: number) => {
@@ -1146,20 +1129,29 @@ export default function LearningContent() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    const results = [...learningData]
-      .filter((item) => item.tags.includes(tag))
-      .sort((a, b) => a.title.localeCompare(b.title, "ja"));
+    const filtered = learningData.filter((item) => item.tags.includes(tag));
+    const results = sortLearningRecords(filtered, searchFilters.sort);
 
-    postResultCards(
-      results,
-      `<div style="font-weight: 700; color: #4338ca; margin-bottom: 10px; font-size: 0.9em;">🏷️ タグ「#${tag}」の学習記録: ${results.length}件</div>`
-    );
+    postResultCards(results, `🏷️ タグ「#${tag}」の学習記録: ${results.length}件`);
+  };
+
+  // 新規学習内容ダイアログを開く（左メニュー・下部ナビ両方から使う共通処理）
+  const openNewLearningDialog = () => {
+    setEditingItem(null);
+    setSharePrefill(null); // 共有の初期値が残らないようにする
+    localStorage.removeItem("sharePrefillPending");
+    setOpenNewDialog(true);
   };
 
   // 復習候補（理解度が低め）の件数
   const reviewCount = learningData.filter(
     (l) => (l.understanding_level ?? 3) <= 2
   ).length;
+
+  // アプリアイコンに未読の復習件数バッジを表示（対応ブラウザ・PWAインストール時のみ）
+  useEffect(() => {
+    updateAppBadge(reviewCount);
+  }, [reviewCount]);
 
   // 共有(Web Share Target)で開かれたら、共有内容を新規登録フォームに反映する。
   // 未ログインだとGitHubログインのリダイレクトを挟むため、共有内容は一旦
@@ -1236,12 +1228,30 @@ export default function LearningContent() {
       setRemindersOn(true);
       showTestReminder(reviewCount);
     } else if (perm === "denied") {
-      alert(
-        "通知がブロックされています。ブラウザの設定から本サイトの通知を許可してください。"
+      showToast(
+        "通知がブロックされています。ブラウザの設定から本サイトの通知を許可してください。",
+        "warning"
       );
     } else if (perm === "unsupported") {
-      alert("お使いのブラウザは通知に対応していません。");
+      showToast("お使いのブラウザは通知に対応していません。", "warning");
     }
+  };
+
+  // 省データモードのON/OFF切り替え
+  const handleToggleDataSaver = () => {
+    const next = !dataSaverOn;
+    setDataSaverOn(next);
+    setDataSaverEnabled(next);
+    if (!next && !hasFetchedFiles) {
+      // OFFに戻したら、まだ取得していなければすぐ取りに行く
+      fetchGitHubFiles();
+    }
+    showToast(
+      next
+        ? "省データモードをONにしました。画像やファイル一覧は必要な時だけ読み込みます。"
+        : "省データモードをOFFにしました。",
+      "info"
+    );
   };
 
   // 未認証時の表示
@@ -1253,7 +1263,11 @@ export default function LearningContent() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #eef2ff 0%, #f6f7fb 60%)",
+          background: (theme) =>
+            `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.18 : 0.08
+            )} 0%, ${theme.palette.background.default} 60%)`,
           px: 2,
         }}
       >
@@ -1262,9 +1276,10 @@ export default function LearningContent() {
             maxWidth: 440,
             width: "100%",
             textAlign: "center",
-            bgcolor: "#fff",
+            bgcolor: "background.paper",
             borderRadius: 4,
-            boxShadow: "0 12px 40px rgba(79,70,229,0.15)",
+            boxShadow: (theme) =>
+              `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
             p: { xs: 4, sm: 6 },
           }}
         >
@@ -1305,9 +1320,14 @@ export default function LearningContent() {
       <AppBar
         position="fixed"
         sx={{
-          // スマホでは全幅、PCでは左メニュー分だけ右に寄せる
+          // スマホでは全幅、PCでは左メニュー分（折りたたみ時は縮小分）だけ右に寄せる
           width: { xs: "100%", sm: `calc(100% - ${drawerWidth}px)` },
           ml: { xs: 0, sm: `${drawerWidth}px` },
+          transition: (theme) =>
+            theme.transitions.create(["width", "margin"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
         }}
       >
         <Toolbar sx={{ gap: 0.5 }}>
@@ -1353,6 +1373,33 @@ export default function LearningContent() {
             </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
+          {!isOnline && (
+            <Tooltip title="オフラインです。変更はオンライン復帰時に自動送信します">
+              <Chip
+                icon={<WifiOffIcon />}
+                label="オフライン"
+                size="small"
+                color="warning"
+                sx={{ mr: 1, color: "#fff", "& .MuiChip-icon": { color: "#fff" } }}
+              />
+            </Tooltip>
+          )}
+          {syncQueueCount > 0 && (
+            <Tooltip title="オンライン復帰時に自動で同期されます">
+              <Chip
+                icon={<CloudSyncIcon />}
+                label={`${syncQueueCount}件 同期待ち`}
+                size="small"
+                onClick={handleFlushQueue}
+                sx={{
+                  mr: 1,
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  color: "#fff",
+                  "& .MuiChip-icon": { color: "#fff" },
+                }}
+              />
+            </Tooltip>
+          )}
           <Button
             color="inherit"
             size="small"
@@ -1385,6 +1432,25 @@ export default function LearningContent() {
               <LocalFireDepartmentIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="一覧表示（テーブルで見比べる）">
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setListDialogOpen(true)}
+            >
+              <TableRowsIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="学習分析ダッシュボード">
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={() => setAnalyticsOpen(true)}
+              sx={{ display: { xs: "none", sm: "inline-flex" } }}
+            >
+              <InsightsOutlinedIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip
             title={
               colorMode.mode === "dark"
@@ -1410,13 +1476,16 @@ export default function LearningContent() {
             </IconButton>
           </Tooltip>
         </Toolbar>
+        {dataLoading && (
+          <LinearProgress
+            color="secondary"
+            sx={{ height: 2, position: "absolute", bottom: 0, left: 0, right: 0 }}
+          />
+        )}
       </AppBar>
       <LeftToolBar
         onAddNewLearning={() => {
-          setEditingItem(null);
-          setSharePrefill(null); // 共有の初期値が残らないようにする
-          localStorage.removeItem("sharePrefillPending");
-          setOpenNewDialog(true);
+          openNewLearningDialog();
           setMobileNavOpen(false); // スマホでは選択後にメニューを閉じる
         }}
         onAddNewCategory={() => {
@@ -1439,10 +1508,22 @@ export default function LearningContent() {
           setIsManageOpen(true);
           setMobileNavOpen(false);
         }}
+        onOpenAnalytics={() => {
+          setAnalyticsOpen(true);
+          setMobileNavOpen(false);
+        }}
+        onOpenPlans={() => {
+          setPlanDialogOpen(true);
+          setMobileNavOpen(false);
+        }}
         files={githubFiles}
         loading={filesLoading}
+        filesNotFetched={!hasFetchedFiles}
+        onRequestFiles={fetchGitHubFiles}
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
       />
       <Box
         component="main"
@@ -1450,18 +1531,18 @@ export default function LearningContent() {
           flexGrow: 1,
           bgcolor: "background.default",
           p: { xs: 0, sm: 3 }, // スマホでは余白を削除
-          height: { xs: "100vh", sm: "auto" }, // スマホでは全画面
+          height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "auto" }, // スマホは下部ナビの分を除いた全画面
           display: "flex",
           flexDirection: "column",
         }}
       >
         <Toolbar sx={{ display: { xs: "none", sm: "flex" } }} /> {/* スマホでは非表示 */}
-        
+
         <Paper
           elevation={3}
           sx={{
             width: { xs: "100vw", sm: "80vw" },
-            height: { xs: "100vh", sm: "85vh" },
+            height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "85vh" },
             maxWidth: { sm: "600px" },
             maxHeight: { sm: "900px" },
             display: "flex",
@@ -1486,13 +1567,29 @@ export default function LearningContent() {
           >
             {messages.map((msg) =>
               msg.type === "left" ? (
-                <MessageLeft
-                  key={msg.id}
-                  message={msg.text}
-                  timestamp={msg.timestamp}
-                  photoURL={msg.photoURL}
-                  displayName={msg.displayName}
-                />
+                msg.cards ? (
+                  <LearningResultCards
+                    key={msg.id}
+                    header={msg.text}
+                    timestamp={msg.timestamp}
+                    items={msg.cards}
+                    allItems={learningData}
+                    onViewFile={(path, commitSha) =>
+                      handleViewFile(path, false, commitSha ?? undefined)
+                    }
+                    onEdit={openEditDialog}
+                    onDelete={openDeleteConfirm}
+                    onOpenRelated={openEditDialog}
+                  />
+                ) : (
+                  <MessageLeft
+                    key={msg.id}
+                    message={msg.text}
+                    timestamp={msg.timestamp}
+                    photoURL={msg.photoURL}
+                    displayName={msg.displayName}
+                  />
+                )
               ) : (
                 <MessageRight
                   key={msg.id}
@@ -1500,6 +1597,15 @@ export default function LearningContent() {
                   timestamp={msg.timestamp}
                 />
               )
+            )}
+            {dataLoading && (
+              <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.75 }}>
+                <Skeleton variant="circular" width={36} height={36} />
+                <Box sx={{ width: "60%", maxWidth: 240 }}>
+                  <Skeleton variant="rounded" height={18} width="40%" sx={{ mb: 0.5 }} />
+                  <Skeleton variant="rounded" height={48} />
+                </Box>
+              </Box>
             )}
             <div ref={messageEndRef} />
           </Box>
@@ -1582,6 +1688,57 @@ export default function LearningContent() {
         </Paper>
       </Box>
 
+      {/* スマホ用ボトムナビ：片手操作で主要な導線に届くように画面下部へ集約 */}
+      <Paper
+        elevation={8}
+        sx={{
+          display: { xs: "flex", sm: "none" },
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: BOTTOM_NAV_HEIGHT,
+          zIndex: (theme) => theme.zIndex.appBar + 1,
+          justifyContent: "space-around",
+          alignItems: "stretch",
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        {[
+          { label: "記録", icon: <AddCircleOutlineIcon />, onClick: openNewLearningDialog },
+          { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
+          { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
+          { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
+          { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
+        ].map((item) => (
+          <Box
+            key={item.label}
+            component="button"
+            onClick={item.onClick}
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.25,
+              border: "none",
+              background: "none",
+              color: "text.secondary",
+              cursor: "pointer",
+              font: "inherit",
+              "& svg": { fontSize: 22 },
+            }}
+          >
+            {item.icon}
+            <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
+              {item.label}
+            </Box>
+          </Box>
+        ))}
+      </Paper>
+
       <NewLearningDialog
         open={openNewDialog}
         onClose={() => {
@@ -1607,6 +1764,7 @@ export default function LearningContent() {
           await handleUpdateFile(path, newContent, viewingContent.sha);
           return;
         }}
+        dataSaverOn={dataSaverOn}
       />
       <Dialog
         open={deleteConfirmOpen}
@@ -1667,6 +1825,38 @@ export default function LearningContent() {
         open={streakOpen}
         onClose={() => setStreakOpen(false)}
         dates={learningData.map((l) => l.created_at)}
+      />
+
+      {/* 一覧(テーブル)表示：まとめて見比べたいとき用 */}
+      <LearningListDialog
+        open={listDialogOpen}
+        onClose={() => setListDialogOpen(false)}
+        items={learningData}
+        categories={allCategories}
+        onViewFile={(path, commitSha) =>
+          handleViewFile(path, false, commitSha ?? undefined)
+        }
+        onEdit={(id) => {
+          setListDialogOpen(false);
+          openEditDialog(id);
+        }}
+        onDelete={(id) => {
+          setListDialogOpen(false);
+          openDeleteConfirm(id);
+        }}
+      />
+
+      {/* 学習分析ダッシュボード */}
+      <LearningAnalyticsDialog
+        open={analyticsOpen}
+        onClose={() => setAnalyticsOpen(false)}
+        items={learningData}
+      />
+
+      {/* プラン比較（課金ロジックなし） */}
+      <PlanComparisonDialog
+        open={planDialogOpen}
+        onClose={() => setPlanDialogOpen(false)}
       />
 
       {/* 今日の復習（フラッシュカード） */}
@@ -1804,6 +1994,38 @@ export default function LearningContent() {
               </Button>
             </Box>
           )}
+
+          {/* 省データモードの設定 */}
+          <Box
+            sx={{
+              mt: 1.5,
+              p: 2,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <DataSaverOnIcon color="primary" />
+            <Box sx={{ flex: 1, minWidth: 180 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                省データモード
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                外出先のモバイル回線向け。GitHubファイル一覧の自動取得や画像の自動表示を止め、必要な時だけ読み込みます。
+              </Typography>
+            </Box>
+            <Button
+              variant={dataSaverOn ? "outlined" : "contained"}
+              size="small"
+              onClick={handleToggleDataSaver}
+            >
+              {dataSaverOn ? "オフにする" : "オンにする"}
+            </Button>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setHelpOpen(false)} variant="contained">

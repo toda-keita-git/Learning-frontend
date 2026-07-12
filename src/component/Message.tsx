@@ -36,20 +36,20 @@ const Bubble = styled("div")({
   boxShadow: "0 1px 2px rgba(31,41,55,0.08)",
 });
 
-// 相手（Bot / システム）：白ベースで左下だけ角を落とす
-const BubbleLeft = styled(Bubble)({
-  backgroundColor: "#ffffff",
-  border: "1px solid #e5e7eb",
-  color: "#1f2937",
+// 相手（Bot / システム）：カード面の色ベースで左下だけ角を落とす（ダークモードにも追従）
+const BubbleLeft = styled(Bubble)(({ theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  border: `1px solid ${theme.palette.divider}`,
+  color: theme.palette.text.primary,
   borderBottomLeftRadius: "6px",
-});
+}));
 
-// 自分：プライマリ（インディゴ）で白文字。右下だけ角を落とす
-const BubbleRight = styled(Bubble)({
-  backgroundColor: "#4f46e5",
-  color: "#ffffff",
+// 自分：プライマリカラーで文字。右下だけ角を落とす
+const BubbleRight = styled(Bubble)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
   borderBottomRightRadius: "6px",
-});
+}));
 
 // --- Props ---
 
@@ -83,13 +83,13 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
   return (
     <MessageRowLeft>
       {isSystem ? (
-        <Avatar sx={{ width: 36, height: 36, bgcolor: "#4f46e5", flexShrink: 0 }}>
+        <Avatar sx={{ width: 36, height: 36, bgcolor: "primary.main", flexShrink: 0 }}>
           <SmartToyIcon fontSize="small" />
         </Avatar>
       ) : (
         <Avatar
           src={photoURL}
-          sx={{ width: 36, height: 36, bgcolor: "#c7d2fe", flexShrink: 0 }}
+          sx={{ width: 36, height: 36, bgcolor: "primary.light", flexShrink: 0 }}
         />
       )}
       <Box sx={{ maxWidth: "80%" }}>

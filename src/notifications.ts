@@ -52,13 +52,34 @@ const show = async (title: string, body: string) => {
   try {
     if ("serviceWorker" in navigator) {
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, options);
+      // アクションボタンはService Worker経由の通知でのみ有効（通常のNotificationは非対応）
+      await reg.showNotification(title, {
+        ...options,
+        actions: [{ action: "open-review", title: "今すぐ復習" }],
+      } as NotificationOptions);
       return;
     }
   } catch {
     // SW経由に失敗したら通常のNotificationにフォールバック
   }
   new Notification(title, options);
+};
+
+// アプリアイコンに未読の復習件数バッジを表示する（Badging API対応ブラウザのみ・主にPWAインストール時）。
+export const updateAppBadge = (count: number) => {
+  const nav = navigator as unknown as {
+    setAppBadge?: (n: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  try {
+    if (count > 0) {
+      nav.setAppBadge?.(count).catch(() => {});
+    } else {
+      nav.clearAppBadge?.().catch(() => {});
+    }
+  } catch {
+    // 非対応ブラウザは無視
+  }
 };
 
 // アプリ起動時などに呼ぶ。条件を満たせば「復習リマインド」を1日1回だけ通知する。

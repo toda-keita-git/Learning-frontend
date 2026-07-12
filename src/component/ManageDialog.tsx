@@ -25,6 +25,7 @@ import {
   updateTagApi,
   deleteTagApi,
 } from "./Api";
+import { useToast } from "../ToastContext";
 
 type Entity = { id: number; name: string };
 type Kind = "category" | "tag";
@@ -45,6 +46,7 @@ export default function ManageDialog({
   tags,
   onChanged,
 }: ManageDialogProps) {
+  const { showToast } = useToast();
   // 編集中の行（例: "category-3"）と入力値
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -69,8 +71,9 @@ export default function ManageDialog({
       else await updateTagApi(id, name);
       cancelEdit();
       await onChanged();
+      showToast("名前を変更しました。", "success");
     } catch (e) {
-      alert("名前の変更に失敗しました。");
+      showToast("名前の変更に失敗しました。", "error");
     } finally {
       setBusy(false);
     }
@@ -89,15 +92,17 @@ export default function ManageDialog({
       if (kind === "category") await deleteCategoryApi(item.id);
       else await deleteTagApi(item.id);
       await onChanged();
+      showToast(`${label}を削除しました。`, "success");
     } catch (e: any) {
       // 使用中(409)ならバックエンドのメッセージをそのまま表示
       if (e?.response?.status === 409) {
-        alert(
+        showToast(
           e.response.data ||
-            `この${label}は学習記録で使用中のため削除できません。`
+            `この${label}は学習記録で使用中のため削除できません。`,
+          "error"
         );
       } else {
-        alert("削除に失敗しました。");
+        showToast("削除に失敗しました。", "error");
       }
     } finally {
       setBusy(false);

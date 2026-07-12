@@ -10,8 +10,13 @@ import {
   TextField,
   Box,
   CircularProgress,
+  IconButton,
+  Tooltip,
   useMediaQuery,
+  Typography,
+  Button,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import AddIcon from "@mui/icons-material/Add";
 import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
 import UpdateIcon from "@mui/icons-material/Update";
@@ -23,9 +28,15 @@ import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import TuneIcon from "@mui/icons-material/Tune";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import BackButton from "./BackButton";
 
-const drawerWidth = 240;
+export const DRAWER_WIDTH_EXPANDED = 240;
+export const DRAWER_WIDTH_COLLAPSED = 68;
 
 interface GitHubFile {
   path: string;
@@ -44,12 +55,20 @@ interface LeftToolBarProps {
   onAddNewTag: () => void;
   onAddNewFolder: () => void;
   onManage: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenPlans?: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
+  // 省データモードなどでまだ取得していない場合に、取得を促すボタンを出す
+  filesNotFetched?: boolean;
+  onRequestFiles?: () => void;
   // スマホの左メニュー開閉（親のヘッダーのハンバーガーから制御）
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  // PCでの折りたたみ（アイコンのみのrailモード）
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 // --- ファイルリストをフォルダー構造に変換 ---
@@ -166,17 +185,24 @@ export default function LeftToolBar({
   onAddNewTag,
   onAddNewFolder,
   onManage,
+  onOpenAnalytics,
+  onOpenPlans,
   onFileSelect,
   files,
   loading,
+  filesNotFetched = false,
+  onRequestFiles,
   mobileOpen: mobileOpenProp,
   onMobileClose,
+  collapsed = false,
+  onToggleCollapsed,
 }: LeftToolBarProps) {
   const [open1, setOpen1] = useState(true);
   const [open2, setOpen2] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width:600px)");
+  const navigate = useNavigate();
 
   // 親から制御されていればそれを使い、なければ内部状態でフォールバック
   const mobileOpen = mobileOpenProp ?? internalMobileOpen;
@@ -188,9 +214,79 @@ export default function LeftToolBar({
 
   const fileTree = buildFileTree(filteredFiles);
 
+  // PCで折りたたんだときの、アイコンだけのミニ表示
+  const collapsedContent = (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 1 }}>
+      <Tooltip title="展開する" placement="right">
+        <IconButton onClick={onToggleCollapsed} size="small" sx={{ mb: 1 }}>
+          <ChevronRightIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="トップに戻る" placement="right">
+        <IconButton onClick={() => navigate("/")} sx={{ mb: 1 }}>
+          <ArrowBackIosNewIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Divider sx={{ width: "70%", mb: 1 }} />
+      <Tooltip title="新規学習内容" placement="right">
+        <IconButton onClick={onAddNewLearning} sx={{ mb: 0.5 }}>
+          <LocalLibraryIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="新規カテゴリー" placement="right">
+        <IconButton onClick={onAddNewCategory} sx={{ mb: 0.5 }}>
+          <CategoryIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="新規タグ" placement="right">
+        <IconButton onClick={onAddNewTag} sx={{ mb: 0.5 }}>
+          <LocalOfferIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="新規フォルダー" placement="right">
+        <IconButton onClick={onAddNewFolder} sx={{ mb: 0.5 }}>
+          <FolderOpenIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="カテゴリー・タグの管理" placement="right">
+        <IconButton onClick={onManage} sx={{ mb: 0.5 }}>
+          <TuneIcon />
+        </IconButton>
+      </Tooltip>
+      {onOpenAnalytics && (
+        <Tooltip title="学習分析ダッシュボード" placement="right">
+          <IconButton onClick={onOpenAnalytics} sx={{ mb: 0.5 }}>
+            <InsightsOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onOpenPlans && (
+        <Tooltip title="プラン" placement="right">
+          <IconButton onClick={onOpenPlans} sx={{ mb: 0.5 }}>
+            <WorkspacePremiumOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      <Tooltip title="最新データ編集（展開して検索）" placement="right">
+        <IconButton onClick={onToggleCollapsed} sx={{ mb: 0.5 }}>
+          <UpdateIcon />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+
   const drawerContent = (
     <Box>
-      <BackButton />
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <BackButton />
+        {!isMobile && onToggleCollapsed && (
+          <Tooltip title="折りたたむ">
+            <IconButton onClick={onToggleCollapsed} sx={{ ml: "auto", mr: 1 }} size="small">
+              <ChevronLeftIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
       <Divider />
       <List>
         {/* --- 追加セクション --- */}
@@ -241,6 +337,32 @@ export default function LeftToolBar({
           />
         </ListItemButton>
 
+        {/* --- 学習分析ダッシュボード --- */}
+        {onOpenAnalytics && (
+          <ListItemButton onClick={onOpenAnalytics}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <InsightsOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="学習分析ダッシュボード"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
+
+        {/* --- プラン --- */}
+        {onOpenPlans && (
+          <ListItemButton onClick={onOpenPlans}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <WorkspacePremiumOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="プラン"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
+
         {/* --- GitHubファイル編集セクション --- */}
         <ListItemButton onClick={() => setOpen2(!open2)}>
           <ListItemIcon>
@@ -269,6 +391,15 @@ export default function LeftToolBar({
               <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                 <CircularProgress size={24} />
               </Box>
+            ) : filesNotFetched && onRequestFiles ? (
+              <Box sx={{ p: 2, textAlign: "center" }}>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+                  省データモードのため、ファイル一覧はまだ取得していません。
+                </Typography>
+                <Button size="small" variant="outlined" onClick={onRequestFiles}>
+                  取得する
+                </Button>
+              </Box>
             ) : (
               <FileTree nodes={fileTree} onFileSelect={onFileSelect} />
             )}
@@ -277,6 +408,8 @@ export default function LeftToolBar({
       </List>
     </Box>
   );
+
+  const effectiveWidth = collapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
   return (
     <>
@@ -288,7 +421,10 @@ export default function LeftToolBar({
           onClose={closeMobile}
           ModalProps={{ keepMounted: true }}
           sx={{
-            "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
+            "& .MuiDrawer-paper": {
+              width: DRAWER_WIDTH_EXPANDED,
+              boxSizing: "border-box",
+            },
           }}
         >
           {drawerContent}
@@ -297,12 +433,22 @@ export default function LeftToolBar({
         <Drawer
           variant="permanent"
           sx={{
-            width: drawerWidth,
+            width: effectiveWidth,
             flexShrink: 0,
-            "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
+            whiteSpace: "nowrap",
+            "& .MuiDrawer-paper": {
+              width: effectiveWidth,
+              boxSizing: "border-box",
+              overflowX: "hidden",
+              transition: (theme) =>
+                theme.transitions.create("width", {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.enteringScreen,
+                }),
+            },
           }}
         >
-          {drawerContent}
+          {collapsed ? collapsedContent : drawerContent}
         </Drawer>
       )}
     </>

@@ -9,6 +9,7 @@ import {
   Snackbar,
   Box,
   TextField,
+  Typography,
   Alert as MuiAlert,
 } from "@mui/material";
 import type { AlertProps } from "@mui/material";
@@ -33,6 +34,8 @@ interface Props {
   content: string;
   isEditable: boolean;
   onUpdateFile: (path: string, newContent: string) => Promise<void>;
+  /** 省データモード: 画像を自動表示せず、タップするまで読み込まない */
+  dataSaverOn?: boolean;
 }
 
 const GitHubFileViewerDialog: React.FC<Props> = ({
@@ -42,10 +45,12 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   content,
   isEditable,
   onUpdateFile,
+  dataSaverOn = false,
 }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
+  const [imageRevealed, setImageRevealed] = useState(!dataSaverOn);
 
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
@@ -53,7 +58,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   useEffect(() => {
     setEditedContent(content);
     setIsEditing(false);
-  }, [content, open]);
+    setImageRevealed(!dataSaverOn);
+  }, [content, open, dataSaverOn]);
 
   const handleSave = () => {
     onUpdateFile(path, editedContent);
@@ -130,6 +136,34 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
           {(() => {
             // 画像ファイル（編集不可）
             if (isImageFile) {
+              if (!imageRevealed) {
+                return (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 1.5,
+                      py: 6,
+                      backgroundColor: "#1e1e1e",
+                      color: "#ccc",
+                    }}
+                  >
+                    <Typography variant="body2">
+                      省データモードのため、画像はまだ表示していません
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setImageRevealed(true)}
+                      sx={{ color: "#fff", borderColor: "#666" }}
+                    >
+                      画像を表示する
+                    </Button>
+                  </Box>
+                );
+              }
               return (
                 <Box
                   sx={{

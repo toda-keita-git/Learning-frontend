@@ -46,6 +46,23 @@ export default defineConfig({
             url: "url",
           },
         },
+        // ホーム画面アイコンの長押しから、外出先でもすぐ使える主要機能に直行する
+        shortcuts: [
+          {
+            name: "クイック記録",
+            short_name: "記録",
+            description: "新しい学習内容をすぐに記録する",
+            url: "/LearningContent?quickadd=1",
+            icons: [{ src: "pwa-icon.svg", sizes: "any", type: "image/svg+xml" }],
+          },
+          {
+            name: "今日の復習",
+            short_name: "復習",
+            description: "今日の復習をすぐに始める",
+            url: "/LearningContent?review=1",
+            icons: [{ src: "pwa-icon.svg", sizes: "any", type: "image/svg+xml" }],
+          },
+        ],
       },
       workbox: {
         // アプリの外枠（HTML/JS/CSS/画像）をキャッシュしてオフライン初期表示・高速化
@@ -54,6 +71,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // API と GitHub へのアクセスはキャッシュせず、常にネットワークから取得
         navigateFallbackDenylist: [/^\/api/],
+        // 復習リマインド通知のクリック処理（notificationclick）を生成されるSWに追加
+        importScripts: ["notification-sw.js"],
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>

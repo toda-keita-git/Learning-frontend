@@ -22,6 +22,18 @@ body {
   background-color: #f6f7fb;
 }
 
+/* JS読み込み前(初回ペイント)も、OSがダークモードならその配色に合わせ、白フラッシュを防ぐ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e5e7eb;
+    background-color: #0f172a;
+  }
+
+  body {
+    background-color: #0f172a;
+  }
+}
+
 /* MUI がボタン等のスタイルを管理するため、素の a / button の色指定は最小限に */
 a {
   color: inherit;
