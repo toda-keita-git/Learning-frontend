@@ -28,15 +28,18 @@ import SearchIcon from "@mui/icons-material/Search";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import type { SelectChangeEvent } from "@mui/material";
 
 interface LearningListItem {
   id: number;
   title: string;
+  explanatory_text: string;
   understanding_level: number;
   created_at: string;
   category_name: string;
   tags: string[];
+  reference_url: string | null;
   github_path: string;
   commit_sha: string | null;
 }
@@ -54,6 +57,7 @@ interface LearningListDialogProps {
   onViewFile: (path: string, commitSha?: string | null) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
+  onPublish?: (item: LearningListItem) => void;
 }
 
 type OrderBy = "title" | "category_name" | "understanding_level" | "created_at";
@@ -78,6 +82,7 @@ export default function LearningListDialog({
   onViewFile,
   onEdit,
   onDelete,
+  onPublish,
 }: LearningListDialogProps) {
   const [searchText, setSearchText] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -245,6 +250,13 @@ export default function LearningListDialog({
                             onClick={() => onViewFile(item.github_path, item.commit_sha)}
                           >
                             <DescriptionOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {onPublish && (
+                        <Tooltip title="記事化">
+                          <IconButton size="small" onClick={() => onPublish(item)}>
+                            <ArticleOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
