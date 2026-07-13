@@ -15,6 +15,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import { findRelatedItems } from "./relatedNotes";
 
 interface LearningResultItem {
@@ -27,6 +28,7 @@ interface LearningResultItem {
   tags: string[];
   github_path: string;
   commit_sha: string | null;
+  created_at: string;
 }
 
 interface LearningResultCardsProps {
@@ -41,6 +43,8 @@ interface LearningResultCardsProps {
   onDelete: (id: number) => void;
   // 関連メモをタップしたときの遷移先（省略時は関連メモ欄自体を出さない）
   onOpenRelated?: (id: number) => void;
+  // 記事化プレビューを開く（省略時は「記事化」ボタン自体を出さない）
+  onPublish?: (item: LearningResultItem) => void;
 }
 
 /** 検索・タグ絞り込み結果を、システムメッセージの一部としてカード一覧で表示する */
@@ -54,6 +58,7 @@ export default function LearningResultCards({
   onEdit,
   onDelete,
   onOpenRelated,
+  onPublish,
 }: LearningResultCardsProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -252,7 +257,17 @@ export default function LearningResultCards({
                               ファイルを見る（{item.github_path.split("/").pop()}）
                             </Button>
                           )}
-                          <Stack direction="row" spacing={1}>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                            {onPublish && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<ArticleOutlinedIcon />}
+                                onClick={() => onPublish(item)}
+                              >
+                                記事化
+                              </Button>
+                            )}
                             <Button
                               size="small"
                               variant="outlined"

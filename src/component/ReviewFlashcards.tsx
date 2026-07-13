@@ -28,8 +28,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   items: FlashItem[];
-  // 「わかった/まだ」に応じて理解度を更新する
-  onRate: (item: FlashItem, newLevel: number) => Promise<void>;
+  // 「わかった/まだ」に応じて理解度と復習スケジュールを更新する
+  onRate: (item: FlashItem, newLevel: number, understood: boolean) => Promise<void>;
 }
 
 const stars = (n: number) => "★".repeat(n) + "☆".repeat(Math.max(0, 5 - n));
@@ -80,10 +80,8 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
       : Math.max(1, level - 1);
     setBusy(true);
     try {
-      // 理解度が変わるときだけ保存（同じなら通信しない）
-      if (newLevel !== level) {
-        await onRate(current, newLevel);
-      }
+      // 理解度の保存要否はonRate側で判断する。復習スケジュール(SRS)は毎回更新が必要なので常に呼ぶ
+      await onRate(current, newLevel, understood);
     } catch {
       // 失敗しても復習フロー自体は止めない
     } finally {

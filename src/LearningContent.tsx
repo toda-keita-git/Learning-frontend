@@ -42,9 +42,11 @@ import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
 import LearningListDialog from "./component/LearningListDialog";
 import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
+import ArticlePreviewDialog from "./component/ArticlePreviewDialog";
 import PlanComparisonDialog from "./component/PlanComparisonDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
 import { enqueueAction, flushQueue, queueLength } from "./component/offlineQueue";
+import { getCard, isDue, reviewCard } from "./component/srs";
 import { isDataSaverEnabled, setDataSaverEnabled, prefersSaveData } from "./settings";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
@@ -110,6 +112,19 @@ interface LearningRecord {
   commit_sha: string | null;
   user_id: number;
 }
+
+// 記事化ダイアログに渡す最小限の型（LearningRecordのサブセットで満たせる）
+type PublishableItem = {
+  id: number;
+  title: string;
+  explanatory_text: string;
+  understanding_level: number;
+  category_name: string;
+  tags: string[];
+  reference_url: string | null;
+  created_at: string;
+  github_path: string;
+};
 
 // learning_tagsテーブルの型定義
 interface LearningTag {
@@ -344,6 +359,51 @@ export default function LearningContent() {
   }
 };
 
+  // 記事化したMarkdownを、ユーザーのlearning-siteリポジトリに保存する（新規作成/上書き両対応）
+  const handlePublishArticle = async (
+    markdown: string,
+    path: string
+  ): Promise<string | null> => {
+    if (!octokit || !githubLogin || !repoName) {
+      showToast("GitHub連携情報が見つかりません。", "error");
+      return null;
+    }
+
+    try {
+      let sha: string | undefined;
+      try {
+        const existing = await octokit.repos.getContent({
+          owner: githubLogin,
+          repo: repoName,
+          path,
+        });
+        if (!Array.isArray(existing.data) && "sha" in existing.data) {
+          sha = existing.data.sha;
+        }
+      } catch {
+        // ファイルがまだ存在しない場合（404）は新規作成として続行
+      }
+
+      const contentBase64 = btoa(unescape(encodeURIComponent(markdown)));
+      const response = await octokit.repos.createOrUpdateFileContents({
+        owner: githubLogin,
+        repo: repoName,
+        path,
+        message: sha ? `Update article: ${path}` : `Add article: ${path}`,
+        content: contentBase64,
+        sha,
+        branch: "main",
+      });
+
+      showToast("記事をGitHubリポジトリに保存しました。", "success");
+      setPublishingItem(null);
+      return response.data.content?.html_url ?? null;
+    } catch (error: any) {
+      console.error("Failed to publish article:", error);
+      showToast(`記事の保存に失敗しました。${error.message || error}`, "error");
+      return null;
+    }
+  };
 
   const [viewerOpen, setViewerOpen] = useState<boolean>(false);
   const [viewingContent, setViewingContent] = useState({
@@ -454,6 +514,7 @@ export default function LearningContent() {
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
   const [planDialogOpen, setPlanDialogOpen] = useState<boolean>(false); // プラン比較
+  const [publishingItem, setPublishingItem] = useState<PublishableItem | null>(null); // 記事化プレビュー
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
@@ -1064,17 +1125,22 @@ export default function LearningContent() {
     }, 500);
   };
 
-  // 今日の復習：理解度が低い・しばらく見ていない記録を優先し、フラッシュカードで振り返る
+  // 今日の復習：間隔反復(SRS)で復習期日が来た記録を優先し、フラッシュカードで振り返る
   const handleReview = () => {
-    const toTime = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
+    // 間隔反復(SRS)で本日が期日の記録を優先。期日のものが無ければ、全体から先取り学習として出す
+    const dueItems = learningData.filter((item) => isDue(userId, item.id));
+    const pool = dueItems.length > 0 ? dueItems : learningData;
+
     // 件数は絞らず並べ替えだけ行い、実際に何件やるかはスキマ時間の選択(ReviewFlashcards側)に委ねる
-    const candidates = [...learningData]
+    const candidates = pool
+      .map((item) => ({ item, card: getCard(userId, item.id) }))
       .sort((a, b) => {
-        // 理解度が低い順 → 同じなら古い順（久しく見ていないもの優先）
-        const lv = (a.understanding_level ?? 3) - (b.understanding_level ?? 3);
-        if (lv !== 0) return lv;
-        return toTime(a.created_at) - toTime(b.created_at);
+        // 期日が早い順（＝より前から待たされているもの優先） → 同じなら理解度が低い順
+        const dateCompare = a.card.nextReviewDate.localeCompare(b.card.nextReviewDate);
+        if (dateCompare !== 0) return dateCompare;
+        return (a.item.understanding_level ?? 3) - (b.item.understanding_level ?? 3);
       })
+      .map((x) => x.item)
       .slice(0, 20);
     setReviewItems(candidates);
     setReviewOpen(true);
@@ -1096,23 +1162,40 @@ export default function LearningContent() {
   }, [dataLoading]);
 
   // フラッシュカードの「わかった/まだ」で理解度を更新する
-  const handleRateReview = async (item: LearningRecord, newLevel: number) => {
-    // category_name から category_id を解決（更新APIはidが必要）
-    const category = allCategories.find((c) => c.name === item.category_name);
-    const payload = {
-      id: item.id,
-      title: item.title,
-      explanatory_text: item.explanatory_text,
-      understanding_level: newLevel,
-      reference_url: item.reference_url,
-      created_at: item.created_at,
-      category_id: category ? category.id : null,
-      tags: item.tags,
-      github_path: item.github_path,
-      commit_sha: item.commit_sha,
-    };
-    await updateLearningApi(item.id, payload, userId ?? 0);
-    await refetchData();
+  const handleRateReview = async (
+    item: LearningRecord,
+    newLevel: number,
+    understood: boolean
+  ) => {
+    // 間隔反復のスケジュールを更新（次回復習日を計算）
+    const card = reviewCard(userId, item.id, understood);
+
+    // 理解度が実際に変わる場合のみAPIを呼ぶ（無駄な通信を避ける）
+    if (newLevel !== item.understanding_level) {
+      // category_name から category_id を解決（更新APIはidが必要）
+      const category = allCategories.find((c) => c.name === item.category_name);
+      const payload = {
+        id: item.id,
+        title: item.title,
+        explanatory_text: item.explanatory_text,
+        understanding_level: newLevel,
+        reference_url: item.reference_url,
+        created_at: item.created_at,
+        category_id: category ? category.id : null,
+        tags: item.tags,
+        github_path: item.github_path,
+        commit_sha: item.commit_sha,
+      };
+      await updateLearningApi(item.id, payload, userId ?? 0);
+      await refetchData();
+    }
+
+    showToast(
+      understood
+        ? `わかった！次回の復習は${card.intervalDays}日後です。`
+        : "まだ、ですね。明日また復習しましょう。",
+      "info"
+    );
   };
 
   // タグをタップして、そのタグが付いた学習記録だけをサッと絞り込み表示する
@@ -1142,10 +1225,8 @@ export default function LearningContent() {
     setOpenNewDialog(true);
   };
 
-  // 復習候補（理解度が低め）の件数
-  const reviewCount = learningData.filter(
-    (l) => (l.understanding_level ?? 3) <= 2
-  ).length;
+  // 復習候補（間隔反復で本日が期日）の件数
+  const reviewCount = learningData.filter((l) => isDue(userId, l.id)).length;
 
   // アプリアイコンに未読の復習件数バッジを表示（対応ブラウザ・PWAインストール時のみ）
   useEffect(() => {
@@ -1547,6 +1628,7 @@ export default function LearningContent() {
                     onEdit={openEditDialog}
                     onDelete={openDeleteConfirm}
                     onOpenRelated={openEditDialog}
+                    onPublish={setPublishingItem}
                   />
                 ) : (
                   <MessageLeft
@@ -1811,6 +1893,7 @@ export default function LearningContent() {
           setListDialogOpen(false);
           openDeleteConfirm(id);
         }}
+        onPublish={setPublishingItem}
       />
 
       {/* 学習分析ダッシュボード */}
@@ -1826,6 +1909,15 @@ export default function LearningContent() {
         onClose={() => setPlanDialogOpen(false)}
       />
 
+      {/* 記事化プレビュー */}
+      <ArticlePreviewDialog
+        open={publishingItem !== null}
+        onClose={() => setPublishingItem(null)}
+        item={publishingItem}
+        githubConnected={!!octokit}
+        onSaveToGitHub={handlePublishArticle}
+      />
+
       {/* 今日の復習（フラッシュカード） */}
       <ReviewFlashcards
         open={reviewOpen}
@@ -1839,9 +1931,9 @@ export default function LearningContent() {
           tags: it.tags,
           reference_url: it.reference_url,
         }))}
-        onRate={(fi, newLevel) => {
+        onRate={(fi, newLevel, understood) => {
           const rec = reviewItems.find((r) => r.id === fi.id);
-          return rec ? handleRateReview(rec, newLevel) : Promise.resolve();
+          return rec ? handleRateReview(rec, newLevel, understood) : Promise.resolve();
         }}
       />
 
@@ -1902,6 +1994,13 @@ export default function LearningContent() {
               <ListItemText
                 primary="タグでサッと絞り込み（入力欄の上）"
                 secondary="登録済みのタグをタップするだけで、そのタグが付いた学習記録だけを表示します。片手でサッと絞り込めます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="今日の復習（間隔反復）"
+                secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">

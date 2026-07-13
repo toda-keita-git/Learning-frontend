@@ -94,7 +94,7 @@ export const maybeNotifyReview = async (reviewCount: number) => {
   localStorage.setItem(LAST_NOTIFIED_KEY, todayKey());
   await show(
     "📖 今日の復習",
-    `理解度が低めの学習が${reviewCount}件あります。スキマ時間に振り返りましょう。`
+    `復習期日が来た学習が${reviewCount}件あります。スキマ時間に振り返りましょう。`
   );
 };
 
