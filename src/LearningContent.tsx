@@ -652,6 +652,11 @@ export default function LearningContent() {
 
   // コンポーネントが最初に描画された時にAPIからデータを取得する
   useEffect(() => {
+    // 認証復元中はuserIdがまだnullのため、確定するまで待つ
+    // （ここでuserId=0として取得してしまうと「0件」がdataLoading完了として確定し、
+    //   実際のデータが届く前に「まだ学習記録がありません」の案内が誤表示されてしまう）
+    if (!userId) return;
+
     // まずキャッシュがあれば即表示（オフライン／コールドスタート中でも過去の記録を閲覧できる）
     const cache = loadLearningCache(userId);
     if (cache) {
@@ -663,7 +668,7 @@ export default function LearningContent() {
     const fetchData = async () => {
       // 4つのAPIを並行して呼び出し、すべてのデータが揃うのを待つ
       const [learnings, tags, learningTags, categories] = await Promise.all([
-        learningApi(userId ?? 0),
+        learningApi(userId),
         TagsApi(),
         LearningTagApi(),
         CategoriesApi(),
