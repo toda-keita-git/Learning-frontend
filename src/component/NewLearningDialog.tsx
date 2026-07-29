@@ -7,6 +7,10 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Rating from "@mui/material/Rating";
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -32,6 +36,10 @@ import Tabs from "@mui/material/Tabs"; // ★ MUI Tabsをインポート
 import Tab from "@mui/material/Tab"; // ★ MUI Tabをインポート
 import GitHubFolderSelector from "./GitHubFolderSelector";
 import { AuthContext } from "../Context";
+import { renderPdfPagesToImages } from "./pdfPreview";
+import { extractPptxText, type PptxSlide } from "./pptxPreview";
+import { extractDocxText, createDocxFromText } from "./docxPreview";
+import { listZipEntries, type ZipEntry } from "./zipPreview";
 
 
 // Base64エンコードを行うヘルパー関数
@@ -111,6 +119,9 @@ export default function NewLearningDialog({
   const [isEditingFile, setIsEditingFile] = useState(false);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [pdfPages, setPdfPages] = useState<string[]>([]); // PDF各ページの画像（閲覧専用）
+  const [pptxSlides, setPptxSlides] = useState<PptxSlide[]>([]); // PPTX各スライドのテキスト（閲覧専用）
+  const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]); // ZIP内のファイル一覧（閲覧専用）
 
   // ← AuthContext から値を取得（これらは string | null の可能性がある想定）
   const auth = useContext(AuthContext);
@@ -238,6 +249,9 @@ export default function NewLearningDialog({
     setSpreadsheetData(null); // ★ リセット
     setWorkbook(null); // workbookもリセット
     setActiveSheetIndex(0);
+    setPdfPages([]);
+    setPptxSlides([]);
+    setZipEntries([]);
 
     const result = await onFetchFile(pathToFetch);
 
@@ -251,8 +265,39 @@ export default function NewLearningDialog({
         } catch (e) {
           setPreviewError("Excelファイルの解析に失敗しました。");
         }
+      } else if (fileType === "pdf" && result.base64Content) {
+        try {
+          const pages = await renderPdfPagesToImages(result.base64Content);
+          setPdfPages(pages);
+          setFileSha(result.sha);
+        } catch (e) {
+          setPreviewError("PDFファイルの解析に失敗しました。");
+        }
+      } else if (fileType === "pptx" && result.base64Content) {
+        try {
+          const slides = await extractPptxText(result.base64Content);
+          setPptxSlides(slides);
+          setFileSha(result.sha);
+        } catch (e) {
+          setPreviewError("PowerPointファイルの解析に失敗しました。");
+        }
+      } else if (fileType === "docx" && result.base64Content) {
+        try {
+          const text = await extractDocxText(result.base64Content);
+          setFileContent(text);
+          setFileSha(result.sha);
+        } catch (e) {
+          setPreviewError("Wordファイルの解析に失敗しました。");
+        }
+      } else if (fileType === "zip-archive" && result.base64Content) {
+        try {
+          const entries = await listZipEntries(result.base64Content);
+          setZipEntries(entries);
+          setFileSha(result.sha);
+        } catch (e) {
+          setPreviewError("ZIPファイルの解析に失敗しました。");
+        }
       } else {
-        const fileType = getFileType(pathToFetch);
         const mimeType = getMimeType(pathToFetch);
 
         if ((fileType === "image" || fileType === "video") && result.base64Content) {
@@ -287,11 +332,14 @@ export default function NewLearningDialog({
     setFileSha(null);
     setWorkbook(null);
     setActiveSheetIndex(0);
+    setPdfPages([]);
+    setPptxSlides([]);
+    setZipEntries([]);
 
     const reader = new FileReader();
     const fileType = getFileType(file.name);
 
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const fileData = event.target?.result;
         if (!fileData) throw new Error("ファイルの読み込みに失敗しました。");
@@ -303,7 +351,17 @@ export default function NewLearningDialog({
           // ✅ 画像・動画ファイルの場合：data URL をそのまま src に使う
           setFileContent(fileData as string);
         } else if (fileType === "pdf") {
-          setPreviewError("PDFプレビューは現在サポートされていません。");
+          const base64 = (fileData as string).split(",")[1];
+          setPdfPages(await renderPdfPagesToImages(base64));
+        } else if (fileType === "pptx") {
+          const base64 = (fileData as string).split(",")[1];
+          setPptxSlides(await extractPptxText(base64));
+        } else if (fileType === "docx") {
+          const base64 = (fileData as string).split(",")[1];
+          setFileContent(await extractDocxText(base64));
+        } else if (fileType === "zip-archive") {
+          const base64 = (fileData as string).split(",")[1];
+          setZipEntries(await listZipEntries(base64));
         } else if (fileType === "binary") {
           setPreviewError("このバイナリファイル形式はプレビューできません。");
         } else {
@@ -324,8 +382,16 @@ export default function NewLearningDialog({
 
     if (fileType === "excel") {
       reader.readAsArrayBuffer(file);
-    } else if (fileType === "image" || fileType === "video") {
-      reader.readAsDataURL(file); // ✅ 画像・動画は base64 data URL 形式で読み込み
+    } else if (
+      fileType === "image" ||
+      fileType === "video" ||
+      fileType === "pdf" ||
+      fileType === "pptx" ||
+      fileType === "docx" ||
+      fileType === "zip-archive"
+    ) {
+      // 画像・動画・PDF・PowerPoint・Word・ZIPはbase64 data URL形式で読み込み
+      reader.readAsDataURL(file);
     } else {
       reader.readAsText(file);
     }
@@ -378,7 +444,18 @@ export default function NewLearningDialog({
         contentIsBase64: true, // ★ Base64形式であるフラグ
       };
     }
-    // 3. GitHub上のテキストファイルが編集された場合の処理
+    // 3. GitHub上のWordファイル(.docx)が編集された場合の処理
+    //    （元の書式は保持されず、編集後のテキストから新しい.docxを作り直す）
+    else if (isEditingFile && fileSha && fileType === "docx") {
+      const newBase64Content = await createDocxFromText(fileContent);
+      editedFileData = {
+        path: github_path,
+        content: newBase64Content,
+        sha: fileSha,
+        contentIsBase64: true,
+      };
+    }
+    // 4. GitHub上のテキストファイルが編集された場合の処理
     else if (isEditingFile && fileSha) {
       editedFileData = {
         path: github_path,
@@ -436,6 +513,9 @@ export default function NewLearningDialog({
     setPreviewError(null);
     setIsLoadingFile(false);
     setSpreadsheetData(null); // ★ スプレッドシートデータもリセット
+    setPdfPages([]);
+    setPptxSlides([]);
+    setZipEntries([]);
   };
 
   const handleUploadButtonClick = () => {
@@ -454,6 +534,9 @@ export default function NewLearningDialog({
     setWorkbook(null);
     setActiveSheetIndex(0);
     setSpreadsheetData(null);
+    setPdfPages([]);
+    setPptxSlides([]);
+    setZipEntries([]);
   };
 
   const fileType = getFileType(github_path);
@@ -743,6 +826,62 @@ export default function NewLearningDialog({
                   </div>
                 )}
               </>
+            ) : pdfPages.length > 0 ? (
+              // PDFは閲覧専用（ページごとに画像として表示）
+              <Box sx={{ flexGrow: 1, overflow: "auto", p: 1, bgcolor: "#525659" }}>
+                <Stack spacing={1} alignItems="center">
+                  {pdfPages.map((pageSrc, index) => (
+                    <img
+                      key={index}
+                      src={pageSrc}
+                      alt={`${index + 1}ページ目`}
+                      style={{ maxWidth: "100%", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            ) : pptxSlides.length > 0 ? (
+              // PowerPointは閲覧専用（スライドごとのテキストのみ抽出して表示。レイアウト・画像は再現しない）
+              <Box sx={{ flexGrow: 1, overflow: "auto", p: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                  ※ PowerPointはテキストのみのプレビューです（レイアウト・画像は表示されません）
+                </Typography>
+                {pptxSlides.map((slide) => (
+                  <Box key={slide.slideNumber} sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      スライド {slide.slideNumber}
+                    </Typography>
+                    {slide.lines.length > 0 ? (
+                      slide.lines.map((line, i) => (
+                        <Typography key={i} variant="body2">
+                          {line}
+                        </Typography>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        （テキストなし）
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            ) : zipEntries.length > 0 ? (
+              // ZIPは閲覧専用（中身のファイル一覧のみ。展開・編集はできない）
+              <Box sx={{ flexGrow: 1, overflow: "auto", p: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                  ※ ZIP内のファイル一覧です（{zipEntries.length}件）。展開・編集はできません
+                </Typography>
+                <List dense>
+                  {zipEntries.map((entry) => (
+                    <ListItem key={entry.name} disableGutters>
+                      <ListItemText
+                        primary={entry.name}
+                        sx={{ opacity: entry.dir ? 0.6 : 1 }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
             ) : fileContent ? (
               // ★ JSX 直接条件分岐で返す
               fileType === "image" || fileType === "video" ? (
@@ -787,14 +926,31 @@ export default function NewLearningDialog({
                   }}
                 >
                   <Box sx={{ flexGrow: 1 }}>
-                    <SyntaxHighlighter
-                      language={fileType}
-                      style={vscDarkPlus}
-                      showLineNumbers
-                      customStyle={{ margin: 0, height: "100%" }}
-                    >
-                      {fileContent}
-                    </SyntaxHighlighter>
+                    {isEditingFile ? (
+                      <TextField
+                        autoFocus
+                        multiline
+                        fullWidth
+                        minRows={8}
+                        value={fileContent}
+                        onChange={(e) => setFileContent(e.target.value)}
+                        sx={{
+                          "& .MuiInputBase-root": {
+                            fontFamily: "monospace",
+                            fontSize: "0.875rem",
+                          },
+                        }}
+                      />
+                    ) : (
+                      <SyntaxHighlighter
+                        language={fileType === "docx" ? "plaintext" : fileType}
+                        style={vscDarkPlus}
+                        showLineNumbers
+                        customStyle={{ margin: 0, height: "100%" }}
+                      >
+                        {fileContent}
+                      </SyntaxHighlighter>
+                    )}
                   </Box>
                   {fileType !== "binary" && (
                     <Box sx={{ mt: 1, textAlign: "right" }}>
@@ -802,6 +958,11 @@ export default function NewLearningDialog({
                         {isEditingFile ? "プレビューに戻る" : "編集"}
                       </Button>
                     </Box>
+                  )}
+                  {fileType === "docx" && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      ※ Wordの元の書式・画像・表は保持されません。保存すると、この文章だけを含む新しい.docxファイルとして保存されます。
+                    </Typography>
                   )}
                 </div>
               )

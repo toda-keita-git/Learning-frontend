@@ -44,11 +44,15 @@ export const getFileType = (path: string): string => {
     case "xls":
     case "csv":
       return "excel";
-    case "doc":
     case "docx":
-    case "ppt":
+      return "docx";
     case "pptx":
+      return "pptx";
     case "zip":
+      return "zip-archive";
+    // 旧形式(.doc/.ppt)はOOXML(zip+XML)ではないため、対応ライブラリでは扱えない
+    case "doc":
+    case "ppt":
     case "gz":
     case "tar":
     case "rar":
@@ -299,6 +303,9 @@ export const getMimeType = (path: string): string => {
     ts: "application/typescript",
     html: "text/html",
     css: "text/css",
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   };
 
   return mimeTypes[ext ?? ""] || "application/octet-stream";
