@@ -35,7 +35,7 @@ interface LearningListItem {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   created_at: string;
   category_name: string;
   tags: string[];
@@ -106,6 +106,7 @@ export default function LearningListDialog({
       const matchesText =
         !lower ||
         item.title.toLowerCase().includes(lower) ||
+        item.explanatory_text.toLowerCase().includes(lower) ||
         item.tags.some((tag) => tag.toLowerCase().includes(lower));
       return matchesCategory && matchesText;
     });
@@ -115,7 +116,8 @@ export default function LearningListDialog({
       if (orderBy === "title" || orderBy === "category_name") {
         cmp = a[orderBy].localeCompare(b[orderBy], "ja");
       } else if (orderBy === "understanding_level") {
-        cmp = a.understanding_level - b.understanding_level;
+        // 未設定（メモのみ）は最後尾に回す
+        cmp = (a.understanding_level ?? -1) - (b.understanding_level ?? -1);
       } else {
         cmp = (new Date(a.created_at).getTime() || 0) - (new Date(b.created_at).getTime() || 0);
       }
@@ -132,7 +134,7 @@ export default function LearningListDialog({
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
           <TextField
             size="small"
-            placeholder="タイトル・タグで絞り込み"
+            placeholder="タイトル・本文・タグで絞り込み"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             sx={{ flex: 1, minWidth: 200 }}
@@ -237,7 +239,13 @@ export default function LearningListDialog({
                       </Box>
                     </TableCell>
                     <TableCell align="center">
-                      <Rating value={item.understanding_level} readOnly size="small" />
+                      {item.understanding_level == null ? (
+                        <Typography variant="caption" sx={{ color: "text.disabled" }}>
+                          未設定
+                        </Typography>
+                      ) : (
+                        <Rating value={item.understanding_level} readOnly size="small" />
+                      )}
                     </TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
                       {formatDate(item.created_at)}

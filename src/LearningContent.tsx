@@ -92,17 +92,20 @@ import {
   showTestReminder,
   updateAppBadge,
 } from "./notifications";
+import { getMimeType } from "./component/getFileType";
 
 
 
 const BOTTOM_NAV_HEIGHT = 56; // スマホ用ボトムナビの高さ(px)
+
+const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"];
 
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   reference_url: string | null; // nullの可能性も考慮
   created_at: string;
   category_name: string;
@@ -118,7 +121,7 @@ type PublishableItem = {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   category_name: string;
   tags: string[];
   reference_url: string | null;
@@ -228,17 +231,19 @@ export default function LearningContent() {
   const data = response.data as any;
   const ext = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
+  const isVideoFile = VIDEO_EXTENSIONS.includes(ext);
 
   let content = "";
   let base64Content = "";
 
-  if (isImageFile) {
+  if (isImageFile || isVideoFile) {
+    const mimeType = getMimeType(path);
     if (data.content && data.content.trim() !== "") {
       // ✅ Base64データがある通常パターン
       base64Content = data.content.replace(/\r?\n/g, "");
-      content = `data:image/${ext};base64,${base64Content}`;
+      content = `data:${mimeType};base64,${base64Content}`;
     } else {
-      // ⚠️ Base64が空（LFSや大容量ファイルなど）
+      // ⚠️ Base64が空（LFSや大容量ファイルなど。動画は特にこのケースが多い）
       // ✅ 認証付きで blob を取得（プライベートリポジトリでも表示できる）
       try {
         const blob = await octokit.request(
@@ -246,9 +251,9 @@ export default function LearningContent() {
           { owner: githubLogin, repo: repoName, file_sha: data.sha }
         );
         base64Content = ((blob.data as any).content || "").replace(/\r?\n/g, "");
-        content = base64Content ? `data:image/${ext};base64,${base64Content}` : "";
+        content = base64Content ? `data:${mimeType};base64,${base64Content}` : "";
       } catch (e) {
-        console.error("画像の取得に失敗:", e);
+        console.error("メディアファイルの取得に失敗:", e);
         content = "";
       }
     }
@@ -437,29 +442,31 @@ export default function LearningContent() {
     if (!("content" in response.data)) {
       throw new Error("取得したデータがファイル形式ではありません");
     }
-    const ext = path.split(".").pop() || "";
+    const ext = (path.split(".").pop() || "").toLowerCase();
     const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
+    const isVideoFile = VIDEO_EXTENSIONS.includes(ext);
     const isHistorical = !!commitSha;
 
     let content = "";
     let base64Content = "";
 
-    if (isImageFile) {
+    if (isImageFile || isVideoFile) {
+      const mimeType = getMimeType(path);
       if (response.data.content && response.data.content.trim() !== "") {
         // ✅ Base64データがある通常パターン
         base64Content = response.data.content.replace(/\r?\n/g, "");
-        content = `data:image/${ext};base64,${base64Content}`;
+        content = `data:${mimeType};base64,${base64Content}`;
       } else {
-        // ⚠️ LFSや大容量ファイルなど：認証付きで blob を取得（プライベートリポジトリ対応）
+        // ⚠️ LFSや大容量ファイルなど（動画で特に多い）：認証付きで blob を取得（プライベートリポジトリ対応）
         try {
           const blob = await octokit.request(
             "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
             { owner: githubLogin, repo: repoName, file_sha: response.data.sha }
           );
           const b64 = ((blob.data as any).content || "").replace(/\r?\n/g, "");
-          content = b64 ? `data:image/${ext};base64,${b64}` : "";
+          content = b64 ? `data:${mimeType};base64,${b64}` : "";
         } catch (e) {
-          console.error("画像の取得に失敗:", e);
+          console.error("メディアファイルの取得に失敗:", e);
           content = "";
         }
       }
@@ -1042,10 +1049,15 @@ export default function LearningContent() {
         sorted.sort((a, b) => b.title.localeCompare(a.title, "ja"));
         break;
       case "understanding-desc":
-        sorted.sort((a, b) => b.understanding_level - a.understanding_level);
+        // 未設定（メモのみ）は最後尾に回す
+        sorted.sort(
+          (a, b) => (b.understanding_level ?? -1) - (a.understanding_level ?? -1)
+        );
         break;
       case "understanding-asc":
-        sorted.sort((a, b) => a.understanding_level - b.understanding_level);
+        sorted.sort(
+          (a, b) => (a.understanding_level ?? 6) - (b.understanding_level ?? 6)
+        );
         break;
       case "date-desc":
         sorted.sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
@@ -1095,14 +1107,28 @@ export default function LearningContent() {
       );
     }
 
-    // 3. テキストクエリでフィルタリング (titleとexplanatory_textを対象)
+    // 3. テキストクエリでフィルタリング
+    // メモとして使いやすいよう、タイトル・本文だけでなく参考URL/カテゴリ/タグも対象にし、
+    // スペース区切りの複数キーワードはAND検索にする
     if (trimmedQuery) {
-      const lowerCaseQuery = trimmedQuery.toLowerCase();
-      results = results.filter(
-        (item) =>
-          item.title.toLowerCase().includes(lowerCaseQuery) ||
-          item.explanatory_text.toLowerCase().includes(lowerCaseQuery)
-      );
+      const keywords = trimmedQuery
+        .toLowerCase()
+        .split(/[\s\u3000]+/) // 半角・全角スペース区切り
+        .filter((k) => k.length > 0);
+
+      results = results.filter((item) => {
+        const searchableText = [
+          item.title,
+          item.explanatory_text,
+          item.reference_url ?? "",
+          item.category_name,
+          item.tags.join(" "),
+        ]
+          .join("\n")
+          .toLowerCase();
+
+        return keywords.every((keyword) => searchableText.includes(keyword));
+      });
     }
 
     // 4. 結果をソート

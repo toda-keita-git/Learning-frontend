@@ -17,7 +17,7 @@ interface ArticleSourceItem {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   category_name: string;
   tags: string[];
   reference_url: string | null;

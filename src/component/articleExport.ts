@@ -3,7 +3,7 @@
 interface ArticleSourceItem {
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   category_name: string;
   tags: string[];
   reference_url: string | null;
@@ -12,7 +12,10 @@ interface ArticleSourceItem {
 }
 
 export function buildArticleMarkdown(item: ArticleSourceItem): string {
-  const stars = "★".repeat(item.understanding_level) + "☆".repeat(5 - item.understanding_level);
+  const stars =
+    item.understanding_level == null
+      ? "未設定"
+      : "★".repeat(item.understanding_level) + "☆".repeat(5 - item.understanding_level);
   const tagsLine = item.tags.length > 0 ? item.tags.map((t) => `\`#${t}\``).join(" ") : "";
   const dateStr = (() => {
     const d = new Date(item.created_at);

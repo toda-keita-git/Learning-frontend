@@ -12,7 +12,7 @@ import Stack from "@mui/material/Stack";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 
 interface LearningAnalyticsItem {
-  understanding_level: number;
+  understanding_level: number | null;
   created_at: string;
   category_name: string;
 }
@@ -121,12 +121,17 @@ export default function LearningAnalyticsDialog({
   const levelCounts = useMemo(() => {
     const counts = [0, 0, 0, 0, 0];
     items.forEach((item) => {
-      const lv = Math.min(5, Math.max(1, item.understanding_level || 3));
+      if (item.understanding_level == null) return;
+      const lv = Math.min(5, Math.max(1, item.understanding_level));
       counts[lv - 1] += 1;
     });
     return counts;
   }, [items]);
-  const levelMax = Math.max(1, ...levelCounts);
+  const unratedCount = useMemo(
+    () => items.filter((item) => item.understanding_level == null).length,
+    [items]
+  );
+  const levelMax = Math.max(1, unratedCount, ...levelCounts);
 
   const categoryCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -142,10 +147,11 @@ export default function LearningAnalyticsDialog({
 
   const totalCount = items.length;
   const thisWeekCount = weekly[weekly.length - 1]?.count ?? 0;
+  const ratedCount = totalCount - unratedCount;
   const avgLevel =
-    totalCount > 0
+    ratedCount > 0
       ? (
-          items.reduce((sum, i) => sum + (i.understanding_level || 0), 0) / totalCount
+          items.reduce((sum, i) => sum + (i.understanding_level ?? 0), 0) / ratedCount
         ).toFixed(1)
       : "-";
 
@@ -204,6 +210,9 @@ export default function LearningAnalyticsDialog({
                 {levelCounts.map((count, i) => (
                   <BarRow key={i} label={"★".repeat(i + 1)} value={count} max={levelMax} />
                 ))}
+                {unratedCount > 0 && (
+                  <BarRow label="未評価" value={unratedCount} max={levelMax} labelWidth={90} />
+                )}
               </Stack>
             </Box>
 

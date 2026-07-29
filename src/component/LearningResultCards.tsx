@@ -22,7 +22,7 @@ interface LearningResultItem {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   reference_url: string | null;
   category_name: string;
   tags: string[];
@@ -126,13 +126,39 @@ export default function LearningResultCards({
                       >
                         {item.title}
                       </Typography>
-                      <Rating
-                        value={item.understanding_level}
-                        readOnly
-                        size="small"
-                        sx={{ flexShrink: 0 }}
-                      />
+                      {item.understanding_level == null ? (
+                        <Chip
+                          label="未設定"
+                          size="small"
+                          variant="outlined"
+                          sx={{ flexShrink: 0, color: "text.secondary" }}
+                        />
+                      ) : (
+                        <Rating
+                          value={item.understanding_level}
+                          readOnly
+                          size="small"
+                          sx={{ flexShrink: 0 }}
+                        />
+                      )}
                     </Box>
+
+                    {!isOpen && item.explanatory_text && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          mb: 0.75,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {item.explanatory_text}
+                      </Typography>
+                    )}
 
                     <Box
                       sx={{
