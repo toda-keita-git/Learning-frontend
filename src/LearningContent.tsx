@@ -102,7 +102,7 @@ interface LearningRecord {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   reference_url: string | null; // nullの可能性も考慮
   created_at: string;
   category_name: string;
@@ -118,7 +118,7 @@ type PublishableItem = {
   id: number;
   title: string;
   explanatory_text: string;
-  understanding_level: number;
+  understanding_level: number | null;
   category_name: string;
   tags: string[];
   reference_url: string | null;
@@ -1042,10 +1042,15 @@ export default function LearningContent() {
         sorted.sort((a, b) => b.title.localeCompare(a.title, "ja"));
         break;
       case "understanding-desc":
-        sorted.sort((a, b) => b.understanding_level - a.understanding_level);
+        // 未設定（メモのみ）は最後尾に回す
+        sorted.sort(
+          (a, b) => (b.understanding_level ?? -1) - (a.understanding_level ?? -1)
+        );
         break;
       case "understanding-asc":
-        sorted.sort((a, b) => a.understanding_level - b.understanding_level);
+        sorted.sort(
+          (a, b) => (a.understanding_level ?? 6) - (b.understanding_level ?? 6)
+        );
         break;
       case "date-desc":
         sorted.sort((a, b) => toTime(b.created_at) - toTime(a.created_at));
@@ -1095,14 +1100,28 @@ export default function LearningContent() {
       );
     }
 
-    // 3. テキストクエリでフィルタリング (titleとexplanatory_textを対象)
+    // 3. テキストクエリでフィルタリング
+    // メモとして使いやすいよう、タイトル・本文だけでなく参考URL/カテゴリ/タグも対象にし、
+    // スペース区切りの複数キーワードはAND検索にする
     if (trimmedQuery) {
-      const lowerCaseQuery = trimmedQuery.toLowerCase();
-      results = results.filter(
-        (item) =>
-          item.title.toLowerCase().includes(lowerCaseQuery) ||
-          item.explanatory_text.toLowerCase().includes(lowerCaseQuery)
-      );
+      const keywords = trimmedQuery
+        .toLowerCase()
+        .split(/[\s\u3000]+/) // 半角・全角スペース区切り
+        .filter((k) => k.length > 0);
+
+      results = results.filter((item) => {
+        const searchableText = [
+          item.title,
+          item.explanatory_text,
+          item.reference_url ?? "",
+          item.category_name,
+          item.tags.join(" "),
+        ]
+          .join("\n")
+          .toLowerCase();
+
+        return keywords.every((keyword) => searchableText.includes(keyword));
+      });
     }
 
     // 4. 結果をソート

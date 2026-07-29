@@ -82,7 +82,7 @@ export default function NewLearningDialog({
   // フォーム項目のためのState
   const [title, setTitle] = useState("");
   const [explanatoryText, setExplanatoryText] = useState("");
-  const [understandingLevel, setUnderstandingLevel] = useState(3);
+  const [understandingLevel, setUnderstandingLevel] = useState<number | null>(null);
   const [referenceUrl, setReferenceUrl] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -189,7 +189,7 @@ export default function NewLearningDialog({
       if (editingData) {
         setTitle(editingData.title || "");
         setExplanatoryText(editingData.explanatory_text || "");
-        setUnderstandingLevel(editingData.understanding_level || 3);
+        setUnderstandingLevel(editingData.understanding_level ?? null);
         setReferenceUrl(editingData.reference_url || "");
         setSelectedCategory(editingData.category_id || "");
         setSelectedTags(editingData.tags || []);
@@ -405,7 +405,7 @@ export default function NewLearningDialog({
     setSpreadsheetData(null);
     setTitle("");
     setExplanatoryText("");
-    setUnderstandingLevel(3);
+    setUnderstandingLevel(null);
     setReferenceUrl("");
     setSelectedCategory("");
     setSelectedTags([]);
@@ -617,7 +617,7 @@ export default function NewLearningDialog({
           {/* === 理解度 === */}
           <Box sx={{ mt: 3 }}>
             <Typography component="legend" sx={{ fontWeight: 600 }}>
-              理解度
+              理解度（任意）
             </Typography>
             <Rating
               value={understandingLevel}
@@ -626,7 +626,7 @@ export default function NewLearningDialog({
               }}
             />
             <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
-              ★が多いほど「よく理解できた」。あとで復習の優先度に使えます。
+              ★が多いほど「よく理解できた」。未設定のまま検索用のメモとしてだけ残すこともできます。
             </Typography>
           </Box>
           {/* === GitHub連携（フォルダ選択＋ファイル指定） === */}
