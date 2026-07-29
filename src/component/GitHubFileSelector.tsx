@@ -98,7 +98,9 @@ const GitHubFileSelector: React.FC<Props> = ({ open, onClose, onFileSelect }) =>
   }, [open]);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    // disableEnforceFocus: 学習内容の登録・編集ダイアログの上に重ねて開かれるため、
+    // フォーカストラップの競合で閉じた後に元のダイアログが操作不能になるのを防ぐ
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" disableEnforceFocus>
       <DialogTitle>
         <Box sx={{ display: "flex", alignItems: "center" }}>
           {history.length > 0 && (

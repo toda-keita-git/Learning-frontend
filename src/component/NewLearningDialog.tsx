@@ -26,7 +26,8 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
 import InputAdornment from "@mui/material/InputAdornment";
-import ContentPasteGoOutlinedIcon from "@mui/icons-material/ContentPasteGoOutlined";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import { MicButton } from "./MicButton"; // 音声入力ボタン
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
@@ -49,6 +50,14 @@ const toBase64 = (file: File): Promise<string> =>
     };
     reader.onerror = (error) => reject(error);
   });
+
+// "src/components/Foo.tsx" のようなフルパスを、フォルダ部分とファイル名部分に分割する
+const splitPath = (path: string): { folder: string; file: string } => {
+  const trimmed = (path || "").replace(/^\/+/, "");
+  const idx = trimmed.lastIndexOf("/");
+  if (idx === -1) return { folder: "", file: trimmed };
+  return { folder: trimmed.slice(0, idx), file: trimmed.slice(idx + 1) };
+};
 
 // 親から受け取るPropsの型定義
 interface NewLearningDialogProps {
@@ -86,11 +95,20 @@ export default function NewLearningDialog({
   const [referenceUrl, setReferenceUrl] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [github_path, setGithub_path] = useState("");
+  // 添付ファイルの保存先は「フォルダ」と「ファイル名」を別々のStateで持つ。
+  // 1本の文字列(github_path)をパースして扱うと、片方だけ更新したつもりが
+  // もう片方の内容を巻き込んで消してしまうバグの温床になるため。
+  const [folderPath, setFolderPath] = useState(""); // 例: "src/components"（末尾スラッシュなし、リポジトリ直下なら""）
+  const [fileName, setFileName] = useState(""); // 例: "Foo.tsx"
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localFile, setLocalFile] = useState<File | null>(null);
-  const [pasteMsg, setPasteMsg] = useState(""); // クリップボード貼り付けの結果メッセージ
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // フォルダとファイル名を結合した完全パス（前後の余分なスラッシュは除去）。
+  // ファイル名が空でフォルダだけ決まっている場合は末尾スラッシュ付きになる。
+  const cleanFolderPath = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
+  const github_path = cleanFolderPath ? `${cleanFolderPath}/${fileName}` : fileName;
+  const hasAttachment = !!(folderPath || fileName || localFile);
 
   // ファイルプレビュー用のState
   const [fileContent, setFileContent] = useState("");
@@ -185,7 +203,6 @@ export default function NewLearningDialog({
 
   useEffect(() => {
     if (open) {
-      setPasteMsg("");
       if (editingData) {
         setTitle(editingData.title || "");
         setExplanatoryText(editingData.explanatory_text || "");
@@ -193,7 +210,9 @@ export default function NewLearningDialog({
         setReferenceUrl(editingData.reference_url || "");
         setSelectedCategory(editingData.category_id || "");
         setSelectedTags(editingData.tags || []);
-        setGithub_path(editingData.github_path || "");
+        const { folder, file } = splitPath(editingData.github_path || "");
+        setFolderPath(folder);
+        setFileName(file);
         setLocalFile(null);
         if (editingData.github_path) {
           handlePreviewFile(editingData.github_path);
@@ -263,7 +282,8 @@ export default function NewLearningDialog({
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
     setLocalFile(file);
-    setGithub_path(file.name);
+    // ファイル名だけ更新し、既に選んでいる保存先フォルダはそのまま維持する
+    setFileName(file.name);
 
     setIsLoadingFile(true);
     setPreviewError(null);
@@ -319,7 +339,10 @@ export default function NewLearningDialog({
 
 
   const handleFileSelectFromGitHub = (path: string) => {
-    setGithub_path(path);
+    // GitHub上の既存ファイルを選んだ場合は、そのファイルのフォルダ・ファイル名で両方とも上書きする
+    const { folder, file } = splitPath(path);
+    setFolderPath(folder);
+    setFileName(file);
     setLocalFile(null);
     setIsSelectorOpen(false);
     handlePreviewFile(path);
@@ -409,7 +432,8 @@ export default function NewLearningDialog({
     setReferenceUrl("");
     setSelectedCategory("");
     setSelectedTags([]);
-    setGithub_path("");
+    setFolderPath("");
+    setFileName("");
     setLocalFile(null);
     setFileContent("");
     setFileSha(null);
@@ -423,39 +447,18 @@ export default function NewLearningDialog({
     fileInputRef.current?.click();
   };
 
-  // クリップボードの内容（コピーした記事URL/テキスト）を取り込んで各欄に反映する。
-  // iOS・Android両方で動作し、iOSで使えない「共有で記録」の代わりになる。
-  const handlePasteFromClipboard = async () => {
-    try {
-      if (!navigator.clipboard?.readText) {
-        setPasteMsg("このブラウザではクリップボードの読み取りに対応していません。");
-        return;
-      }
-      const text = (await navigator.clipboard.readText()).trim();
-      if (!text) {
-        setPasteMsg("クリップボードが空です。コピーしてからお試しください。");
-        return;
-      }
-      const urlMatch = text.match(/https?:\/\/[^\s]+/);
-      const url = urlMatch ? urlMatch[0] : "";
-      const textWithoutUrl = url ? text.replace(url, "").trim() : text;
-
-      if (url) setReferenceUrl(url);
-
-      if (!title.trim()) {
-        if (textWithoutUrl) setTitle(textWithoutUrl.slice(0, 80));
-        else if (url)
-          setTitle(url.replace(/^https?:\/\//, "").split(/[/?#]/)[0]); // ドメインを仮タイトルに
-      } else if (textWithoutUrl && !url) {
-        // タイトルが既にあり、純テキストならメモに追記
-        setExplanatoryText((prev) => (prev ? prev + "\n" + text : text));
-      }
-      setPasteMsg("クリップボードの内容を反映しました。");
-    } catch (e) {
-      setPasteMsg(
-        "貼り付けできませんでした（ブラウザで貼り付けの許可が必要な場合があります）。"
-      );
-    }
+  // 添付ファイルの選択内容をすべてクリアする
+  const handleClearAttachment = () => {
+    setFolderPath("");
+    setFileName("");
+    setLocalFile(null);
+    setFileContent("");
+    setFileSha(null);
+    setIsEditingFile(false);
+    setPreviewError(null);
+    setWorkbook(null);
+    setActiveSheetIndex(0);
+    setSpreadsheetData(null);
   };
 
   const fileType = getFileType(github_path);
@@ -476,38 +479,12 @@ export default function NewLearningDialog({
         </DialogTitle>
         <DialogContent dividers>
           {/* === 基本情報 === */}
-          <Box
-            sx={{
-              mt: 1,
-              mb: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              flexWrap: "wrap",
-            }}
+          <Typography
+            variant="subtitle2"
+            sx={{ mt: 1, mb: 1, fontWeight: 700, color: "primary.main" }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
-              基本情報
-            </Typography>
-            {/* コピー済みの記事URL/テキストを取り込む（iOSの共有の代わり） */}
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ContentPasteGoOutlinedIcon />}
-              onClick={handlePasteFromClipboard}
-            >
-              クリップボードから貼り付け
-            </Button>
-          </Box>
-          {pasteMsg && (
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", display: "block", mb: 1 }}
-            >
-              {pasteMsg}
-            </Typography>
-          )}
+            基本情報
+          </Typography>
 
           {/* タイトル（必須） */}
           <TextField
@@ -635,16 +612,36 @@ export default function NewLearningDialog({
               ★が多いほど「よく理解できた」。未設定のまま検索用のメモとしてだけ残すこともできます。
             </Typography>
           </Box>
-          {/* === GitHub連携（フォルダ選択＋ファイル指定） === */}
+          {/* === ファイル添付 === */}
           <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, color: "primary.main" }}>
-              GitHub連携（任意）
-            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                mb: 0.5,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
+                ファイルを添付する（任意）
+              </Typography>
+              {hasAttachment && (
+                <Button
+                  size="small"
+                  color="inherit"
+                  startIcon={<CloseIcon fontSize="small" />}
+                  onClick={handleClearAttachment}
+                >
+                  添付を解除
+                </Button>
+              )}
+            </Box>
             <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mb: 1.5 }}>
-              学んだコードやファイルを紐づけたいときに使います。使わなくても登録できます。
+              学んだコードやファイルをGitHubリポジトリに保存して紐づけられます。使わなくても登録できます。
             </Typography>
 
-            {/* --- フォルダ選択エリア --- */}
+            {/* --- 保存先フォルダ --- */}
             <Box
               sx={{
                 display: "flex",
@@ -659,24 +656,21 @@ export default function NewLearningDialog({
                 variant="outlined"
                 size="small"
                 fullWidth
-                value={github_path.endsWith("/") ? github_path : github_path.split("/").slice(0, -1).join("/")}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  // 入力の最後が「/」で終わっていなければ補完
-                  setGithub_path(val.endsWith("/") ? val : val + "/");
-                }}
-                placeholder="例: src/components/"
+                value={folderPath}
+                onChange={(e) => setFolderPath(e.target.value.replace(/^\/+/, "").replace(/\/+$/, ""))}
+                placeholder="未入力ならリポジトリ直下"
+                helperText="例: src/components"
               />
               <IconButton
                 onClick={() => setIsFolderSelectorOpen(true)}
                 color="primary"
-                title="フォルダ選択"
+                title="GitHubのフォルダから選ぶ"
               >
                 <FolderOpenIcon />
               </IconButton>
             </Box>
 
-            {/* --- ファイル名入力＆ローカル／GitHub選択エリア --- */}
+            {/* --- ファイル名（新規作成 or アップロード or 既存ファイル選択） --- */}
             <Box
               sx={{
                 display: "flex",
@@ -690,18 +684,8 @@ export default function NewLearningDialog({
                 variant="outlined"
                 size="small"
                 fullWidth
-                value={
-                  github_path.endsWith("/")
-                    ? ""
-                    : github_path.split("/").pop() || ""
-                }
-                onChange={(e) => {
-                  // 現在のフォルダパスを維持しながらファイル名を更新
-                  const folderPath = github_path.endsWith("/")
-                    ? github_path
-                    : github_path.split("/").slice(0, -1).join("/") + "/";
-                  setGithub_path(folderPath + e.target.value);
-                }}
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
                 placeholder="例: index.tsx"
               />
 
@@ -714,16 +698,16 @@ export default function NewLearningDialog({
               <IconButton
                 onClick={handleUploadButtonClick}
                 color="primary"
-                title="PCからアップロード"
+                title="PCからファイルをアップロード"
               >
                 <UploadFileIcon />
               </IconButton>
               <IconButton
                 onClick={() => setIsSelectorOpen(true)}
                 color="primary"
-                title="GitHubからファイル選択"
+                title="GitHub上の既存ファイルを選ぶ"
               >
-                <FolderOpenIcon />
+                <InsertDriveFileOutlinedIcon />
               </IconButton>
             </Box>
           </Box>
@@ -872,8 +856,9 @@ export default function NewLearningDialog({
       <GitHubFolderSelector
         open={isFolderSelectorOpen}
         onClose={() => setIsFolderSelectorOpen(false)}
-        onSelectFolder={(folderPath) => {
-          setGithub_path(folderPath + "/"); // フォルダー選択時は末尾にスラッシュ
+        onSelectFolder={(selectedFolder) => {
+          // フォルダだけ更新し、既に入力済みのファイル名はそのまま維持する
+          setFolderPath(selectedFolder);
           setIsFolderSelectorOpen(false);
         }}
         githubLogin={githubLoginSafe}

@@ -171,7 +171,10 @@ export default function GitHubFolderSelector({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    // disableEnforceFocus: このダイアログは他のダイアログ（学習内容の登録・編集）の上に
+    // 重ねて開かれることがあり、フォーカストラップ同士が競合すると閉じた後に
+    // 元のダイアログ側の操作（プルダウン選択など）が反応しなくなることがあるための対策
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <FolderIcon color="primary" /> 保存先フォルダーを選ぶ
       </DialogTitle>
