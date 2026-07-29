@@ -17,6 +17,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import AppBar from "@mui/material/AppBar";
 import LinearProgress from "@mui/material/LinearProgress";
 import Skeleton from "@mui/material/Skeleton";
+import CircularProgress from "@mui/material/CircularProgress";
 import { alpha } from "@mui/material/styles";
 import {
   learningApi,
@@ -166,8 +167,9 @@ type Message = {
 
 
 export default function LearningContent() {
-  const { octokit,isAuthenticated, login, userId,repoName,githubLogin } = useContext(AuthContext);
+  const { octokit,isAuthenticated, login, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
   const { showToast } = useToast();
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // GitHubログインボタン押下〜リダイレクトまでの表示用
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
@@ -1394,32 +1396,51 @@ export default function LearningContent() {
             p: { xs: 4, sm: 6 },
           }}
         >
-          <MenuBookIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
-            学習ログへようこそ
-          </Typography>
-          <Typography sx={{ mb: 3, color: "text.secondary" }}>
-            学んだことを記録・振り返るには、
-            <br />
-            GitHubアカウントでのログインが必要です。
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            fullWidth
-            startIcon={<GitHubIcon />}
-            onClick={login}
-          >
-            GitHubでログイン
-          </Button>
-          <Typography
-            variant="caption"
-            sx={{ display: "block", mt: 2, color: "text.secondary", lineHeight: 1.7 }}
-          >
-            ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
-            <br />
-            <code>learning-site-&lt;ユーザー名&gt;</code>（非公開）が作成されます。
-          </Typography>
+          {isAuthenticating || isLoggingIn ? (
+            <>
+              <CircularProgress sx={{ mb: 2 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                接続中です…
+              </Typography>
+              <Typography sx={{ mt: 1, color: "text.secondary" }}>
+                {isAuthenticating
+                  ? "GitHubアカウントを確認しています。バックエンドが起動中の場合、数十秒かかることがあります。"
+                  : "GitHubのログイン画面に移動します。"}
+              </Typography>
+            </>
+          ) : (
+            <>
+              <MenuBookIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
+                学習ログへようこそ
+              </Typography>
+              <Typography sx={{ mb: 3, color: "text.secondary" }}>
+                学んだことを記録・振り返るには、
+                <br />
+                GitHubアカウントでのログインが必要です。
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                startIcon={<GitHubIcon />}
+                onClick={() => {
+                  setIsLoggingIn(true);
+                  login();
+                }}
+              >
+                GitHubでログイン
+              </Button>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 2, color: "text.secondary", lineHeight: 1.7 }}
+              >
+                ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
+                <br />
+                <code>learning-site-&lt;ユーザー名&gt;</code>（非公開）が作成されます。
+              </Typography>
+            </>
+          )}
         </Box>
       </Box>
     );
