@@ -675,6 +675,7 @@ export default function LearningContent() {
     }
 
     const fetchData = async () => {
+      try {
       // 4つのAPIを並行して呼び出し、すべてのデータが揃うのを待つ
       const [learnings, tags, learningTags, categories] = await Promise.all([
         learningApi(userId),
@@ -682,7 +683,14 @@ export default function LearningContent() {
         LearningTagApi(),
         CategoriesApi(),
       ]);
-      if (learnings && tags && learningTags && categories) {
+      // ★ APIからの戻り値が配列であることを保証してから.mapを呼ぶ
+      //   （エラー時にHTML文字列等の非配列値が返ってきて例外になるのを防ぐ）
+      if (
+        Array.isArray(learnings) &&
+        Array.isArray(tags) &&
+        Array.isArray(learningTags) &&
+        Array.isArray(categories)
+      ) {
         // 1. タグIDとタグ名をマッピングするオブジェクトを作成 (例: {1: 'PHP', 2: 'JavaScript'})
         const tagMap = new Map<number, string>(
           tags.map((tag: Tag) => [tag.id, tag.name])
@@ -718,6 +726,11 @@ export default function LearningContent() {
           tags,
           categories,
         });
+      } else {
+        console.error("Failed to fetch some of the required data.");
+      }
+      } catch (error) {
+        console.error("An error occurred during initial data fetch:", error);
       }
     };
     fetchData().finally(() => setDataLoading(false));
