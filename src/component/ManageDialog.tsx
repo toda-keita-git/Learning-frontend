@@ -30,6 +30,9 @@ import { useToast } from "../ToastContext";
 type Entity = { id: number; name: string };
 type Kind = "category" | "tag";
 
+// カテゴリー・タグは全ユーザー共有のため、編集・削除は管理者（id=1）のみ許可する
+const ADMIN_USER_ID = 1;
+
 interface ManageDialogProps {
   open: boolean;
   onClose: () => void;
@@ -37,6 +40,7 @@ interface ManageDialogProps {
   tags: Entity[];
   // 変更後に一覧を再取得させる
   onChanged: () => void | Promise<void>;
+  userId: number | null;
 }
 
 export default function ManageDialog({
@@ -45,8 +49,10 @@ export default function ManageDialog({
   categories,
   tags,
   onChanged,
+  userId,
 }: ManageDialogProps) {
   const { showToast } = useToast();
+  const isAdmin = userId === ADMIN_USER_ID;
   // 編集中の行（例: "category-3"）と入力値
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -63,12 +69,13 @@ export default function ManageDialog({
   };
 
   const saveEdit = async (kind: Kind, id: number) => {
+    if (!isAdmin || !userId) return;
     const name = editValue.trim().replace(/^#/, "");
     if (!name) return;
     setBusy(true);
     try {
-      if (kind === "category") await updateCategoryApi(id, name);
-      else await updateTagApi(id, name);
+      if (kind === "category") await updateCategoryApi(id, name, userId);
+      else await updateTagApi(id, name, userId);
       cancelEdit();
       await onChanged();
       showToast("名前を変更しました。", "success");
@@ -80,6 +87,7 @@ export default function ManageDialog({
   };
 
   const handleDelete = async (kind: Kind, item: Entity) => {
+    if (!isAdmin || !userId) return;
     const label = kind === "category" ? "カテゴリー" : "タグ";
     if (
       !window.confirm(
@@ -89,8 +97,8 @@ export default function ManageDialog({
       return;
     setBusy(true);
     try {
-      if (kind === "category") await deleteCategoryApi(item.id);
-      else await deleteTagApi(item.id);
+      if (kind === "category") await deleteCategoryApi(item.id, userId);
+      else await deleteTagApi(item.id, userId);
       await onChanged();
       showToast(`${label}を削除しました。`, "success");
     } catch (e: any) {
@@ -144,7 +152,7 @@ export default function ManageDialog({
                 key={key}
                 divider
                 secondaryAction={
-                  isEditing ? (
+                  !isAdmin ? null : isEditing ? (
                     <>
                       <Tooltip title="保存">
                         <span>
@@ -221,7 +229,9 @@ export default function ManageDialog({
       <DialogTitle>カテゴリー・タグの管理</DialogTitle>
       <DialogContent dividers>
         <Typography variant="caption" sx={{ color: "text.secondary", mb: 1.5, display: "block" }}>
-          名前の変更（✏️）と削除（🗑️）ができます。学習記録で使用中のものは削除できません。
+          {isAdmin
+            ? "名前の変更（✏️）と削除（🗑️）ができます。学習記録で使用中のものは削除できません。"
+            : "カテゴリー・タグは全員で共有しているため、名前の変更・削除は管理者のみ行えます。"}
         </Typography>
         {renderSection("category", categories)}
         <Divider sx={{ my: 1 }} />

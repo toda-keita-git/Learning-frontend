@@ -1924,6 +1924,7 @@ export default function LearningContent() {
         categories={allCategories}
         tags={allTags}
         onChanged={refetchData}
+        userId={userId}
       />
        <GitHubFolderSelector
         open={isFolderSelectorOpen}

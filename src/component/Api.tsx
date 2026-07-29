@@ -112,9 +112,16 @@ export const createCategoryApi = async (categoryData: { name: string }) => {
 };
 
 // カテゴリーの名前を変更するAPI
-export const updateCategoryApi = async (id: number, name: string) => {
+export const updateCategoryApi = async (
+  id: number,
+  name: string,
+  userId: number
+) => {
   try {
-    const response = await axios.post(`/category_update/${id}`, { name });
+    const response = await axios.post(
+      `/category_update/${id}?user_id=${userId}`,
+      { name }
+    );
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateCategoryApi.", error);
@@ -122,10 +129,12 @@ export const updateCategoryApi = async (id: number, name: string) => {
   }
 };
 
-// カテゴリーを削除するAPI（使用中の場合は409が返る）
-export const deleteCategoryApi = async (id: number) => {
+// カテゴリーを削除するAPI（使用中の場合は409、管理者以外は403が返る）
+export const deleteCategoryApi = async (id: number, userId: number) => {
   try {
-    const response = await axios.post(`/category_delete/${id}`);
+    const response = await axios.post(
+      `/category_delete/${id}?user_id=${userId}`
+    );
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in deleteCategoryApi.", error);
@@ -145,9 +154,15 @@ export const createTagApi = async (tagData: { name: string }) => {
 };
 
 // タグの名前を変更するAPI
-export const updateTagApi = async (id: number, name: string) => {
+export const updateTagApi = async (
+  id: number,
+  name: string,
+  userId: number
+) => {
   try {
-    const response = await axios.post(`/tag_update/${id}`, { name });
+    const response = await axios.post(`/tag_update/${id}?user_id=${userId}`, {
+      name,
+    });
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateTagApi.", error);
@@ -155,10 +170,10 @@ export const updateTagApi = async (id: number, name: string) => {
   }
 };
 
-// タグを削除するAPI（使用中の場合は409が返る）
-export const deleteTagApi = async (id: number) => {
+// タグを削除するAPI（使用中の場合は409、管理者以外は403が返る）
+export const deleteTagApi = async (id: number, userId: number) => {
   try {
-    const response = await axios.post(`/tag_delete/${id}`);
+    const response = await axios.post(`/tag_delete/${id}?user_id=${userId}`);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in deleteTagApi.", error);
