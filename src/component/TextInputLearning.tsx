@@ -4,7 +4,6 @@ import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import SendIcon from "@mui/icons-material/Send";
 import TuneIcon from "@mui/icons-material/Tune"; // 詳細検索アイコン
-import { MicButton } from "./MicButton"; // 音声入力ボタン
 
 // --- TextInput Component ---
 
@@ -49,17 +48,11 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
       <TextField
         fullWidth
         variant="outlined"
-        placeholder="タイトル名検索…（🎤で音声入力も可）"
+        placeholder="タイトル名検索…"
         size="small"
         sx={{ mr: 0.5 }}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-      />
-      {/* 音声で検索ワードを入力（対応ブラウザでのみ表示） */}
-      <MicButton
-        onTranscript={(t) =>
-          setInputValue((prev) => (prev ? prev + " " + t : t))
-        }
       />
       <IconButton color="primary" type="submit">
         <SendIcon />

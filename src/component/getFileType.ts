@@ -6,6 +6,12 @@ export const getFileType = (path: string): string => {
   // ファイル名自体で判定した方が良いもの (Dockerfileなど)
   const filename = path.split("/").pop()?.toLowerCase();
   if (filename === "dockerfile") return "docker";
+  if (filename === "makefile" || filename === "gnumakefile") return "makefile";
+  if (filename === "cmakelists.txt") return "cmake";
+  if (filename === "nginx.conf") return "nginx";
+  if (filename === ".editorconfig") return "editorconfig";
+  if (filename === ".gitignore" || filename === ".dockerignore" || filename === ".npmignore")
+    return "git";
 
   switch (extension) {
     // --- 画像 ---
@@ -38,7 +44,6 @@ export const getFileType = (path: string): string => {
     case "xls":
     case "csv":
       return "excel";
-    case "xls":
     case "doc":
     case "docx":
     case "ppt":
@@ -130,8 +135,6 @@ export const getFileType = (path: string): string => {
       return "graphql";
     case "toml":
       return "toml";
-    case "csv":
-      return "csv";
     case "sh":
     case "bash":
     case "zsh":
@@ -157,6 +160,112 @@ export const getFileType = (path: string): string => {
       return "dart";
     case "jl":
       return "julia";
+
+    // --- 以下、追加のプログラミング言語・設定ファイル形式 ---
+    case "scala":
+    case "sc":
+      return "scala";
+    case "groovy":
+    case "gradle":
+      return "groovy";
+    case "hs":
+    case "lhs":
+      return "haskell";
+    case "clj":
+    case "cljs":
+    case "cljc":
+      return "clojure";
+    case "elm":
+      return "elm";
+    case "erl":
+    case "hrl":
+      return "erlang";
+    case "fs":
+    case "fsx":
+      return "fsharp";
+    case "vb":
+    case "vbs":
+      return "vbnet";
+    case "cmake":
+      return "cmake";
+    case "conf":
+    case "cfg":
+      return "ini";
+    case "tf":
+    case "tfvars":
+    case "hcl":
+      return "hcl";
+    case "proto":
+      return "protobuf";
+    case "sol":
+      return "solidity";
+    case "zig":
+      return "zig";
+    case "nim":
+      return "nim";
+    case "cr":
+      return "crystal";
+    case "hx":
+      return "haxe";
+    case "coffee":
+      return "coffeescript";
+    case "hbs":
+    case "handlebars":
+      return "handlebars";
+    case "twig":
+      return "twig";
+    case "jinja":
+    case "jinja2":
+      return "django";
+    case "diff":
+    case "patch":
+      return "diff";
+    case "log":
+      return "log";
+    case "asm":
+    case "s":
+      return "nasm";
+    case "awk":
+      return "awk";
+    case "as":
+      return "actionscript";
+    case "au3":
+      return "autoit";
+    case "tex":
+    case "latex":
+      return "latex";
+    case "nix":
+      return "nix";
+    case "ml":
+    case "mli":
+      return "ocaml";
+    case "purs":
+      return "purescript";
+    case "re":
+      return "reason";
+    case "sml":
+      return "sml";
+    case "pro":
+      return "prolog";
+    case "matlab":
+      return "matlab";
+    case "v":
+    case "vh":
+      return "verilog";
+    case "vhd":
+    case "vhdl":
+      return "vhdl";
+    case "editorconfig":
+      return "editorconfig";
+    case "npmrc":
+    case "yarnrc":
+      return "ini";
+    case "json5":
+      return "json5";
+    case "jsonp":
+      return "jsonp";
+    case "txt":
+      return "plaintext";
 
     default:
       return "plaintext";

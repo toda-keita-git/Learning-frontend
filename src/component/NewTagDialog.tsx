@@ -30,7 +30,14 @@ export default function NewTagDialog({
   }, [open]);
 
   const trimmed = name.trim().replace(/^#/, ""); // 先頭の#は取り除く
-  const isDuplicate = existingTags.includes(trimmed);
+  const isDuplicate = existingTags.some(
+    (t) => t.toLowerCase() === trimmed.toLowerCase()
+  );
+  // 入力中の文字列で既存タグを部分一致（大文字小文字を区別しない）で絞り込む。
+  // 検索ボタンは作らず、入力するたびに自動で絞り込まれる
+  const filteredTags = trimmed
+    ? existingTags.filter((t) => t.toLowerCase().includes(trimmed.toLowerCase()))
+    : existingTags;
 
   const handleSubmit = () => {
     if (trimmed && !isDuplicate) {
@@ -50,7 +57,7 @@ export default function NewTagDialog({
               component="p"
               sx={{ mt: 1 }}
             >
-              既存のタグ
+              既存のタグ{trimmed && `（「${trimmed}」を含むもの）`}
             </Typography>
             <Box
               sx={{
@@ -62,9 +69,15 @@ export default function NewTagDialog({
                 my: 1,
               }}
             >
-              {existingTags.map((tag) => (
-                <Chip key={tag} label={`#${tag}`} size="small" />
-              ))}
+              {filteredTags.length > 0 ? (
+                filteredTags.map((tag) => (
+                  <Chip key={tag} label={`#${tag}`} size="small" />
+                ))
+              ) : (
+                <Typography variant="body2" color="textSecondary" sx={{ p: 1 }}>
+                  一致するタグはありません
+                </Typography>
+              )}
             </Box>
             <Divider sx={{ mb: 1 }} />
           </>

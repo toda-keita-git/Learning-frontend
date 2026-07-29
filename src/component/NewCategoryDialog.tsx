@@ -36,9 +36,21 @@ export default function NewCategoryDialog({
     }
   }, [open]);
 
+  const trimmed = name.trim();
+  // 入力中の文字列で既存カテゴリーを部分一致（大文字小文字を区別しない）で絞り込む。
+  // 検索ボタンは作らず、入力するたびに自動で絞り込まれる
+  const filteredCategories = trimmed
+    ? existingCategories.filter((c) =>
+        c.toLowerCase().includes(trimmed.toLowerCase())
+      )
+    : existingCategories;
+  const isDuplicate = existingCategories.some(
+    (c) => c.toLowerCase() === trimmed.toLowerCase()
+  );
+
   const handleSubmit = () => {
-    if (name.trim()) {
-      onSubmit(name.trim());
+    if (trimmed && !isDuplicate) {
+      onSubmit(trimmed);
     }
   };
 
@@ -55,7 +67,7 @@ export default function NewCategoryDialog({
               component="p"
               sx={{ mt: 1 }}
             >
-              既存のカテゴリー
+              既存のカテゴリー{trimmed && `（「${trimmed}」を含むもの）`}
             </Typography>
             <Box
               sx={{
@@ -66,13 +78,23 @@ export default function NewCategoryDialog({
                 my: 1,
               }}
             >
-              <List dense>
-                {existingCategories.map((category) => (
-                  <ListItem key={category}>
-                    <ListItemText primary={category} />
-                  </ListItem>
-                ))}
-              </List>
+              {filteredCategories.length > 0 ? (
+                <List dense>
+                  {filteredCategories.map((category) => (
+                    <ListItem key={category}>
+                      <ListItemText primary={category} />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="textSecondary"
+                  sx={{ p: 2, textAlign: "center" }}
+                >
+                  一致するカテゴリーはありません
+                </Typography>
+              )}
             </Box>
             <Divider sx={{ mb: 1 }} />
           </>
@@ -89,6 +111,8 @@ export default function NewCategoryDialog({
           variant="standard"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          error={isDuplicate}
+          helperText={isDuplicate ? "そのカテゴリーは既に存在します" : " "}
           onKeyPress={(e) => {
             if (e.key === "Enter") {
               handleSubmit();
@@ -98,7 +122,7 @@ export default function NewCategoryDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>キャンセル</Button>
-        <Button onClick={handleSubmit} disabled={!name.trim()}>
+        <Button onClick={handleSubmit} disabled={!trimmed || isDuplicate}>
           登録
         </Button>
       </DialogActions>

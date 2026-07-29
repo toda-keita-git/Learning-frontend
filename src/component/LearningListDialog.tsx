@@ -6,10 +6,7 @@ import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+import Autocomplete from "@mui/material/Autocomplete";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -29,7 +26,6 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
-import type { SelectChangeEvent } from "@mui/material";
 
 interface LearningListItem {
   id: number;
@@ -146,22 +142,16 @@ export default function LearningListDialog({
               ),
             }}
           />
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="list-category-filter-label">カテゴリー</InputLabel>
-            <Select
-              labelId="list-category-filter-label"
-              label="カテゴリー"
-              value={categoryFilter}
-              onChange={(e: SelectChangeEvent) => setCategoryFilter(e.target.value)}
-            >
-              <MenuItem value="all">すべて</MenuItem>
-              {categories.map((cat) => (
-                <MenuItem key={cat.id} value={cat.name}>
-                  {cat.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            size="small"
+            sx={{ minWidth: 200 }}
+            options={["all", ...categories.map((cat) => cat.name)]}
+            getOptionLabel={(option) => (option === "all" ? "すべて" : option)}
+            value={categoryFilter || "all"}
+            onChange={(_event, newValue) => setCategoryFilter(newValue || "all")}
+            disableClearable
+            renderInput={(params) => <TextField {...params} label="カテゴリー" />}
+          />
         </Box>
 
         {filteredSorted.length === 0 ? (

@@ -8,12 +8,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Rating from "@mui/material/Rating";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import FormHelperText from "@mui/material/FormHelperText";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
@@ -27,10 +22,8 @@ import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
-import InputAdornment from "@mui/material/InputAdornment";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import CloseIcon from "@mui/icons-material/Close";
-import { MicButton } from "./MicButton"; // 音声入力ボタン
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
 import Spreadsheet from "react-spreadsheet"; // ★ react-spreadsheet をインポート
@@ -503,7 +496,7 @@ export default function NewLearningDialog({
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* 内容・メモ（🎤 音声入力対応） */}
+          {/* 内容・メモ */}
           <TextField
             margin="normal"
             label="内容・メモ"
@@ -512,26 +505,9 @@ export default function NewLearningDialog({
             multiline
             rows={4}
             variant="outlined"
-            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます（🎤で音声入力も可）"
+            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
             value={explanatoryText}
             onChange={(e) => setExplanatoryText(e.target.value)}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment
-                  position="end"
-                  sx={{ alignSelf: "flex-start", mt: 1 }}
-                >
-                  <MicButton
-                    size="small"
-                    onTranscript={(t) =>
-                      setExplanatoryText((prev) =>
-                        prev ? prev + " " + t : t
-                      )
-                    }
-                  />
-                </InputAdornment>
-              ),
-            }}
           />
 
           {/* 参考URL（任意） */}
@@ -552,22 +528,26 @@ export default function NewLearningDialog({
             分類
           </Typography>
 
-          {/* カテゴリー（単一選択） */}
-          <FormControl variant="outlined" fullWidth margin="normal">
-            <InputLabel>カテゴリー</InputLabel>
-            <Select
-              label="カテゴリー"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              {allCategories.map((category: any) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>学習内容を分類するカテゴリを選びます</FormHelperText>
-          </FormControl>
+          {/* カテゴリー（単一選択・検索可） */}
+          <Autocomplete
+            options={allCategories}
+            getOptionLabel={(option: any) => option.name || ""}
+            isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
+            value={allCategories.find((c: any) => c.id === selectedCategory) || null}
+            onChange={(_event, newValue: any) => {
+              setSelectedCategory(newValue ? newValue.id : "");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="outlined"
+                label="カテゴリー"
+                placeholder="入力して検索"
+                helperText="学習内容を分類するカテゴリを選びます。見つからない場合は「カテゴリー・タグの管理」から新規作成できます"
+              />
+            )}
+            sx={{ mt: 2 }}
+          />
 
           {/* ハッシュタグ（複数選択・自由入力可） */}
           <Autocomplete

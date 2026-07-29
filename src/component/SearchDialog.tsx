@@ -103,23 +103,18 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
           />
         </FormControl>
 
-        {/* 🔹カテゴリー選択 */}
-        <FormControl fullWidth sx={{ mb: 3 }}>
-          <InputLabel id="category-select-label">カテゴリー</InputLabel>
-          <Select
-            labelId="category-select-label"
-            value={category}
-            label="カテゴリー"
-            onChange={(e: SelectChangeEvent) => setCategory(e.target.value)}
-          >
-            <MenuItem value="all">すべて</MenuItem>
-            {allCategories.map((cat) => (
-              <MenuItem key={cat.id} value={cat.name}>
-                {cat.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* 🔹カテゴリー選択（検索可） */}
+        <Autocomplete
+          options={["all", ...allCategories.map((cat) => cat.name)]}
+          getOptionLabel={(option) => (option === "all" ? "すべて" : option)}
+          value={category || "all"}
+          onChange={(_event, newValue) => setCategory(newValue || "all")}
+          disableClearable
+          renderInput={(params) => (
+            <TextField {...params} label="カテゴリー" placeholder="入力して検索" />
+          )}
+          sx={{ mb: 3 }}
+        />
 
         {/* 🔹ソート選択 */}
         <FormControl fullWidth>

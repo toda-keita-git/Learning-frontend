@@ -71,7 +71,6 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
-import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -1171,11 +1170,16 @@ export default function LearningContent() {
     }, 500);
   };
 
+  // 理解度0（全く理解できていない）または5（完璧に理解済み）の記録は復習対象から除外する
+  const isReviewable = (item: LearningRecord) =>
+    item.understanding_level !== 0 && item.understanding_level !== 5;
+
   // 今日の復習：間隔反復(SRS)で復習期日が来た記録を優先し、フラッシュカードで振り返る
   const handleReview = () => {
+    const reviewableItems = learningData.filter(isReviewable);
     // 間隔反復(SRS)で本日が期日の記録を優先。期日のものが無ければ、全体から先取り学習として出す
-    const dueItems = learningData.filter((item) => isDue(userId, item.id));
-    const pool = dueItems.length > 0 ? dueItems : learningData;
+    const dueItems = reviewableItems.filter((item) => isDue(userId, item.id));
+    const pool = dueItems.length > 0 ? dueItems : reviewableItems;
 
     // 件数は絞らず並べ替えだけ行い、実際に何件やるかはスキマ時間の選択(ReviewFlashcards側)に委ねる
     const candidates = pool
@@ -1272,7 +1276,7 @@ export default function LearningContent() {
   };
 
   // 復習候補（間隔反復で本日が期日）の件数
-  const reviewCount = learningData.filter((l) => isDue(userId, l.id)).length;
+  const reviewCount = learningData.filter((l) => isReviewable(l) && isDue(userId, l.id)).length;
 
   // アプリアイコンに未読の復習件数バッジを表示（対応ブラウザ・PWAインストール時のみ）
   useEffect(() => {
@@ -2073,13 +2077,6 @@ export default function LearningContent() {
               <ListItemText
                 primary="学習の記録（ヘッダーの炎アイコン）"
                 secondary="連続で記録した日数（ストリーク）や合計を、GitHubの「草」のようなグラフで振り返れます。続けるモチベーションに。"
-              />
-            </ListItem>
-            <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><MicNoneOutlinedIcon color="primary" /></ListItemIcon>
-              <ListItemText
-                primary="音声入力（🎤マイクのアイコン）"
-                secondary="入力欄や「新規学習内容」の内容・メモ欄で、マイクを押すと話した内容が文字になります。移動中でも声でサッとメモ・検索できます（対応ブラウザのみ）。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
