@@ -38,7 +38,7 @@ import GitHubFolderSelector from "./GitHubFolderSelector";
 import { AuthContext } from "../Context";
 import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
-import { extractDocxText, createDocxFromText } from "./docxPreview";
+import { extractDocxText } from "./docxPreview";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
 
@@ -121,6 +121,7 @@ export default function NewLearningDialog({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [pdfPages, setPdfPages] = useState<string[]>([]); // PDF各ページの画像（閲覧専用）
   const [pptxSlides, setPptxSlides] = useState<PptxSlide[]>([]); // PPTX各スライドのテキスト（閲覧専用）
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0); // 表示中のスライド番号
   const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]); // ZIP内のファイル一覧（閲覧専用）
 
   // ← AuthContext から値を取得（これらは string | null の可能性がある想定）
@@ -251,6 +252,7 @@ export default function NewLearningDialog({
     setActiveSheetIndex(0);
     setPdfPages([]);
     setPptxSlides([]);
+    setActiveSlideIndex(0);
     setZipEntries([]);
 
     const result = await onFetchFile(pathToFetch);
@@ -334,6 +336,7 @@ export default function NewLearningDialog({
     setActiveSheetIndex(0);
     setPdfPages([]);
     setPptxSlides([]);
+    setActiveSlideIndex(0);
     setZipEntries([]);
 
     const reader = new FileReader();
@@ -444,19 +447,9 @@ export default function NewLearningDialog({
         contentIsBase64: true, // ★ Base64形式であるフラグ
       };
     }
-    // 3. GitHub上のWordファイル(.docx)が編集された場合の処理
-    //    （元の書式は保持されず、編集後のテキストから新しい.docxを作り直す）
-    else if (isEditingFile && fileSha && fileType === "docx") {
-      const newBase64Content = await createDocxFromText(fileContent);
-      editedFileData = {
-        path: github_path,
-        content: newBase64Content,
-        sha: fileSha,
-        contentIsBase64: true,
-      };
-    }
-    // 4. GitHub上のテキストファイルが編集された場合の処理
-    else if (isEditingFile && fileSha) {
+    // 3. GitHub上のテキストファイルが編集された場合の処理
+    //    （Word .docxは閲覧専用のため、ここでは編集対象にならない）
+    else if (isEditingFile && fileSha && fileType !== "docx") {
       editedFileData = {
         path: github_path,
         content: fileContent,
@@ -515,6 +508,7 @@ export default function NewLearningDialog({
     setSpreadsheetData(null); // ★ スプレッドシートデータもリセット
     setPdfPages([]);
     setPptxSlides([]);
+    setActiveSlideIndex(0);
     setZipEntries([]);
   };
 
@@ -536,6 +530,7 @@ export default function NewLearningDialog({
     setSpreadsheetData(null);
     setPdfPages([]);
     setPptxSlides([]);
+    setActiveSlideIndex(0);
     setZipEntries([]);
   };
 
@@ -841,30 +836,76 @@ export default function NewLearningDialog({
                 </Stack>
               </Box>
             ) : pptxSlides.length > 0 ? (
-              // PowerPointは閲覧専用（スライドごとのテキストのみ抽出して表示。レイアウト・画像は再現しない）
-              <Box sx={{ flexGrow: 1, overflow: "auto", p: 2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                  ※ PowerPointはテキストのみのプレビューです（レイアウト・画像は表示されません）
-                </Typography>
-                {pptxSlides.map((slide) => (
-                  <Box key={slide.slideNumber} sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      スライド {slide.slideNumber}
-                    </Typography>
-                    {slide.lines.length > 0 ? (
-                      slide.lines.map((line, i) => (
-                        <Typography key={i} variant="body2">
-                          {line}
+              // PowerPointは閲覧専用。1枚ずつスライドのような見た目で表示する
+              // （テキストのみの再現で、実際のレイアウト・画像・デザインは反映されない）
+              <>
+                <Box sx={{ borderBottom: 1, borderColor: "divider", flexShrink: 0 }}>
+                  <Tabs
+                    value={activeSlideIndex}
+                    onChange={(_event, newValue) => setActiveSlideIndex(newValue)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    aria-label="PowerPoint slides"
+                  >
+                    {pptxSlides.map((slide, index) => (
+                      <Tab
+                        label={`${slide.slideNumber}`}
+                        key={slide.slideNumber}
+                        id={`slide-tab-${index}`}
+                      />
+                    ))}
+                  </Tabs>
+                </Box>
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    overflow: "auto",
+                    p: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    bgcolor: "#e8e8e8",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                    ※ テキストのみのプレビューです（レイアウト・画像は表示されません）
+                  </Typography>
+                  {pptxSlides[activeSlideIndex] && (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        maxWidth: 480,
+                        aspectRatio: "16 / 9",
+                        bgcolor: "#fff",
+                        border: "1px solid #ddd",
+                        borderRadius: 1,
+                        boxShadow: 1,
+                        p: 3,
+                        overflow: "auto",
+                      }}
+                    >
+                      {pptxSlides[activeSlideIndex].title && (
+                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, color: "#000" }}>
+                          {pptxSlides[activeSlideIndex].title}
                         </Typography>
-                      ))
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        （テキストなし）
-                      </Typography>
-                    )}
-                  </Box>
-                ))}
-              </Box>
+                      )}
+                      {pptxSlides[activeSlideIndex].bodyLines.length > 0 ? (
+                        <Stack spacing={0.5}>
+                          {pptxSlides[activeSlideIndex].bodyLines.map((line, i) => (
+                            <Typography key={i} variant="body2" sx={{ color: "#333" }}>
+                              ・{line}
+                            </Typography>
+                          ))}
+                        </Stack>
+                      ) : !pptxSlides[activeSlideIndex].title ? (
+                        <Typography variant="body2" color="text.secondary">
+                          （テキストなし）
+                        </Typography>
+                      ) : null}
+                    </Box>
+                  )}
+                </Box>
+              </>
             ) : zipEntries.length > 0 ? (
               // ZIPは閲覧専用（中身のファイル一覧のみ。展開・編集はできない）
               <Box sx={{ flexGrow: 1, overflow: "auto", p: 2 }}>
@@ -952,7 +993,7 @@ export default function NewLearningDialog({
                       </SyntaxHighlighter>
                     )}
                   </Box>
-                  {fileType !== "binary" && (
+                  {fileType !== "binary" && fileType !== "docx" && (
                     <Box sx={{ mt: 1, textAlign: "right" }}>
                       <Button size="small" onClick={() => setIsEditingFile(!isEditingFile)}>
                         {isEditingFile ? "プレビューに戻る" : "編集"}
@@ -961,7 +1002,7 @@ export default function NewLearningDialog({
                   )}
                   {fileType === "docx" && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                      ※ Wordの元の書式・画像・表は保持されません。保存すると、この文章だけを含む新しい.docxファイルとして保存されます。
+                      ※ Wordは閲覧専用です（文章のみ抽出して表示。元の書式・画像・表は再現されません）
                     </Typography>
                   )}
                 </div>
