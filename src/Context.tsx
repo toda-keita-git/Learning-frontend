@@ -11,9 +11,10 @@ interface AuthContextType {
   isAuthenticated: boolean;
   userId: number | null;
   githubLogin: string | null;
-  repoName: string | null; 
+  repoName: string | null;
   token: string | null;
   login: () => void;
+  isAuthenticating: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -21,9 +22,10 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   userId: null,
   githubLogin: null,
-  repoName: null, 
+  repoName: null,
   token: null,
   login: () => {},
+  isAuthenticating: false,
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -31,6 +33,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [userId, setUserId] = useState<number | null>(null);
   const [githubLogin, setGithubLogin] = useState<string | null>(null);
   const [token, _setToken] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const effectRan = useRef(false);
   const repoName = githubLogin ? `learning-site-${githubLogin}` : null;
@@ -48,6 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (code && !octokit) {
       const exchangeCodeForToken = async (authCode: string) => {
+        setIsAuthenticating(true);
         try {
           const response = await fetch(`${backendUrl}/github/callback`, {
             method: "POST",
@@ -73,6 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (err) {
           console.error("トークンの取得に失敗しました:", err);
+        } finally {
+          setIsAuthenticating(false);
         }
       };
 
@@ -91,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     userId,
     token,
     login,
+    isAuthenticating,
   }}
 >
   {children}
