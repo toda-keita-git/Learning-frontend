@@ -241,8 +241,8 @@ export default function NewLearningDialog({
         const fileType = getFileType(pathToFetch);
         const mimeType = getMimeType(pathToFetch);
 
-        if (fileType === "image" && result.base64Content) {
-          // GitHubから取得したBase64をそのまま画像SRCにする
+        if ((fileType === "image" || fileType === "video") && result.base64Content) {
+          // GitHubから取得したBase64をそのまま画像/動画SRCにする
           setFileContent(`data:${mimeType};base64,${result.base64Content}`);
         } else {
           // 通常テキスト
@@ -284,8 +284,8 @@ export default function NewLearningDialog({
         if (fileType === "excel") {
           const wb = XLSX.read(fileData, { type: "array" });
           setWorkbook(wb);
-        } else if (fileType === "image") {
-          // ✅ 画像ファイルの場合：data URL をそのまま src に使う
+        } else if (fileType === "image" || fileType === "video") {
+          // ✅ 画像・動画ファイルの場合：data URL をそのまま src に使う
           setFileContent(fileData as string);
         } else if (fileType === "pdf") {
           setPreviewError("PDFプレビューは現在サポートされていません。");
@@ -309,8 +309,8 @@ export default function NewLearningDialog({
 
     if (fileType === "excel") {
       reader.readAsArrayBuffer(file);
-    } else if (fileType === "image") {
-      reader.readAsDataURL(file); // ✅ 画像は base64 data URL 形式で読み込み
+    } else if (fileType === "image" || fileType === "video") {
+      reader.readAsDataURL(file); // ✅ 画像・動画は base64 data URL 形式で読み込み
     } else {
       reader.readAsText(file);
     }
@@ -459,6 +459,12 @@ export default function NewLearningDialog({
   };
 
   const fileType = getFileType(github_path);
+  // fileContent が Base64 っぽいならそのまま使う。既にデコード済みの場合はエンコードし直す
+  const mediaSrc = fileContent.startsWith("data:")
+    ? fileContent
+    : fileContent.match(/^[A-Za-z0-9+/=]+$/)
+    ? `data:${getMimeType(github_path)};base64,${fileContent}`
+    : `data:${getMimeType(github_path)};base64,${btoa(fileContent)}`;
 
 
   return (
@@ -773,7 +779,7 @@ export default function NewLearningDialog({
               </>
             ) : fileContent ? (
               // ★ JSX 直接条件分岐で返す
-              fileType === "image" ? (
+              fileType === "image" || fileType === "video" ? (
               <Box
                 sx={{
                   display: "flex",
@@ -782,24 +788,28 @@ export default function NewLearningDialog({
                   flexGrow: 1,
                 }}
               >
-                <img
-                  src={
-                    // fileContent が Base64 っぽいならそのまま使う
-                    fileContent.startsWith("data:")
-                      ? fileContent
-                      : fileContent.match(/^[A-Za-z0-9+/=]+$/)
-                      ? `data:${getMimeType(github_path)};base64,${fileContent}`
-                      : // もし既にデコード済みの場合はエンコードし直す
-                        `data:${getMimeType(github_path)};base64,${btoa(fileContent)}`
-                  }
-                  alt={github_path}
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "60vh",
-                    objectFit: "contain",
-                    borderRadius: "8px",
-                  }}
-                />
+                {fileType === "image" ? (
+                  <img
+                    src={mediaSrc}
+                    alt={github_path}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                    }}
+                  />
+                ) : (
+                  <video
+                    src={mediaSrc}
+                    controls
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      borderRadius: "8px",
+                    }}
+                  />
+                )}
               </Box>
             ) : (
                 <div

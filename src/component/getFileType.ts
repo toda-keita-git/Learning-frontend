@@ -19,6 +19,16 @@ export const getFileType = (path: string): string => {
     case "ico":
       return "image";
 
+    // --- 動画 ---
+    case "mp4":
+    case "webm":
+    case "mov":
+    case "m4v":
+    case "avi":
+    case "mkv":
+    case "ogv":
+      return "video";
+
     // --- PDF ---
     case "pdf":
       return "pdf";
@@ -166,6 +176,13 @@ export const getMimeType = (path: string): string => {
     svg: "image/svg+xml",
     webp: "image/webp",
     ico: "image/x-icon",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    m4v: "video/x-m4v",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    ogv: "video/ogg",
     txt: "text/plain",
     md: "text/markdown",
     json: "application/json",

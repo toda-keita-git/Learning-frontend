@@ -54,6 +54,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
+  const isVideoFile = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"].includes(extension);
 
   useEffect(() => {
     setEditedContent(content);
@@ -134,8 +135,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
         {/* Main Content */}
         <DialogContent dividers sx={{ position: "relative" }}>
           {(() => {
-            // 画像ファイル（編集不可）
-            if (isImageFile) {
+            // 画像・動画ファイル（編集不可）
+            if (isImageFile || isVideoFile) {
               if (!imageRevealed) {
                 return (
                   <Box
@@ -151,7 +152,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                     }}
                   >
                     <Typography variant="body2">
-                      省データモードのため、画像はまだ表示していません
+                      省データモードのため、{isVideoFile ? "動画" : "画像"}はまだ表示していません
                     </Typography>
                     <Button
                       variant="outlined"
@@ -159,11 +160,38 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                       onClick={() => setImageRevealed(true)}
                       sx={{ color: "#fff", borderColor: "#666" }}
                     >
-                      画像を表示する
+                      {isVideoFile ? "動画を表示する" : "画像を表示する"}
                     </Button>
                   </Box>
                 );
               }
+
+              if (isVideoFile) {
+                return (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "#1e1e1e",
+                      overflow: "hidden",
+                      maxHeight: "70vh",
+                    }}
+                  >
+                    <video
+                      src={content}
+                      controls
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "70vh",
+                      }}
+                    >
+                      お使いのブラウザは動画再生に対応していません。
+                    </video>
+                  </Box>
+                );
+              }
+
               return (
                 <Box
                   sx={{
@@ -241,7 +269,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
         {/* Footer */}
         <DialogActions>
-          {isEditable && !isImageFile && !isEditing && (
+          {isEditable && !isImageFile && !isVideoFile && !isEditing && (
             <Button onClick={() => setIsEditing(true)}>編集</Button>
           )}
           {isEditing && (
