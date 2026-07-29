@@ -15,7 +15,9 @@ import {
 import type { AlertProps } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+// Prism（全言語を同梱、数百kB）ではなく PrismAsyncLight
+// （言語ごとに動的import、初回表示に必要な分だけ読み込む）を使う
+import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 // Snackbar用のAlert

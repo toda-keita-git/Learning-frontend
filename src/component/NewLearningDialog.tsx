@@ -21,7 +21,9 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { format } from "date-fns";
 import GitHubFileSelector from "./GitHubFileSelector";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+// Prism（全言語を同梱、数百kB）ではなく PrismAsyncLight
+// （言語ごとに動的import、初回表示に必要な分だけ読み込む）を使う
+import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType, getMimeType } from "./getFileType";
 import CircularProgress from "@mui/material/CircularProgress";
