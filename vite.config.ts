@@ -106,4 +106,25 @@ export default defineConfig({
   esbuild: {
     logOverride: { "unused-import": "silent" },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 重いサードパーティ依存を用途ごとに別チャンクへ分離し、
+        // 1ファイルが肥大化しないようにする
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          // react-syntax-highlighter(PrismAsyncLight)は言語ごとに動的importで
+          // 自前でチャンク分割されるため、ここでまとめてしまわないよう対象外にする
+          if (id.includes("react-syntax-highlighter") || id.includes("refractor")) return;
+          if (id.includes("xlsx")) return "vendor-xlsx";
+          if (id.includes("react-spreadsheet")) return "vendor-spreadsheet";
+          if (id.includes("@octokit")) return "vendor-octokit";
+          if (id.includes("@mui") || id.includes("@emotion")) return "vendor-mui";
+          if (id.includes("react-router") || id.includes("/react/") || id.includes("/react-dom/"))
+            return "vendor-react";
+          return "vendor";
+        },
+      },
+    },
+  },
 });

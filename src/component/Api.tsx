@@ -1,7 +1,11 @@
 import axiosBase from "axios";
 
+// 開発時は vite.config.ts の server.proxy 経由で "/api" をバックエンドへ転送しているが、
+// 本番のStatic Siteはサーバー側プロキシを持てないため、そのままだと
+// "/api/..." へのリクエストがSPAのリライトルールに拾われてindex.htmlが返ってしまう。
+// 本番ビルドでは VITE_API_BASE_URL（バックエンドの実URL）を直接使う。
 const axios = axiosBase.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.DEV ? "/api" : import.meta.env.VITE_API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
     "X-Requested-With": "XMLHttpRequest",
