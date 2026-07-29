@@ -165,3 +165,23 @@ export const deleteTagApi = async (id: number) => {
     throw error;
   }
 };
+
+// Proプラン「通知を希望する」を登録するAPI
+export const registerPlanInterestApi = async (
+  userId: number,
+  githubLogin: string
+) => {
+  const response = await axios.post("/plan_interest_register", {
+    user_id: userId,
+    github_login: githubLogin,
+  });
+  return response.data;
+};
+
+// 既に「通知を希望する」を登録済みかを確認するAPI
+export const checkPlanInterestApi = async (
+  userId: number
+): Promise<boolean> => {
+  const response = await axios.get(`/plan_interest_check?user_id=${userId}`);
+  return !!response.data?.requested;
+};

@@ -1976,6 +1976,8 @@ export default function LearningContent() {
       <PlanComparisonDialog
         open={planDialogOpen}
         onClose={() => setPlanDialogOpen(false)}
+        userId={userId}
+        githubLogin={githubLogin}
       />
 
       {/* 記事化プレビュー */}
