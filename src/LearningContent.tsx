@@ -1648,7 +1648,9 @@ export default function LearningContent() {
           flexGrow: 1,
           bgcolor: "background.default",
           p: { xs: 0, sm: 3 }, // スマホでは余白を削除
-          height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "auto" }, // スマホは下部ナビの分を除いた全画面
+          // 100vhはモバイルSafari等でブラウザのUI分を含んでしまい、下部ナビと重なる原因になるため
+          // 実際に見えている範囲を示す100dvh（動的ビューポート高さ）を使う
+          height: { xs: `calc(100dvh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "auto" }, // スマホは下部ナビの分を除いた全画面
           display: "flex",
           flexDirection: "column",
         }}
@@ -1659,7 +1661,7 @@ export default function LearningContent() {
           elevation={3}
           sx={{
             width: { xs: "100vw", sm: "80vw" },
-            height: { xs: `calc(100vh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "85vh" },
+            height: { xs: `calc(100dvh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "85vh" },
             maxWidth: { sm: "600px" },
             maxHeight: { sm: "900px" },
             display: "flex",
