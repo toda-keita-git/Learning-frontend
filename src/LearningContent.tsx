@@ -97,6 +97,7 @@ import { getMimeType } from "./component/getFileType";
 
 
 const BOTTOM_NAV_HEIGHT = 56; // スマホ用ボトムナビの高さ(px)
+const APPBAR_HEIGHT_XS = 56; // スマホ用AppBar（ヘッダー）の高さ(px)
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"];
 
@@ -1665,7 +1666,13 @@ export default function LearningContent() {
           elevation={3}
           sx={{
             width: { xs: "100vw", sm: "80vw" },
-            height: { xs: `calc(100svh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "85vh" },
+            // Paperには下でmarginTop（AppBar分）を足すため、heightからも
+            // AppBar分を差し引かないと、marginTop+heightが親(main)の高さを
+            // 超えてはみ出し、下部ナビとの間に隙間や重なりが生じてしまう
+            height: {
+              xs: `calc(100svh - ${APPBAR_HEIGHT_XS}px - ${BOTTOM_NAV_HEIGHT}px)`,
+              sm: "85vh",
+            },
             maxWidth: { sm: "600px" },
             maxHeight: { sm: "900px" },
             display: "flex",
@@ -1673,7 +1680,7 @@ export default function LearningContent() {
             position: "relative",
             overflow: "hidden",
             margin: { xs: 0, sm: "auto" },
-            marginTop: { xs: "56px" },
+            marginTop: { xs: `${APPBAR_HEIGHT_XS}px` },
             borderRadius: { xs: 0, sm: 2 }, // スマホでは角丸なし
           }}
         >
