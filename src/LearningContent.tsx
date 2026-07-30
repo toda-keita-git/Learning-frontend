@@ -543,11 +543,19 @@ export default function LearningContent() {
     const { body, documentElement: html } = document;
     const prevBodyOverflow = body.style.overflow;
     const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverscroll = body.style.overscrollBehaviorY;
+    const prevHtmlOverscroll = html.style.overscrollBehaviorY;
     body.style.overflow = "hidden";
     html.style.overflow = "hidden";
+    // 内部スクロールの端まで到達した後の指の動きが、ページ本体の
+    // バウンス/pull-to-refreshに伝わってURLバーが出入りするのを防ぐ
+    body.style.overscrollBehaviorY = "none";
+    html.style.overscrollBehaviorY = "none";
     return () => {
       body.style.overflow = prevBodyOverflow;
       html.style.overflow = prevHtmlOverflow;
+      body.style.overscrollBehaviorY = prevBodyOverscroll;
+      html.style.overscrollBehaviorY = prevHtmlOverscroll;
     };
   }, []);
 
@@ -1708,6 +1716,13 @@ export default function LearningContent() {
               flexGrow: 1,
               minHeight: 0,
               overflowY: "auto",
+              // iOSのSafariは、この内部スクロールが上端/下端に達した後も
+              // 指を動かし続けると、その勢い(momentum)がページ本体の
+              // バウンス/URLバー表示アニメーションに伝播してしまうことがある
+              // （body側でoverflow:hiddenにしていても、これはCSSのoverflowと
+              // は別のタッチイベント層の挙動のため止まらない）。
+              // overscroll-behaviorでスクロールの伝播そのものを断つ
+              overscrollBehavior: "contain",
               p: { xs: 1.5, sm: 2.5 },
               bgcolor: "background.default",
             }}
