@@ -30,6 +30,24 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+// トークンが無効・期限切れ(401)の場合、そのままだと各画面で分かりにくいエラーに
+// なってしまうため、再ログインを促してリロードする（このアプリはセッションを
+// 保持しないため、リロードすればログイン画面に戻る）
+let sessionExpiredHandled = false;
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && !sessionExpiredHandled) {
+      sessionExpiredHandled = true;
+      appToken = null;
+      alert("ログインの有効期限が切れました。もう一度ログインしてください。");
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // user_idはJWTから特定される
 export const learningApi = async () => {
   try {
