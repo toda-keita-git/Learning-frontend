@@ -103,8 +103,10 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
           <Typography
             variant="body2"
             component="div"
-            dangerouslySetInnerHTML={{ __html: message }}
-          />
+            sx={{ whiteSpace: "pre-wrap" }}
+          >
+            {message}
+          </Typography>
         </BubbleLeft>
         {timestamp && (
           <Typography
@@ -138,9 +140,10 @@ export const MessageRight: React.FC<MessageRightProps> = ({
           <Typography
             variant="body2"
             component="div"
-            sx={{ "& a": { color: "#e0e7ff" } }}
-            dangerouslySetInnerHTML={{ __html: message }}
-          />
+            sx={{ whiteSpace: "pre-wrap" }}
+          >
+            {message}
+          </Typography>
         </BubbleRight>
         {timestamp && (
           <Typography
