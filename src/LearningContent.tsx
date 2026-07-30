@@ -1284,8 +1284,21 @@ export default function LearningContent() {
         github_path: item.github_path,
         commit_sha: item.commit_sha,
       };
-      await updateLearningApi(item.id, payload);
-      await refetchData();
+
+      if (!navigator.onLine) {
+        // オフライン時は他の編集操作と同様に保留し、オンライン復帰時に自動送信する
+        enqueueAction(userId, {
+          kind: "update",
+          id: item.id,
+          payload,
+          userId: userId ?? 0,
+          label: item.title,
+        });
+        setSyncQueueCount(queueLength(userId));
+      } else {
+        await updateLearningApi(item.id, payload);
+        await refetchData();
+      }
     }
 
     showToast(
