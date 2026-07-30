@@ -2072,7 +2072,7 @@ export default function LearningContent() {
               <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
                 primary="今日の復習（間隔反復）"
-                secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。"
+                secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。メモの中で覚えたい語句を[[ ]]で囲むと、復習時にその箇所だけを隠して穴埋めクイズのように確認できます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">

@@ -584,6 +584,7 @@ export default function NewLearningDialog({
             rows={4}
             variant="outlined"
             placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
+            helperText="[[ ]] で囲んだ部分は、復習時にその箇所だけ隠されます（例: useEffectは[[副作用]]を扱うためのフック）"
             value={explanatoryText}
             onChange={(e) => setExplanatoryText(e.target.value)}
           />
