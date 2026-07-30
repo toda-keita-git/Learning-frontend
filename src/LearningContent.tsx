@@ -1671,12 +1671,13 @@ export default function LearningContent() {
             borderRadius: { xs: 0, sm: 2 }, // スマホでは角丸なし
           }}
         >
-          {/* メッセージ一覧 */}
+          {/* メッセージ一覧（タグ絞り込み・入力欄より上の範囲だけをスクロールさせる） */}
           <Box
             id="style-1"
             component="div"
             sx={{
               flexGrow: 1,
+              minHeight: 0,
               overflowY: "auto",
               p: { xs: 1.5, sm: 2.5 },
               bgcolor: "background.default",
