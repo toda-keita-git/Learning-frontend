@@ -1,4 +1,5 @@
 import axiosBase from "axios";
+import { clearPersistedSession } from "./authStorage";
 
 // 開発時は vite.config.ts の server.proxy 経由で "/api" をバックエンドへ転送しているが、
 // 本番のStatic Siteはサーバー側プロキシを持てないため、そのままだと
@@ -31,8 +32,8 @@ axios.interceptors.request.use((config) => {
 });
 
 // トークンが無効・期限切れ(401)の場合、そのままだと各画面で分かりにくいエラーに
-// なってしまうため、再ログインを促してリロードする（このアプリはセッションを
-// 保持しないため、リロードすればログイン画面に戻る）
+// なってしまうため、再ログインを促してリロードする。保存済みのログイン情報も
+// 消しておかないと、リロード後に同じ無効なトークンを読み込んで401が再発してしまう
 let sessionExpiredHandled = false;
 
 axios.interceptors.response.use(
@@ -41,6 +42,7 @@ axios.interceptors.response.use(
     if (error?.response?.status === 401 && !sessionExpiredHandled) {
       sessionExpiredHandled = true;
       appToken = null;
+      clearPersistedSession();
       alert("ログインの有効期限が切れました。もう一度ログインしてください。");
       window.location.reload();
     }

@@ -167,7 +167,7 @@ type Message = {
 
 
 export default function LearningContent() {
-  const { octokit,isAuthenticated, login, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
+  const { octokit,isAuthenticated, login, logout, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
   const { showToast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false); // GitHubログインボタン押下〜リダイレクトまでの表示用
   // APIから取得した学習記録データを保持するState
@@ -1679,6 +1679,10 @@ export default function LearningContent() {
         }}
         onOpenPlans={() => {
           setPlanDialogOpen(true);
+          setMobileNavOpen(false);
+        }}
+        onLogout={() => {
+          logout();
           setMobileNavOpen(false);
         }}
         files={githubFiles}

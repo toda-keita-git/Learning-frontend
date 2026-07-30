@@ -34,6 +34,7 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import TableRowsIcon from "@mui/icons-material/TableRows";
+import LogoutIcon from "@mui/icons-material/Logout";
 import BackButton from "./BackButton";
 
 export const DRAWER_WIDTH_EXPANDED = 240;
@@ -59,6 +60,7 @@ interface LeftToolBarProps {
   onOpenList?: () => void;
   onOpenAnalytics?: () => void;
   onOpenPlans?: () => void;
+  onLogout?: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
   loading: boolean;
@@ -190,6 +192,7 @@ export default function LeftToolBar({
   onOpenList,
   onOpenAnalytics,
   onOpenPlans,
+  onLogout,
   onFileSelect,
   files,
   loading,
@@ -428,6 +431,26 @@ export default function LeftToolBar({
             )}
           </List>
         </Collapse>
+
+        {/* --- ログアウト --- */}
+        {onLogout && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <ListItemButton
+              onClick={() => {
+                if (window.confirm("ログアウトしますか？")) onLogout();
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="ログアウト"
+                primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+              />
+            </ListItemButton>
+          </>
+        )}
       </List>
     </Box>
   );

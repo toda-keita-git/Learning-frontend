@@ -2,6 +2,11 @@ import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
 import { setAppToken } from "./component/Api";
+import {
+  savePersistedSession,
+  loadPersistedSession,
+  clearPersistedSession,
+} from "./component/authStorage";
 
 const client = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const callback = import.meta.env.VITE_CALLBACK_URL;
@@ -15,6 +20,7 @@ interface AuthContextType {
   repoName: string | null;
   token: string | null;
   login: () => void;
+  logout: () => void;
   isAuthenticating: boolean;
 }
 
@@ -26,6 +32,7 @@ export const AuthContext = createContext<AuthContextType>({
   repoName: null,
   token: null,
   login: () => {},
+  logout: () => {},
   isAuthenticating: false,
 });
 
@@ -42,6 +49,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = () => {
     const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
     window.location.assign(url);
+  };
+
+  const logout = () => {
+    clearPersistedSession();
+    setAppToken(null);
+    setOctokit(null);
+    setUserId(null);
+    setGithubLogin(null);
+    _setToken(null);
   };
 
   useEffect(() => {
@@ -77,6 +93,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           _setToken(token); // ← トークンをContextに保存（フォルダ選択等の認証に必要）
           setAppToken(appToken); // ← 以降の自バックエンドへのAPIリクエストに自動で付与される
 
+          // オフラインで開き直したときもすぐアプリを開けるよう、ログイン情報を保存しておく
+          savePersistedSession({
+            accessToken: token,
+            appToken,
+            userId: id,
+            githubLogin: loginName,
+          });
+
           // URLからcodeを削除
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (err) {
@@ -88,7 +112,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       exchangeCodeForToken(code);
       effectRan.current = true;
+      return;
     }
+
+    // codeが無ければ、保存済みのログイン情報があれば復元する。
+    // 通信を伴わないため、オフラインで開いた場合でもここまでは辿り着ける
+    const saved = loadPersistedSession();
+    if (saved) {
+      setOctokit(new Octokit({ auth: saved.accessToken }));
+      setUserId(saved.userId);
+      setGithubLogin(saved.githubLogin);
+      _setToken(saved.accessToken);
+      setAppToken(saved.appToken);
+    }
+    effectRan.current = true;
   }, []);
 
   return (
@@ -101,6 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     userId,
     token,
     login,
+    logout,
     isAuthenticating,
   }}
 >
