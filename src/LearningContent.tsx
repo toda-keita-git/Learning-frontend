@@ -534,28 +534,50 @@ export default function LearningContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false); // PCでの左メニュー折りたたみ
   const drawerWidth = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
-  // ページ(body)自体がスクロールできる状態だと、そのわずかなスクロールが
-  // モバイルブラウザのURLバー表示/非表示アニメーションの引き金になり、
-  // fixed要素との間に一瞬の隙間が生じる原因になる。この画面はチャット部分の
-  // 内部スクロール(overflow:auto)だけで完結するため、bodyのスクロール自体を
-  // 封じてURLバーの出入りが起きないようにする
+  // iOSのSafariは、body{overflow:hidden}だけではタッチ操作による
+  // ページ本体のスクロール（ラバーバンド/バウンス）を防ぎきれないことが
+  // 知られている（overflow:hiddenが効くのはプログラムやホイールでの
+  // スクロールに対してだけで、指でのドラッグには効かない場合がある）。
+  // 実際、録画で確認したところチャット部分の内部スクロールではなく
+  // ページ全体（body）がスクロールしてしまっており、それがURLバーの
+  // 出入り・隙間の原因になっていた。
+  // 確実に止めるには、bodyそのものをposition:fixedにして通常の文書の
+  // 流れから外してしまう（多くのモーダル/ドロワーライブラリで使われる、
+  // iOS向けのbodyスクロールロックの定番手法）。
   useEffect(() => {
     const { body, documentElement: html } = document;
+    const scrollY = window.scrollY;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyLeft = body.style.left;
+    const prevBodyRight = body.style.right;
+    const prevBodyWidth = body.style.width;
     const prevBodyOverflow = body.style.overflow;
     const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverscroll = body.style.overscrollBehaviorY;
     const prevHtmlOverscroll = html.style.overscrollBehaviorY;
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
     body.style.overflow = "hidden";
     html.style.overflow = "hidden";
-    // 内部スクロールの端まで到達した後の指の動きが、ページ本体の
-    // バウンス/pull-to-refreshに伝わってURLバーが出入りするのを防ぐ
     body.style.overscrollBehaviorY = "none";
     html.style.overscrollBehaviorY = "none";
+
     return () => {
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.left = prevBodyLeft;
+      body.style.right = prevBodyRight;
+      body.style.width = prevBodyWidth;
       body.style.overflow = prevBodyOverflow;
       html.style.overflow = prevHtmlOverflow;
       body.style.overscrollBehaviorY = prevBodyOverscroll;
       html.style.overscrollBehaviorY = prevHtmlOverscroll;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
