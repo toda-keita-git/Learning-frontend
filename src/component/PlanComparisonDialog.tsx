@@ -54,7 +54,7 @@ export default function PlanComparisonDialog({
   // （リロードしても「希望済み」の状態を維持するため）
   useEffect(() => {
     if (open && userId) {
-      checkPlanInterestApi(userId)
+      checkPlanInterestApi()
         .then(setRequested)
         .catch((err) => console.error("希望登録状況の確認に失敗しました:", err));
     }
@@ -68,7 +68,7 @@ export default function PlanComparisonDialog({
     }
     setSubmitting(true);
     try {
-      await registerPlanInterestApi(userId, githubLogin);
+      await registerPlanInterestApi();
       setRequested(true);
       showToast("通知希望を受け付けました。公開時にお知らせします。", "success");
     } catch (err) {

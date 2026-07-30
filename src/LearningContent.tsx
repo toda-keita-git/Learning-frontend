@@ -591,7 +591,7 @@ export default function LearningContent() {
   const refetchData = async () => {
     try {
       const [learnings, tags, learningTags, categories] = await Promise.all([
-        learningApi(userId ?? 0),
+        learningApi(),
         TagsApi(),
         LearningTagApi(),
         CategoriesApi(),
@@ -725,7 +725,7 @@ export default function LearningContent() {
       try {
       // 4つのAPIを並行して呼び出し、すべてのデータが揃うのを待つ
       const [learnings, tags, learningTags, categories] = await Promise.all([
-        learningApi(userId),
+        learningApi(),
         TagsApi(),
         LearningTagApi(),
         CategoriesApi(),
@@ -1042,11 +1042,11 @@ export default function LearningContent() {
 
       if (finalLearningData.id) {
         // IDがあれば更新
-        await updateLearningApi(finalLearningData.id, finalLearningData,userId ?? 0);
+        await updateLearningApi(finalLearningData.id, finalLearningData);
         systemMessageText = `「${finalLearningData.title}」を更新しました。`;
       } else {
         // IDがなければ新規作成
-        await createLearningApi(finalLearningData,userId ?? 0);
+        await createLearningApi(finalLearningData);
         systemMessageText = `「${finalLearningData.title}」を登録しました。`;
       }
 
@@ -1284,7 +1284,7 @@ export default function LearningContent() {
         github_path: item.github_path,
         commit_sha: item.commit_sha,
       };
-      await updateLearningApi(item.id, payload, userId ?? 0);
+      await updateLearningApi(item.id, payload);
       await refetchData();
     }
 

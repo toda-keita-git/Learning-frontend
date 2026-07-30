@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
+import { setAppToken } from "./component/Api";
 
 const client = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const callback = import.meta.env.VITE_CALLBACK_URL;
@@ -62,16 +63,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (!response.ok) throw new Error("バックエンドからのトークン取得に失敗しました。");
 
           const data = await response.json();
-          const token = data.access_token;
+          const token = data.access_token; // GitHub API呼び出し用（Octokit）
+          const appToken = data.app_token; // このアプリのバックエンドAPI呼び出し用（本人確認）
           const id = data.user_id;
           const loginName = data.github_login;
 
           if (!token) throw new Error("レスポンスにトークンが含まれていません。");
+          if (!appToken) throw new Error("レスポンスに認証トークンが含まれていません。");
 
           setOctokit(new Octokit({ auth: token }));
           setUserId(id);
           setGithubLogin(loginName);
           _setToken(token); // ← トークンをContextに保存（フォルダ選択等の認証に必要）
+          setAppToken(appToken); // ← 以降の自バックエンドへのAPIリクエストに自動で付与される
 
           // URLからcodeを削除
           window.history.replaceState({}, document.title, window.location.pathname);

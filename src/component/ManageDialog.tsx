@@ -74,8 +74,8 @@ export default function ManageDialog({
     if (!name) return;
     setBusy(true);
     try {
-      if (kind === "category") await updateCategoryApi(id, name, userId);
-      else await updateTagApi(id, name, userId);
+      if (kind === "category") await updateCategoryApi(id, name);
+      else await updateTagApi(id, name);
       cancelEdit();
       await onChanged();
       showToast("名前を変更しました。", "success");
@@ -97,8 +97,8 @@ export default function ManageDialog({
       return;
     setBusy(true);
     try {
-      if (kind === "category") await deleteCategoryApi(item.id, userId);
-      else await deleteTagApi(item.id, userId);
+      if (kind === "category") await deleteCategoryApi(item.id);
+      else await deleteTagApi(item.id);
       await onChanged();
       showToast(`${label}を削除しました。`, "success");
     } catch (e: any) {

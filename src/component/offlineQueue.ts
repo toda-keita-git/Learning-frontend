@@ -53,9 +53,9 @@ export const flushQueue = async (
   for (const action of queue) {
     try {
       if (action.kind === "create") {
-        await createLearningApi(action.payload, action.userId);
+        await createLearningApi(action.payload);
       } else if (action.kind === "update") {
-        await updateLearningApi(action.id, action.payload, action.userId);
+        await updateLearningApi(action.id, action.payload);
       } else {
         await deleteLearningApi(action.id);
       }

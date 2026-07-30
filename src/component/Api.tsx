@@ -13,9 +13,27 @@ const axios = axiosBase.create({
   responseType: "json",
 });
 
-export const learningApi = async (userId: number) => {
+// ログイン時にバックエンドが発行する本人確認用トークン(JWT)。
+// setAppTokenで更新され、以降のすべてのAPIリクエストにAuthorizationヘッダーとして付与される。
+// バックエンドはこのトークンを検証してuser_idを特定するため、
+// リクエスト側で送るuser_idはもう信用されない（なりすまし対策）
+let appToken: string | null = null;
+
+export const setAppToken = (token: string | null) => {
+  appToken = token;
+};
+
+axios.interceptors.request.use((config) => {
+  if (appToken) {
+    config.headers.Authorization = `Bearer ${appToken}`;
+  }
+  return config;
+});
+
+// user_idはJWTから特定される
+export const learningApi = async () => {
   try {
-    const response = await axios.get(`/learning?user_id=${userId}`);
+    const response = await axios.get(`/learning`);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in Backend.", error);
@@ -65,11 +83,10 @@ export const CategoriesApi = async () => {
   }
 };
 
-// 新規学習内容を登録するAPI
-export const createLearningApi = async (data: any, userId: number) => {
+// 新規学習内容を登録するAPI（user_idはJWTから特定される）
+export const createLearningApi = async (data: any) => {
   try {
-    const payload = { ...data, user_id: userId }; // user_id を追加
-    const response = await axios.post("/learning_insert", payload);
+    const response = await axios.post("/learning_insert", data);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in createLearningApi.", error);
@@ -77,11 +94,10 @@ export const createLearningApi = async (data: any, userId: number) => {
   }
 };
 
-// 学習内容を更新するAPI
-export const updateLearningApi = async (id: any, data: any, userId: number) => {
+// 学習内容を更新するAPI（user_idはJWTから特定される）
+export const updateLearningApi = async (id: any, data: any) => {
   try {
-    const payload = { ...data, user_id: userId };
-    const response = await axios.post(`/learning_update/${id}`, payload);
+    const response = await axios.post(`/learning_update/${id}`, data);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateLearningApi.", error);
@@ -111,17 +127,10 @@ export const createCategoryApi = async (categoryData: { name: string }) => {
   }
 };
 
-// カテゴリーの名前を変更するAPI
-export const updateCategoryApi = async (
-  id: number,
-  name: string,
-  userId: number
-) => {
+// カテゴリーの名前を変更するAPI（管理者かどうかはJWTから判定される）
+export const updateCategoryApi = async (id: number, name: string) => {
   try {
-    const response = await axios.post(
-      `/category_update/${id}?user_id=${userId}`,
-      { name }
-    );
+    const response = await axios.post(`/category_update/${id}`, { name });
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateCategoryApi.", error);
@@ -130,11 +139,9 @@ export const updateCategoryApi = async (
 };
 
 // カテゴリーを削除するAPI（使用中の場合は409、管理者以外は403が返る）
-export const deleteCategoryApi = async (id: number, userId: number) => {
+export const deleteCategoryApi = async (id: number) => {
   try {
-    const response = await axios.post(
-      `/category_delete/${id}?user_id=${userId}`
-    );
+    const response = await axios.post(`/category_delete/${id}`);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in deleteCategoryApi.", error);
@@ -153,16 +160,10 @@ export const createTagApi = async (tagData: { name: string }) => {
   }
 };
 
-// タグの名前を変更するAPI
-export const updateTagApi = async (
-  id: number,
-  name: string,
-  userId: number
-) => {
+// タグの名前を変更するAPI（管理者かどうかはJWTから判定される）
+export const updateTagApi = async (id: number, name: string) => {
   try {
-    const response = await axios.post(`/tag_update/${id}?user_id=${userId}`, {
-      name,
-    });
+    const response = await axios.post(`/tag_update/${id}`, { name });
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in updateTagApi.", error);
@@ -171,9 +172,9 @@ export const updateTagApi = async (
 };
 
 // タグを削除するAPI（使用中の場合は409、管理者以外は403が返る）
-export const deleteTagApi = async (id: number, userId: number) => {
+export const deleteTagApi = async (id: number) => {
   try {
-    const response = await axios.post(`/tag_delete/${id}?user_id=${userId}`);
+    const response = await axios.post(`/tag_delete/${id}`);
     return response.data;
   } catch (error) {
     console.error("ERROR!! occurred in deleteTagApi.", error);
@@ -181,22 +182,14 @@ export const deleteTagApi = async (id: number, userId: number) => {
   }
 };
 
-// Proプラン「通知を希望する」を登録するAPI
-export const registerPlanInterestApi = async (
-  userId: number,
-  githubLogin: string
-) => {
-  const response = await axios.post("/plan_interest_register", {
-    user_id: userId,
-    github_login: githubLogin,
-  });
+// Proプラン「通知を希望する」を登録するAPI（user_id・github_loginともJWTから特定される）
+export const registerPlanInterestApi = async () => {
+  const response = await axios.post("/plan_interest_register");
   return response.data;
 };
 
 // 既に「通知を希望する」を登録済みかを確認するAPI
-export const checkPlanInterestApi = async (
-  userId: number
-): Promise<boolean> => {
-  const response = await axios.get(`/plan_interest_check?user_id=${userId}`);
+export const checkPlanInterestApi = async (): Promise<boolean> => {
+  const response = await axios.get(`/plan_interest_check`);
   return !!response.data?.requested;
 };
