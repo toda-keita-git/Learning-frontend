@@ -31,7 +31,6 @@ import CloseIcon from "@mui/icons-material/Close";
 // import FindInPageIcon from "@mui/icons-material/FindInPage";
 import * as XLSX from "xlsx";
 import Spreadsheet from "react-spreadsheet"; // ★ react-spreadsheet をインポート
-import type { CellBase, Matrix } from "react-spreadsheet";
 import Tabs from "@mui/material/Tabs"; // ★ MUI Tabsをインポート
 import Tab from "@mui/material/Tab"; // ★ MUI Tabをインポート
 import GitHubFolderSelector from "./GitHubFolderSelector";
@@ -146,6 +145,9 @@ export default function NewLearningDialog({
   >(null);
 
   // ★ SheetJSの出力をreact-spreadsheetの形式に変換するヘルパー関数
+  // Excelは図・グラフ・画像などを含むことがあり、xlsxライブラリでの
+  // 書き出しではそれらが失われてしまう。編集・保存はできないよう、
+  // 全セルをreadOnlyにして閲覧専用として表示する
   const convertSheetToSpreadsheetData = (
     worksheet: XLSX.WorkSheet
   ): SpreadsheetCell[][] => {
@@ -165,25 +167,13 @@ export default function NewLearningDialog({
         ) {
           cellValue = String(cell);
         }
-        return { value: cellValue };
+        return { value: cellValue, readOnly: true };
       })
     );
   };
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
   const [_selectedFolderPath, setSelectedFolderPath] = useState("");
-
-  const handleSpreadsheetChange = (data: Matrix<CellBase<any>>) => {
-    // ライブラリから渡されるデータ型 (Matrix<CellBase<any>>) を
-    // Stateが期待する型 (SpreadsheetCell[][]) に変換する
-    const newData: SpreadsheetCell[][] = data.map((row) =>
-      row.map((cell) => ({
-        // cellがundefinedの場合も考慮し、その場合はvalueをnullにする
-        value: cell ? cell.value : null,
-      }))
-    );
-    setSpreadsheetData(newData);
-  };
 
   const date = new Date();
   const created_at = format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSX");
@@ -415,30 +405,10 @@ export default function NewLearningDialog({
   const handleSubmit = async () => {
     let editedFileData = null;
 
-    // 1. スプレッドシートが編集された場合の処理
-    if (spreadsheetData) {
-      // spreadsheetData (オブジェクトの配列) を値の配列に戻す
-      const aoa = spreadsheetData.map((row) => row.map((cell) => cell.value));
-      // 新しいワークシートを作成
-      const newWorksheet = XLSX.utils.aoa_to_sheet(aoa);
-      const newWorkbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Sheet1");
-
-      // Excelファイル(xlsx)のBase64文字列を生成
-      const newBase64Content = XLSX.write(newWorkbook, {
-        bookType: "xlsx",
-        type: "base64",
-      });
-
-      editedFileData = {
-        path: github_path,
-        content: newBase64Content,
-        sha: fileSha, // 既存ファイル更新時はSHAが必要
-        contentIsBase64: true, // ★ Base64形式であるフラグ
-      };
-    }
-    // 2. ローカルファイルが選択された場合（Excel以外）の処理
-    else if (localFile) {
+    // Excelは閲覧専用（図・グラフがxlsx書き出しで失われるため編集・保存は行わない）。
+    // spreadsheetDataは表示専用で、ここでの再アップロードは対象外
+    // 1. ローカルファイルが選択された場合の処理
+    if (localFile) {
       const content = await toBase64(localFile);
       editedFileData = {
         path: github_path,
@@ -447,7 +417,7 @@ export default function NewLearningDialog({
         contentIsBase64: true, // ★ Base64形式であるフラグ
       };
     }
-    // 3. GitHub上のテキストファイルが編集された場合の処理
+    // 2. GitHub上のテキストファイルが編集された場合の処理
     //    （Word .docxは閲覧専用のため、ここでは編集対象にならない）
     else if (isEditingFile && fileSha && fileType !== "docx") {
       editedFileData = {
@@ -818,7 +788,14 @@ export default function NewLearningDialog({
                 </Box>
                 {spreadsheetData && (
                   <div style={{ width: "100%", height: "100%", overflow: "auto" }}>
-                    <Spreadsheet data={spreadsheetData} onChange={handleSpreadsheetChange} />
+                    <Spreadsheet data={spreadsheetData} />
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", p: 1 }}
+                    >
+                      ※ Excelは閲覧専用です（図・グラフが失われるため編集・保存はできません）
+                    </Typography>
                   </div>
                 )}
               </>
