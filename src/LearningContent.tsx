@@ -1681,9 +1681,13 @@ export default function LearningContent() {
             // 隙間や重なりが再発していた。position:fixed + top/bottomなら
             // ブラウザが「実際に見えている範囲」にその都度直接合わせてくれるため、
             // 高さを自前で計算する必要が無くなり、ズレが起きようがない
+            // 下部ナビもこのPaperの中に含め、メッセージ一覧・タグ絞り込み・
+            // 入力欄・下部ナビをすべて同じ1本のflex columnで管理する。
+            // 別々にposition:fixedさせて双方のtop/bottomの数値を
+            // 一致させ続けるより、こちらの方がズレようがなく確実
             position: { xs: "fixed", sm: "relative" },
             top: { xs: `${APPBAR_HEIGHT_XS}px`, sm: "auto" },
-            bottom: { xs: `${BOTTOM_NAV_HEIGHT}px`, sm: "auto" },
+            bottom: { xs: 0, sm: "auto" },
             left: { xs: 0, sm: "auto" },
             right: { xs: 0, sm: "auto" },
             height: { xs: "auto", sm: "85vh" },
@@ -1829,59 +1833,57 @@ export default function LearningContent() {
               onSearchMenuClick={() => setOpenSearchDialog(true)}
             />
           </Box>
-        </Paper>
-      </Box>
 
-      {/* スマホ用ボトムナビ：片手操作で主要な導線に届くように画面下部へ集約 */}
-      <Paper
-        elevation={8}
-        sx={{
-          display: { xs: "flex", sm: "none" },
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: BOTTOM_NAV_HEIGHT,
-          zIndex: (theme) => theme.zIndex.appBar + 1,
-          justifyContent: "space-around",
-          alignItems: "stretch",
-          borderTop: 1,
-          borderColor: "divider",
-        }}
-      >
-        {[
-          { label: "記録", icon: <AddCircleOutlineIcon />, onClick: openNewLearningDialog },
-          { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
-          { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
-          { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
-          { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
-        ].map((item) => (
+          {/* スマホ用ボトムナビ：片手操作で主要な導線に届くように画面下部へ集約。
+              メッセージ一覧・タグ絞り込み・入力欄と同じPaperの中でflex columnの
+              最後の要素にすることで、独自にposition:fixedする必要がなくなる */}
           <Box
-            key={item.label}
-            component="button"
-            onClick={item.onClick}
             sx={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 0.25,
-              border: "none",
-              background: "none",
-              color: "text.secondary",
-              cursor: "pointer",
-              font: "inherit",
-              "& svg": { fontSize: 22 },
+              display: { xs: "flex", sm: "none" },
+              flexShrink: 0,
+              height: BOTTOM_NAV_HEIGHT,
+              justifyContent: "space-around",
+              alignItems: "stretch",
+              borderTop: 1,
+              borderColor: "divider",
+              bgcolor: "background.paper",
             }}
           >
-            {item.icon}
-            <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
-              {item.label}
-            </Box>
+            {[
+              { label: "記録", icon: <AddCircleOutlineIcon />, onClick: openNewLearningDialog },
+              { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
+              { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
+              { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
+              { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
+            ].map((item) => (
+              <Box
+                key={item.label}
+                component="button"
+                onClick={item.onClick}
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0.25,
+                  border: "none",
+                  background: "none",
+                  color: "text.secondary",
+                  cursor: "pointer",
+                  font: "inherit",
+                  "& svg": { fontSize: 22 },
+                }}
+              >
+                {item.icon}
+                <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
+                  {item.label}
+                </Box>
+              </Box>
+            ))}
           </Box>
-        ))}
-      </Paper>
+        </Paper>
+      </Box>
 
       <NewLearningDialog
         open={openNewDialog}
