@@ -1649,13 +1649,6 @@ export default function LearningContent() {
           flexGrow: 1,
           bgcolor: "background.default",
           p: { xs: 0, sm: 3 }, // スマホでは余白を削除
-          // 100vhはモバイルSafari等でブラウザのUI分を含んでしまい、下部ナビと重なる原因になるため
-          // dvh（動的ビューポート高さ）は、スクロールでブラウザのURLバーが
-          // 出入りするたびに値が変わり、下部ナビ(position:fixed)との再同期が
-          // ズレて隙間や重なりが生じることがある。svh（常にURLバー表示状態＝
-          // 最小のビューポート高さ）を使い、常に一定の高さで確保することで
-          // それを避ける（URLバーが隠れた分の余白は使い切れないが、ズレは起きない）
-          height: { xs: `calc(100svh - ${BOTTOM_NAV_HEIGHT}px)`, sm: "auto" }, // スマホは下部ナビの分を除いた全画面
           display: "flex",
           flexDirection: "column",
         }}
@@ -1665,22 +1658,24 @@ export default function LearningContent() {
         <Paper
           elevation={3}
           sx={{
-            width: { xs: "100vw", sm: "80vw" },
-            // Paperには下でmarginTop（AppBar分）を足すため、heightからも
-            // AppBar分を差し引かないと、marginTop+heightが親(main)の高さを
-            // 超えてはみ出し、下部ナビとの間に隙間や重なりが生じてしまう
-            height: {
-              xs: `calc(100svh - ${APPBAR_HEIGHT_XS}px - ${BOTTOM_NAV_HEIGHT}px)`,
-              sm: "85vh",
-            },
+            width: { xs: "100%", sm: "80vw" },
+            // xs（スマホ）: vh/dvh/svhなどビューポート単位の計算に頼ると、
+            // スクロールでブラウザのURLバーが出入りするたびに値がズレて
+            // 隙間や重なりが再発していた。position:fixed + top/bottomなら
+            // ブラウザが「実際に見えている範囲」にその都度直接合わせてくれるため、
+            // 高さを自前で計算する必要が無くなり、ズレが起きようがない
+            position: { xs: "fixed", sm: "relative" },
+            top: { xs: `${APPBAR_HEIGHT_XS}px`, sm: "auto" },
+            bottom: { xs: `${BOTTOM_NAV_HEIGHT}px`, sm: "auto" },
+            left: { xs: 0, sm: "auto" },
+            right: { xs: 0, sm: "auto" },
+            height: { xs: "auto", sm: "85vh" },
             maxWidth: { sm: "600px" },
             maxHeight: { sm: "900px" },
             display: "flex",
             flexDirection: "column",
-            position: "relative",
             overflow: "hidden",
             margin: { xs: 0, sm: "auto" },
-            marginTop: { xs: `${APPBAR_HEIGHT_XS}px` },
             borderRadius: { xs: 0, sm: 2 }, // スマホでは角丸なし
           }}
         >
