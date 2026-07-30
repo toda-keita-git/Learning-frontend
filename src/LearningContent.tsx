@@ -534,6 +534,23 @@ export default function LearningContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false); // PCでの左メニュー折りたたみ
   const drawerWidth = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
+  // ページ(body)自体がスクロールできる状態だと、そのわずかなスクロールが
+  // モバイルブラウザのURLバー表示/非表示アニメーションの引き金になり、
+  // fixed要素との間に一瞬の隙間が生じる原因になる。この画面はチャット部分の
+  // 内部スクロール(overflow:auto)だけで完結するため、bodyのスクロール自体を
+  // 封じてURLバーの出入りが起きないようにする
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverflow = html.style.overflow;
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = prevBodyOverflow;
+      html.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   useEffect(() => {
     if (userId) {
       refetchData();
