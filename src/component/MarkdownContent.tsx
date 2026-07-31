@@ -275,13 +275,17 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
                 sx={{
                   display: "inline-block",
                   cursor: revealed ? "default" : "pointer",
-                  bgcolor: revealed ? "warning.light" : "action.selected",
+                  bgcolor: revealed ? "info.light" : "action.selected",
                   color: revealed
-                    ? (theme: any) => theme.palette.getContrastText(theme.palette.warning.light)
+                    ? (theme: any) => theme.palette.getContrastText(theme.palette.info.light)
                     : "transparent",
                   borderRadius: 0.5,
                   px: 0.5,
                   mx: 0.25,
+                  ...(revealed && {
+                    border: "1px solid",
+                    borderColor: "info.main",
+                  }),
                 }}
               >
                 {revealed ? children : "█".repeat(Math.min(Math.max(hastText(node).length, 2), 10))}
@@ -296,11 +300,11 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
                 <Box
                   sx={{
                     border: "1px dashed",
-                    borderColor: "warning.main",
+                    borderColor: "info.main",
                     borderRadius: 1,
                     p: 1,
                     mb: 1,
-                    bgcolor: (theme) => alphaFallback(theme, "warning.light"),
+                    bgcolor: (theme) => alphaFallback(theme, "info.light"),
                   }}
                 >
                   {children}
