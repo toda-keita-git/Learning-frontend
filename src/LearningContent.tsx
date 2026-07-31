@@ -92,7 +92,7 @@ import {
   showTestReminder,
   updateAppBadge,
 } from "./notifications";
-import { getMimeType } from "./component/getFileType";
+import { getFileType, getMimeType } from "./component/getFileType";
 
 
 
@@ -448,6 +448,11 @@ export default function LearningContent() {
     const isImageFile = ["png","jpg","jpeg","gif","bmp","svg","ico","webp"].includes(ext);
     const isVideoFile = VIDEO_EXTENSIONS.includes(ext);
     const isHistorical = !!commitSha;
+    // Excel/PDF/Word/PowerPoint/ZIPなどはテキストとして安全にデコード・編集できない
+    // （UTF-8として強制デコードすると内容が壊れ、そのまま保存すると埋め込み図表などが消える）。
+    // NewLearningDialogの取り扱いと同じ分類基準で、テキスト編集の対象外とする
+    const fileType = getFileType(path);
+    const isPreviewUnsupported = ["excel", "pdf", "docx", "pptx", "zip-archive", "binary"].includes(fileType);
 
     let content = "";
     let base64Content = "";
@@ -472,6 +477,9 @@ export default function LearningContent() {
           content = "";
         }
       }
+    } else if (isPreviewUnsupported) {
+      // バイナリ形式はテキストとしてデコードしない（内容が壊れて表示・保存されるのを防ぐ）
+      content = "";
     } else {
       // テキストの場合は通常のBase64デコード
       content = decodeBase64Text(response.data.content);
@@ -483,8 +491,8 @@ export default function LearningContent() {
       sha: response.data.sha,
     });
 
-    // 過去のコミットは編集不可
-    setIsViewerEditable(editable && !isHistorical);
+    // 過去のコミット、およびExcel/PDF/Word/PowerPoint/ZIPなどのバイナリ形式は編集不可
+    setIsViewerEditable(editable && !isHistorical && !isPreviewUnsupported);
     setViewerOpen(true);
   } catch (error: any) {
     console.error("Failed to fetch file:", error);

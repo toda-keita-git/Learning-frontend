@@ -19,6 +19,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 // （言語ごとに動的import、初回表示に必要な分だけ読み込む）を使う
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { getFileType } from "./getFileType";
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -57,6 +58,11 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
   const isVideoFile = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"].includes(extension);
+  // Excel/PDF/Word/PowerPoint/ZIPなどはテキストとして表示・編集すると内容が壊れるため、
+  // 呼び出し元のisEditableに関わらずここでも編集不可にする（多重防御）
+  const fileType = getFileType(path);
+  const isPreviewUnsupported = ["excel", "pdf", "docx", "pptx", "zip-archive", "binary"].includes(fileType);
+  const effectiveEditable = isEditable && !isPreviewUnsupported;
 
   useEffect(() => {
     setEditedContent(content);
@@ -242,6 +248,31 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
+            // Excel/PDF/Word/PowerPoint/ZIPなどのバイナリ形式（テキスト表示・編集不可）
+            if (isPreviewUnsupported) {
+              return (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    py: 6,
+                    px: 2,
+                    textAlign: "center",
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    このファイル形式はここではプレビュー・編集できません。
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ファイルはGitHub上にそのまま保存されています。内容を確認したい場合はGitHub上で開いてください。
+                  </Typography>
+                </Box>
+              );
+            }
+
             // テキスト／コード
             if (isEditing) {
               return (
@@ -271,7 +302,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
         {/* Footer */}
         <DialogActions>
-          {isEditable && !isImageFile && !isVideoFile && !isEditing && (
+          {effectiveEditable && !isImageFile && !isVideoFile && !isEditing && (
             <Button onClick={() => setIsEditing(true)}>編集</Button>
           )}
           {isEditing && (
