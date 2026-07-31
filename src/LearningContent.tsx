@@ -1447,79 +1447,281 @@ export default function LearningContent() {
 
   // 未認証時の表示
   if (!isAuthenticated) {
+    const showGuide = !isAuthenticating && !isLoggingIn;
     return (
       <Box
         sx={{
           minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           background: (theme) =>
             `linear-gradient(135deg, ${alpha(
               theme.palette.primary.main,
               theme.palette.mode === "dark" ? 0.18 : 0.08
             )} 0%, ${theme.palette.background.default} 60%)`,
-          px: 2,
         }}
       >
+        {/* ログインカード */}
         <Box
           sx={{
-            maxWidth: 440,
-            width: "100%",
-            textAlign: "center",
-            bgcolor: "background.paper",
-            borderRadius: 4,
-            boxShadow: (theme) =>
-              `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
-            p: { xs: 4, sm: 6 },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 2,
+            pt: { xs: 6, sm: 9 },
+            pb: showGuide ? 5 : 6,
           }}
         >
-          {isAuthenticating || isLoggingIn ? (
-            <>
-              <CircularProgress sx={{ mb: 2 }} />
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                接続中です…
+          <Box
+            sx={{
+              maxWidth: 440,
+              width: "100%",
+              textAlign: "center",
+              bgcolor: "background.paper",
+              borderRadius: 4,
+              boxShadow: (theme) =>
+                `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
+              p: { xs: 4, sm: 6 },
+            }}
+          >
+            {isAuthenticating || isLoggingIn ? (
+              <>
+                <CircularProgress sx={{ mb: 2 }} />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  接続中です…
+                </Typography>
+                <Typography sx={{ mt: 1, color: "text.secondary" }}>
+                  {isAuthenticating
+                    ? "GitHubアカウントを確認しています。バックエンドが起動中の場合、数十秒かかることがあります。"
+                    : "GitHubのログイン画面に移動します。"}
+                </Typography>
+              </>
+            ) : (
+              <>
+                <MenuBookIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
+                  学習ログへようこそ
+                </Typography>
+                <Typography sx={{ mb: 3, color: "text.secondary" }}>
+                  学んだことを記録・振り返るには、
+                  <br />
+                  GitHubアカウントでのログインが必要です。
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  startIcon={<GitHubIcon />}
+                  onClick={() => {
+                    setIsLoggingIn(true);
+                    login();
+                  }}
+                >
+                  GitHubでログイン
+                </Button>
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", mt: 2, color: "text.secondary", lineHeight: 1.7 }}
+                >
+                  ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
+                  <br />
+                  <code>learning-site-&lt;ユーザー名&gt;</code>（非公開）が作成されます。
+                </Typography>
+              </>
+            )}
+          </Box>
+        </Box>
+
+        {/* 使い方ガイド（ログイン待ちの間だけ表示） */}
+        {showGuide && (
+          <Box sx={{ maxWidth: 880, mx: "auto", px: 2, pb: 8 }}>
+            {/* はじめかた */}
+            <Box sx={{ mb: 5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, textAlign: "center" }}>
+                はじめかた
               </Typography>
-              <Typography sx={{ mt: 1, color: "text.secondary" }}>
-                {isAuthenticating
-                  ? "GitHubアカウントを確認しています。バックエンドが起動中の場合、数十秒かかることがあります。"
-                  : "GitHubのログイン画面に移動します。"}
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", textAlign: "center", mb: 3 }}
+              >
+                3ステップですぐ使い始められます。
               </Typography>
-            </>
-          ) : (
-            <>
-              <MenuBookIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
-              <Typography variant="h4" gutterBottom sx={{ fontWeight: 800 }}>
-                学習ログへようこそ
-              </Typography>
-              <Typography sx={{ mb: 3, color: "text.secondary" }}>
-                学んだことを記録・振り返るには、
-                <br />
-                GitHubアカウントでのログインが必要です。
-              </Typography>
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                startIcon={<GitHubIcon />}
-                onClick={() => {
-                  setIsLoggingIn(true);
-                  login();
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: 2,
                 }}
               >
-                GitHubでログイン
-              </Button>
-              <Typography
-                variant="caption"
-                sx={{ display: "block", mt: 2, color: "text.secondary", lineHeight: 1.7 }}
-              >
-                ※ 初回ログイン時、あなたのGitHubに保存先リポジトリ
-                <br />
-                <code>learning-site-&lt;ユーザー名&gt;</code>（非公開）が作成されます。
+                {[
+                  {
+                    icon: <GitHubIcon color="primary" />,
+                    title: "GitHubでログイン",
+                    desc: "お使いのGitHubアカウントで認証するだけ。専用リポジトリが自動的に用意されます。",
+                  },
+                  {
+                    icon: <AddCircleOutlineIcon color="primary" />,
+                    title: "学んだことを記録する",
+                    desc: "タイトルとメモを書いて保存。カテゴリーやタグを付けて整理でき、コードファイルの添付もできます。",
+                  },
+                  {
+                    icon: <MenuBookOutlinedIcon color="primary" />,
+                    title: "スキマ時間に復習する",
+                    desc: "「今日の復習」を開くと、忘れかけている記録から順に思い出す手助けをしてくれます。",
+                  },
+                ].map((step, i) => (
+                  <Paper
+                    key={step.title}
+                    variant="outlined"
+                    sx={{ flex: 1, p: 2.5, borderRadius: 3 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Chip
+                        label={i + 1}
+                        size="small"
+                        color="primary"
+                        sx={{ fontWeight: 700, minWidth: 24 }}
+                      />
+                      {step.icon}
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{step.title}</Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      {step.desc}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+            </Box>
+
+            {/* オンライン・オフラインの違い */}
+            <Box sx={{ mb: 5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, textAlign: "center" }}>
+                オンライン・オフラインの違い
               </Typography>
-            </>
-          )}
-        </Box>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", textAlign: "center", mb: 3 }}
+              >
+                通信が無い状態でも、多くの操作はそのまま続けられます。
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
+                <Paper variant="outlined" sx={{ flex: 1, borderRadius: 3, overflow: "hidden" }}>
+                  <Box
+                    sx={{
+                      px: 2.5,
+                      py: 1.5,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+                    }}
+                  >
+                    <CloudSyncIcon color="success" fontSize="small" />
+                    <Typography sx={{ fontWeight: 700, color: "success.main" }}>
+                      オフラインでもできること
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      記録の閲覧・タイトル検索・タグ絞り込み・今日の復習・学習分析ダッシュボード。
+                      記録の登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
+                    </Typography>
+                  </Box>
+                </Paper>
+                <Paper variant="outlined" sx={{ flex: 1, borderRadius: 3, overflow: "hidden" }}>
+                  <Box
+                    sx={{
+                      px: 2.5,
+                      py: 1.5,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      bgcolor: (theme) => alpha(theme.palette.warning.main, 0.14),
+                    }}
+                  >
+                    <WifiOffIcon color="warning" fontSize="small" />
+                    <Typography sx={{ fontWeight: 700, color: "warning.main" }}>
+                      オンラインが必要なこと
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 2.5 }}>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      初回ログイン、GitHubファイルの添付・プレビュー・編集、新しいカテゴリー・タグの作成、
+                      管理者によるカテゴリー・タグの編集/削除。
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            </Box>
+
+            {/* 無料で使える主な機能 */}
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, textAlign: "center" }}>
+                無料で使える主な機能
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", textAlign: "center", mb: 3 }}
+              >
+                件数の上限なく、いつでも無料でお使いいただけます。
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                  gap: 1.5,
+                }}
+              >
+                {[
+                  {
+                    icon: <AddCircleOutlineIcon color="primary" fontSize="small" />,
+                    title: "学習記録（無制限）",
+                    desc: "登録・編集・削除に件数の上限はありません。",
+                  },
+                  {
+                    icon: <CategoryOutlinedIcon color="primary" fontSize="small" />,
+                    title: "カテゴリー・タグ",
+                    desc: "検索しながら整理できるので、増えても迷子になりません。",
+                  },
+                  {
+                    icon: <GitHubIcon color="primary" fontSize="small" />,
+                    title: "GitHub連携",
+                    desc: "専用リポジトリが自動作成され、コードと記録を一緒に管理できます。",
+                  },
+                  {
+                    icon: <MenuBookOutlinedIcon color="primary" fontSize="small" />,
+                    title: "今日の復習",
+                    desc: "3分・10分・じっくりから選べる、スキマ時間モード。",
+                  },
+                  {
+                    icon: <LocalOfferOutlinedIcon color="primary" fontSize="small" />,
+                    title: "穴埋め復習",
+                    desc: "メモの中で[[ ]]で囲んだ語句だけを隠して確認できます。",
+                  },
+                  {
+                    icon: <LocalFireDepartmentIcon sx={{ color: "#f97316" }} fontSize="small" />,
+                    title: "学習の記録",
+                    desc: "連続で記録した日数を、GitHubの「草」のようなグラフで振り返れます。",
+                  },
+                ].map((feature) => (
+                  <Paper
+                    key={feature.title}
+                    variant="outlined"
+                    sx={{ p: 2, borderRadius: 3, display: "flex", gap: 1.5 }}
+                  >
+                    <Box sx={{ mt: "2px" }}>{feature.icon}</Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {feature.title}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        {feature.desc}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        )}
       </Box>
     );
   }
