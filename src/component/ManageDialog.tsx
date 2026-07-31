@@ -64,7 +64,10 @@ export default function ManageDialog({
 
   const saveEdit = async (kind: Kind, id: number) => {
     const name = editValue.trim().replace(/^#/, "");
-    if (!name) return;
+    if (!name) {
+      showToast("名前を入力してください。", "warning");
+      return;
+    }
     setBusy(true);
     try {
       if (kind === "category") await updateCategoryApi(id, name);
@@ -151,7 +154,7 @@ export default function ManageDialog({
                           <IconButton
                             edge="end"
                             color="primary"
-                            disabled={busy || !editValue.trim()}
+                            disabled={busy}
                             onClick={() => saveEdit(kind, item.id)}
                           >
                             <CheckIcon />

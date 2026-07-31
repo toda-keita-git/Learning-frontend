@@ -21,6 +21,7 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -30,13 +31,13 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
       setSubmitting(false);
       setSubmitted(false);
       setError("");
+      setAttemptedSubmit(false);
     }
   }, [open]);
 
-  const canSubmit = email.trim() && message.trim() && !submitting;
-
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    setAttemptedSubmit(true);
+    if (!email.trim() || !message.trim() || submitting) return;
     setSubmitting(true);
     setError("");
     try {
@@ -77,15 +78,19 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
               autoFocus
               margin="dense"
               label="メールアドレス"
+              required
               type="email"
               fullWidth
               variant="standard"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              error={attemptedSubmit && !email.trim()}
+              helperText={attemptedSubmit && !email.trim() ? "メールアドレスは必須です" : " "}
             />
             <TextField
               margin="dense"
               label="お問い合わせ内容"
+              required
               type="text"
               fullWidth
               multiline
@@ -93,8 +98,10 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
               variant="standard"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              error={!!error}
-              helperText={error || " "}
+              error={!!error || (attemptedSubmit && !message.trim())}
+              helperText={
+                error || (attemptedSubmit && !message.trim() ? "お問い合わせ内容は必須です" : " ")
+              }
             />
           </>
         )}
@@ -102,7 +109,7 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
       <DialogActions>
         <Button onClick={onClose}>{submitted ? "とじる" : "キャンセル"}</Button>
         {!submitted && (
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
+          <Button onClick={handleSubmit} disabled={submitting}>
             {submitting ? "送信中…" : "送信"}
           </Button>
         )}

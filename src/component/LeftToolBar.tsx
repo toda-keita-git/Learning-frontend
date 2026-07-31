@@ -237,7 +237,7 @@ export default function LeftToolBar({
         </IconButton>
       </Tooltip>
       <Divider sx={{ width: "70%", mb: 1 }} />
-      <Tooltip title="新規学習内容" placement="right">
+      <Tooltip title="新規学習記録" placement="right">
         <IconButton onClick={onAddNewLearning} sx={{ mb: 0.5 }}>
           <LocalLibraryIcon />
         </IconButton>
@@ -326,7 +326,7 @@ export default function LeftToolBar({
               <ListItemIcon>
                 <LocalLibraryIcon />
               </ListItemIcon>
-              <ListItemText primary="新規学習内容" />
+              <ListItemText primary="新規学習記録" />
             </ListItemButton>
             <ListItemButton sx={{ pl: 4 }} onClick={onAddNewCategory}>
               <ListItemIcon>

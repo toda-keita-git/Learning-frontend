@@ -97,6 +97,8 @@ import {
   updateAppBadge,
 } from "./notifications";
 import { getFileType, getMimeType } from "./component/getFileType";
+import { parseAttachments, serializeAttachments } from "./component/attachments";
+import { parseReferenceUrls } from "./component/referenceUrls";
 
 
 
@@ -844,7 +846,7 @@ export default function LearningContent() {
       emptyGuideShownRef.current = true;
       const guideMessage: Message = {
         id: Date.now() + 2,
-        text: "まだ学習記録がありません。左のメニューの「新規学習内容」から、最初の学びを記録してみましょう。",
+        text: "まだ学習記録がありません。左のメニューの「新規学習記録」から、最初の学びを記録してみましょう。",
         timestamp: new Date().toLocaleTimeString("ja-JP", {
           hour: "2-digit",
           minute: "2-digit",
@@ -1005,12 +1007,12 @@ export default function LearningContent() {
 
   // ★ 新規・更新の両方を処理するハンドラ
   const handleSubmitLearning = async (submissionData: any) => {
-    // submissionDataから learningData と editedFile を取り出す
-    const { learningData, editedFile } = submissionData;
+    // submissionDataから learningData と editedFiles（複数の添付ファイル）を取り出す
+    const { learningData, editedFiles = [] } = submissionData;
 
     if (!navigator.onLine) {
       // GitHub上のファイル添付・編集はネットワークが必須のため、オフラインでは保留できない
-      if (editedFile) {
+      if (editedFiles.length > 0) {
         showToast(
           "オフラインではファイル添付を伴う保存はできません。オンライン復帰後にもう一度お試しください。",
           "error"
@@ -1053,19 +1055,32 @@ export default function LearningContent() {
 
       finalLearningData.user_id = userId;
 
-      // ... (ファイル更新処理はここに移動・統合)
-      if (editedFile) {
-        const newCommitSha = await handleUpdateFile(
-          editedFile.path,
-          editedFile.content,
-          editedFile.sha,
-          { contentIsBase64: editedFile.contentIsBase64 }
-        );
-        if (newCommitSha) {
-          finalLearningData.commit_sha = newCommitSha;
-        } else {
-          throw new Error("File update failed, aborting learning record save.");
+      // 添付ファイルのうち、アップロード・作成・編集が必要なものをすべて反映する。
+      // 1件でも失敗したら全体を中断する（一部だけ保存されて添付情報とズレるのを防ぐため）
+      if (editedFiles.length > 0) {
+        const uploadedShaByPath = new Map<string, string>();
+        for (const editedFile of editedFiles) {
+          const newCommitSha = await handleUpdateFile(
+            editedFile.path,
+            editedFile.content,
+            editedFile.sha,
+            { contentIsBase64: editedFile.contentIsBase64 }
+          );
+          if (!newCommitSha) {
+            throw new Error("File update failed, aborting learning record save.");
+          }
+          uploadedShaByPath.set(editedFile.path, newCommitSha);
         }
+
+        // ダイアログ側では、アップロード予定のファイルをsha:nullのプレースホルダーとして
+        // github_pathに含めている。ここで実際のcommit shaに差し替える
+        const attachments = parseAttachments(
+          finalLearningData.github_path,
+          finalLearningData.commit_sha
+        ).map((a) => ({ path: a.path, sha: uploadedShaByPath.get(a.path) ?? a.sha }));
+        const serialized = serializeAttachments(attachments);
+        finalLearningData.github_path = serialized.github_path;
+        finalLearningData.commit_sha = serialized.commit_sha;
       }
 
       // 1. category_idが空文字列ならnullに変換する
@@ -1217,7 +1232,7 @@ export default function LearningContent() {
         const searchableText = [
           item.title,
           item.explanatory_text,
-          item.reference_url ?? "",
+          parseReferenceUrls(item.reference_url).join(" "),
           item.category_name,
           item.tags.join(" "),
         ]
@@ -1363,7 +1378,7 @@ export default function LearningContent() {
     postResultCards(results, `🏷️ タグ「#${tag}」の学習記録: ${results.length}件`);
   };
 
-  // 新規学習内容ダイアログを開く（左メニュー・下部ナビ両方から使う共通処理）
+  // 新規学習記録ダイアログを開く（左メニュー・下部ナビ両方から使う共通処理）
   const openNewLearningDialog = () => {
     setEditingItem(null);
     setSharePrefill(null); // 共有の初期値が残らないようにする
@@ -2173,7 +2188,7 @@ export default function LearningContent() {
             <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
-                primary="新規学習内容"
+                primary="新規学習記録"
                 secondary="学んだことを記録します。タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。"
               />
             </ListItem>

@@ -18,6 +18,8 @@ import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import { findRelatedItems } from "./relatedNotes";
 import MarkdownContent from "./MarkdownContent";
+import { parseAttachments } from "./attachments";
+import { parseReferenceUrls } from "./referenceUrls";
 
 interface LearningResultItem {
   id: number;
@@ -213,19 +215,26 @@ export default function LearningResultCards({
                           <MarkdownContent text={item.explanatory_text} />
                         </Box>
 
-                        {item.reference_url && (
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            <Box
-                              component="a"
-                              href={item.reference_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              sx={{ color: "primary.main", fontWeight: 600, textDecoration: "none" }}
-                            >
-                              参考リンク 🔗
-                            </Box>
-                          </Typography>
-                        )}
+                        {(() => {
+                          const referenceUrls = parseReferenceUrls(item.reference_url);
+                          return referenceUrls.length > 0 ? (
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+                              {referenceUrls.map((url, index) => (
+                                <Typography key={`${url}-${index}`} variant="body2" component="span">
+                                  <Box
+                                    component="a"
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{ color: "primary.main", fontWeight: 600, textDecoration: "none" }}
+                                  >
+                                    参考リンク{referenceUrls.length > 1 ? `${index + 1}` : ""} 🔗
+                                  </Box>
+                                </Typography>
+                              ))}
+                            </Stack>
+                          ) : null;
+                        })()}
 
                         {relatedItems.length > 0 && (
                           <Box sx={{ mb: 1.5 }}>
@@ -259,25 +268,33 @@ export default function LearningResultCards({
                           </Box>
                         )}
 
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            gap: 1,
-                            justifyContent: item.github_path ? "space-between" : "flex-end",
-                          }}
-                        >
-                          {item.github_path && (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              startIcon={<DescriptionOutlinedIcon />}
-                              onClick={() => onViewFile(item.github_path, item.commit_sha)}
+                        {(() => {
+                          const fileAttachments = parseAttachments(item.github_path, item.commit_sha);
+                          return (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                gap: 1,
+                                justifyContent: fileAttachments.length > 0 ? "space-between" : "flex-end",
+                              }}
                             >
-                              ファイルを見る（{item.github_path.split("/").pop()}）
-                            </Button>
-                          )}
+                              {fileAttachments.length > 0 && (
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                  {fileAttachments.map((att, index) => (
+                                    <Button
+                                      key={`${att.path}-${index}`}
+                                      size="small"
+                                      variant="contained"
+                                      startIcon={<DescriptionOutlinedIcon />}
+                                      onClick={() => onViewFile(att.path, att.sha)}
+                                    >
+                                      ファイルを見る（{att.path.split("/").pop()}）
+                                    </Button>
+                                  ))}
+                                </Stack>
+                              )}
                           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                             {onPublish && (
                               <Button
@@ -307,7 +324,9 @@ export default function LearningResultCards({
                               削除
                             </Button>
                           </Stack>
-                        </Box>
+                            </Box>
+                          );
+                        })()}
                       </Box>
                     </Collapse>
                   </CardContent>

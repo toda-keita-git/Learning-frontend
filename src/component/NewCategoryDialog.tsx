@@ -29,10 +29,12 @@ export default function NewCategoryDialog({
   existingCategories = [],
 }: NewCategoryDialogProps) {
   const [name, setName] = useState("");
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setName("");
+      setAttemptedSubmit(false);
     }
   }, [open]);
 
@@ -49,6 +51,7 @@ export default function NewCategoryDialog({
   );
 
   const handleSubmit = () => {
+    setAttemptedSubmit(true);
     if (trimmed && !isDuplicate) {
       onSubmit(trimmed);
     }
@@ -111,8 +114,14 @@ export default function NewCategoryDialog({
           variant="standard"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          error={isDuplicate}
-          helperText={isDuplicate ? "そのカテゴリーは既に存在します" : " "}
+          error={isDuplicate || (attemptedSubmit && !trimmed)}
+          helperText={
+            isDuplicate
+              ? "そのカテゴリーは既に存在します"
+              : attemptedSubmit && !trimmed
+              ? "カテゴリー名は必須です"
+              : " "
+          }
           onKeyPress={(e) => {
             if (e.key === "Enter") {
               handleSubmit();
@@ -122,7 +131,7 @@ export default function NewCategoryDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>キャンセル</Button>
-        <Button onClick={handleSubmit} disabled={!trimmed || isDuplicate}>
+        <Button onClick={handleSubmit} disabled={isDuplicate && !!trimmed}>
           登録
         </Button>
       </DialogActions>

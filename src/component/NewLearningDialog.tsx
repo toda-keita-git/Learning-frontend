@@ -20,6 +20,9 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { format } from "date-fns";
 import GitHubFileSelector from "./GitHubFileSelector";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
+import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
+import AddLinkIcon from "@mui/icons-material/AddLink";
 // Prism（全言語を同梱、数百kB）ではなく PrismAsyncLight
 // （言語ごとに動的import、初回表示に必要な分だけ読み込む）を使う
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -46,6 +49,18 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { hasCloze } from "./clozeUtils";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
+import { parseAttachments, serializeAttachments, type Attachment } from "./attachments";
+import { parseReferenceUrls, serializeReferenceUrls } from "./referenceUrls";
+
+// 添付リストに追加済みの1件分（アップロード待ちの内容もここに保持する）
+type PendingAttachment = {
+  path: string;
+  localFile: File | null;
+  isEditingFile: boolean;
+  fileSha: string | null;
+  fileContent: string;
+  fileType: string;
+};
 
 
 // Base64エンコードを行うヘルパー関数
@@ -108,7 +123,9 @@ export default function NewLearningDialog({
   const [clozeAllRevealed, setClozeAllRevealed] = useState(false);
   const [clozeResetKey, setClozeResetKey] = useState(0);
   const [understandingLevel, setUnderstandingLevel] = useState<number | null>(null);
-  const [referenceUrl, setReferenceUrl] = useState("");
+  // 参考URLは複数登録できる。空欄も1件として保持し、常に最後に空欄が
+  // 1つ残るようにして「＋」ボタンなしでも次のURLをすぐ入力できるようにする
+  const [referenceUrls, setReferenceUrls] = useState<string[]>([""]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   // 添付ファイルの保存先は「フォルダ」と「ファイル名」を別々のStateで持つ。
@@ -119,6 +136,18 @@ export default function NewLearningDialog({
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localFile, setLocalFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 作業スロット（今まさに選択・作成中の1件）とは別に、複数添付できるよう
+  // 「添付リスト」に確定済みの分を溜めておく。最終送信時に、リストに
+  // 未追加のまま作業スロットに残っている分があれば自動でリストに含める
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  // 「新規ファイルを作成する」を選んだ状態か（アップロードでも既存選択でもない、
+  // 空の状態からファイルを作る操作であることを示す）
+  const [isCreatingNewFile, setIsCreatingNewFile] = useState(false);
+  // タイトル等の必須項目を空のまま登録しようとしたら警告を表示するためのフラグ
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  // 直前まで編集していた学習記録のid（新規作成に切り替わったときだけ
+  // フォームをリセットするために使う。単なる開閉では下書きを保持する）
+  const prevEditingIdRef = useRef<number | string | null>(null);
 
   // フォルダとファイル名を結合した完全パス（前後の余分なスラッシュは除去）。
   // ファイル名が空でフォルダだけ決まっている場合は末尾スラッシュ付きになる。
@@ -213,33 +242,54 @@ export default function NewLearningDialog({
   }, [workbook, activeSheetIndex]);
 
   useEffect(() => {
-    if (open) {
-      if (editingData) {
-        setTitle(editingData.title || "");
-        setHeadingText(editingData.heading_text || "");
-        setExplanatoryText(editingData.explanatory_text || "");
-        setUnderstandingLevel(editingData.understanding_level ?? null);
-        setReferenceUrl(editingData.reference_url || "");
-        setSelectedCategory(editingData.category_id || "");
-        setSelectedTags(editingData.tags || []);
-        const { folder, file } = splitPath(editingData.github_path || "");
-        setFolderPath(folder);
-        setFileName(file);
-        setLocalFile(null);
-        if (editingData.github_path) {
-          handlePreviewFile(editingData.github_path);
-        }
-      } else if (prefillData) {
-        // 共有などからの新規登録：一度リセットしてから初期値を差し込む
-        handleClose(true);
-        setTitle(prefillData.title || "");
-        setHeadingText(prefillData.heading_text || "");
-        setExplanatoryText(prefillData.explanatory_text || "");
-        setReferenceUrl(prefillData.reference_url || "");
-      } else {
-        // 新規作成モードの時はフォームをリセット
-        handleClose(true);
-      }
+    if (!open) return;
+
+    if (editingData) {
+      setTitle(editingData.title || "");
+      setHeadingText(editingData.heading_text || "");
+      setExplanatoryText(editingData.explanatory_text || "");
+      setUnderstandingLevel(editingData.understanding_level ?? null);
+      const urls = parseReferenceUrls(editingData.reference_url);
+      setReferenceUrls(urls.length > 0 ? [...urls, ""] : [""]);
+      setSelectedCategory(editingData.category_id || "");
+      setSelectedTags(editingData.tags || []);
+      // 既存の添付は「添付リスト」に読み込む（内容の再取得はせず、パスとshaだけ保持）。
+      // 作業スロットは空のままにし、もう1件追加したい場合にすぐ使えるようにする
+      const existingAttachments = parseAttachments(editingData.github_path, editingData.commit_sha);
+      setAttachments(
+        existingAttachments.map((a) => ({
+          path: a.path,
+          localFile: null,
+          isEditingFile: false,
+          fileSha: a.sha,
+          fileContent: "",
+          fileType: getFileType(a.path),
+        }))
+      );
+      setFolderPath("");
+      setFileName("");
+      setLocalFile(null);
+      setFileContent("");
+      setFileSha(null);
+      setIsEditingFile(false);
+      setIsCreatingNewFile(false);
+      setPreviewError(null);
+      setAttemptedSubmit(false);
+      prevEditingIdRef.current = editingData.id ?? null;
+    } else if (prefillData) {
+      // 共有などからの新規登録：一度リセットしてから初期値を差し込む
+      resetFormFields();
+      setTitle(prefillData.title || "");
+      setHeadingText(prefillData.heading_text || "");
+      setExplanatoryText(prefillData.explanatory_text || "");
+      setReferenceUrls(prefillData.reference_url ? [prefillData.reference_url, ""] : [""]);
+      prevEditingIdRef.current = null;
+    } else if (prevEditingIdRef.current !== null) {
+      // 直前まで別の記録を編集していた場合だけ、新規作成への切り替わりでリセットする。
+      // 単に閉じて開き直しただけ（例: 誤ってキャンセル→もう一度「学んだことを記録する」）
+      // では、入力途中の下書きをそのまま残す
+      resetFormFields();
+      prevEditingIdRef.current = null;
     }
   }, [editingData, prefillData, open]);
 
@@ -260,6 +310,7 @@ export default function NewLearningDialog({
     setPptxSlides([]);
     setActiveSlideIndex(0);
     setZipEntries([]);
+    setIsCreatingNewFile(false);
 
     const result = await onFetchFile(pathToFetch);
 
@@ -352,6 +403,7 @@ export default function NewLearningDialog({
     setPptxSlides([]);
     setActiveSlideIndex(0);
     setZipEntries([]);
+    setIsCreatingNewFile(false);
 
     const reader = new FileReader();
     const fileType = getFileType(file.name);
@@ -430,63 +482,152 @@ export default function NewLearningDialog({
     handlePreviewFile(path);
   };
 
-  const handleSubmit = async () => {
-    let editedFileData = null;
+  // 「新規ファイルを作成する」：既存ファイルの取得もアップロードもせず、
+  // 空の内容から直接タイプして新しいファイルを作る
+  const handleCreateNewFileClick = () => {
+    setLocalFile(null);
+    setFileSha(null);
+    setFileContent("");
+    setPreviewError(null);
+    setWorkbook(null);
+    setActiveSheetIndex(0);
+    setSpreadsheetData(null);
+    setPdfPages([]);
+    setPptxSlides([]);
+    setActiveSlideIndex(0);
+    setZipEntries([]);
+    setIsCreatingNewFile(true);
+    setIsEditingFile(true); // 最初からテキスト入力できる状態にする
+  };
 
-    // Excelは閲覧専用（図・グラフがxlsx書き出しで失われるため編集・保存は行わない）。
-    // spreadsheetDataは表示専用で、ここでの再アップロードは対象外
-    // 1. ローカルファイルが選択された場合の処理
-    if (localFile) {
-      const content = await toBase64(localFile);
-      editedFileData = {
-        path: github_path,
-        content: content,
-        sha: null, // 新規ファイルなのでSHAはnull
-        contentIsBase64: true, // ★ Base64形式であるフラグ
-      };
+  // 作業スロットの内容を1件分のPendingAttachmentに変換する
+  // （複数の場所から同じ変換ロジックを使うため関数化）。
+  // ファイル名を入力しただけで、アップロード・既存選択・新規作成のいずれも
+  // 行っていない場合はnullを返す（存在しないファイルへのパスだけを
+  // 保存してしまう不具合を避けるため）
+  const buildPendingAttachmentFromSlot = (): PendingAttachment | null => {
+    if (!github_path.trim()) return null;
+    const hasRealContent = !!localFile || isEditingFile || !!fileSha;
+    if (!hasRealContent) return null;
+    return {
+      path: github_path,
+      localFile,
+      isEditingFile,
+      fileSha,
+      fileContent,
+      fileType,
+    };
+  };
+
+  // 作業スロットの内容を「添付リスト」に確定として追加し、次の1件を用意できるようにする
+  const handleQueueAttachment = () => {
+    const pending = buildPendingAttachmentFromSlot();
+    if (!pending) return;
+    setAttachments((prev) => [...prev, pending]);
+    handleClearAttachment();
+  };
+
+  const handleRemoveQueuedAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // アップロード待ちの内容（editedFiles）と、最終的に保存するパス・sha一覧を組み立てる。
+  // アップロードが必要なものはsha:nullのプレースホルダーとして積み、親コンポーネント側で
+  // 実際のアップロード後に本物のcommit shaへ差し替える
+  const buildAttachmentSubmission = (list: PendingAttachment[]) => {
+    const editedFiles: Array<{
+      path: string;
+      content: string;
+      sha: string | null;
+      contentIsBase64: boolean;
+    }> = [];
+    const finalAttachments: Attachment[] = [];
+
+    for (const att of list) {
+      if (att.localFile) {
+        // ローカルファイルのアップロード（内容の変換は送信直前にまとめて行う）
+        editedFiles.push({
+          path: att.path,
+          content: "__PENDING_LOCAL_FILE__", // toBase64後に置き換える
+          sha: null,
+          contentIsBase64: true,
+        });
+        finalAttachments.push({ path: att.path, sha: null });
+      } else if (att.isEditingFile && att.fileType !== "docx" && att.fileType !== "doc") {
+        // 既存ファイルの編集、または新規ファイルの作成（どちらもテキスト内容をコミットする）
+        editedFiles.push({
+          path: att.path,
+          content: att.fileContent,
+          sha: att.fileSha,
+          contentIsBase64: false,
+        });
+        finalAttachments.push({ path: att.path, sha: att.fileSha });
+      } else {
+        // 既存ファイルをそのまま参照するだけ（アップロード不要）
+        finalAttachments.push({ path: att.path, sha: att.fileSha });
+      }
     }
-    // 2. GitHub上のテキストファイルが編集された場合の処理
-    //    （Word .docx/.docは閲覧専用のため、ここでは編集対象にならない）
-    else if (isEditingFile && fileSha && fileType !== "docx" && fileType !== "doc") {
-      editedFileData = {
-        path: github_path,
-        content: fileContent,
-        sha: fileSha,
-        contentIsBase64: false, // テキストなのでフラグはfalse
-      };
-    }
+
+    return { editedFiles, finalAttachments };
+  };
+
+  const handleSubmit = async () => {
+    setAttemptedSubmit(true);
+    if (!title.trim()) return; // タイトル未入力なら送信しない（下の必須項目の警告表示に任せる）
+
+    // 添付リストに追加し忘れたまま作業スロットに残っている分があれば、
+    // 送信直前に自動でリストへ含める（1件だけ添付するときに毎回
+    // 「リストに追加」を押させないための救済）
+    const pendingSlot = buildPendingAttachmentFromSlot();
+    const allAttachments = pendingSlot ? [...attachments, pendingSlot] : attachments;
+
+    const { editedFiles: editedFilesRaw, finalAttachments } = buildAttachmentSubmission(allAttachments);
+
+    // ローカルファイルのBase64変換をこのタイミングでまとめて行う
+    const editedFiles = await Promise.all(
+      editedFilesRaw.map(async (ef) => {
+        if (ef.content !== "__PENDING_LOCAL_FILE__") return ef;
+        const match = allAttachments.find((a) => a.path === ef.path && a.localFile);
+        const content = match?.localFile ? await toBase64(match.localFile) : "";
+        return { ...ef, content };
+      })
+    );
+
+    const { github_path: finalGithubPath, commit_sha: finalCommitSha } =
+      serializeAttachments(finalAttachments);
 
     const learningData = {
       title,
       heading_text: headingText,
       explanatory_text: explanatoryText,
       understanding_level: understandingLevel,
-      reference_url: referenceUrl,
+      reference_url: serializeReferenceUrls(referenceUrls),
       category_id: selectedCategory,
       tags: selectedTags,
-      github_path: github_path,
-      // commit_shaは親コンポーネントで設定される
+      github_path: finalGithubPath,
+      commit_sha: finalCommitSha,
     };
 
     const submissionData = {
       learningData: editingData
         ? { ...learningData, id: editingData.id }
         : { ...learningData, created_at: created_at },
-      editedFile: editedFileData,
+      editedFiles, // ★ 複数件対応（0件のこともある）
     };
 
     try {
       await onSubmit(submissionData);
+      resetFormFields();
+      prevEditingIdRef.current = null;
       onClose();
     } catch (error) {
       console.error("Submission failed:", error);
     }
   };
 
-  const handleClose = (isOpening = false) => {
-    if (!isOpening) {
-      onClose();
-    }
+  // フォームの入力内容をすべて空にする（送信成功後の初期化や、共有からの
+  // 新規登録の前処理に使う）
+  const resetFormFields = () => {
     setWorkbook(null);
     setActiveSheetIndex(0);
     setSpreadsheetData(null);
@@ -494,7 +635,7 @@ export default function NewLearningDialog({
     setHeadingText("");
     setExplanatoryText("");
     setUnderstandingLevel(null);
-    setReferenceUrl("");
+    setReferenceUrls([""]);
     setSelectedCategory("");
     setSelectedTags([]);
     setFolderPath("");
@@ -503,20 +644,29 @@ export default function NewLearningDialog({
     setFileContent("");
     setFileSha(null);
     setIsEditingFile(false);
+    setIsCreatingNewFile(false);
     setPreviewError(null);
     setIsLoadingFile(false);
-    setSpreadsheetData(null); // ★ スプレッドシートデータもリセット
     setPdfPages([]);
     setPptxSlides([]);
     setActiveSlideIndex(0);
     setZipEntries([]);
+    setAttachments([]);
+    setAttemptedSubmit(false);
+  };
+
+  // キャンセル・背景クリックなどでダイアログを閉じる。
+  // 入力途中の内容を誤って失わないよう、フォームはリセットしない
+  // （新規作成中なら次回開いたときに続きから入力できる）
+  const handleClose = () => {
+    onClose();
   };
 
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  // 添付ファイルの選択内容をすべてクリアする
+  // 添付ファイルの選択内容をすべてクリアする（作業スロットのみ。添付リストは残す）
   const handleClearAttachment = () => {
     setFolderPath("");
     setFileName("");
@@ -524,6 +674,7 @@ export default function NewLearningDialog({
     setFileContent("");
     setFileSha(null);
     setIsEditingFile(false);
+    setIsCreatingNewFile(false);
     setPreviewError(null);
     setWorkbook(null);
     setActiveSheetIndex(0);
@@ -569,7 +720,12 @@ export default function NewLearningDialog({
             fullWidth
             variant="outlined"
             placeholder="例: XLOOKUP関数の使い方"
-            helperText="何について学んだかを短く書きます（必須）"
+            error={attemptedSubmit && !title.trim()}
+            helperText={
+              attemptedSubmit && !title.trim()
+                ? "タイトルは必須です。入力してください"
+                : "何について学んだかを短く書きます（必須）"
+            }
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -676,18 +832,51 @@ export default function NewLearningDialog({
             )}
           </Box>
 
-          {/* 参考URL（任意） */}
-          <TextField
-            margin="normal"
-            label="参考URL（任意）"
-            type="url"
-            fullWidth
-            variant="outlined"
-            placeholder="https://..."
-            helperText="参考にした記事やドキュメントのURL"
-            value={referenceUrl}
-            onChange={(e) => setReferenceUrl(e.target.value)}
-          />
+          {/* 参考URL（複数可・任意） */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              参考URL（任意・複数登録できます）
+            </Typography>
+            {referenceUrls.map((url, index) => (
+              <Box key={index} sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1 }}>
+                <TextField
+                  type="url"
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  placeholder="https://..."
+                  helperText={
+                    index === referenceUrls.length - 1 ? "参考にした記事やドキュメントのURL" : " "
+                  }
+                  value={url}
+                  onChange={(e) => {
+                    const next = [...referenceUrls];
+                    next[index] = e.target.value;
+                    setReferenceUrls(next);
+                  }}
+                />
+                {referenceUrls.length > 1 && (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      const next = referenceUrls.filter((_, i) => i !== index);
+                      setReferenceUrls(next.length > 0 ? next : [""]);
+                    }}
+                    title="このURLを削除"
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            ))}
+            <Button
+              size="small"
+              startIcon={<AddLinkIcon fontSize="small" />}
+              onClick={() => setReferenceUrls((prev) => [...prev, ""])}
+            >
+              参考URLを追加
+            </Button>
+          </Box>
 
           {/* === 分類 === */}
           <Typography variant="subtitle2" sx={{ mt: 3, mb: 1, fontWeight: 700, color: "primary.main" }}>
@@ -772,7 +961,7 @@ export default function NewLearningDialog({
               }}
             >
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
-                ファイルを添付する（任意）
+                ファイルを添付する（任意・複数選択できます）
               </Typography>
               {hasAttachment && (
                 <Button
@@ -788,6 +977,33 @@ export default function NewLearningDialog({
             <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mb: 1.5 }}>
               学んだコードやファイルをGitHubリポジトリに保存して紐づけられます。使わなくても登録できます。
             </Typography>
+
+            {/* --- 添付リスト（確定済みの分） --- */}
+            {attachments.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  mb: 1.5,
+                  p: 1,
+                  border: "1px dashed",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                }}
+              >
+                {attachments.map((att, index) => (
+                  <Chip
+                    key={`${att.path}-${index}`}
+                    icon={<InsertDriveFileOutlinedIcon />}
+                    label={att.path}
+                    onDelete={() => handleRemoveQueuedAttachment(index)}
+                    variant="outlined"
+                    color="primary"
+                  />
+                ))}
+              </Box>
+            )}
 
             {/* --- 保存先フォルダ --- */}
             <Box
@@ -846,7 +1062,7 @@ export default function NewLearningDialog({
               <IconButton
                 onClick={handleUploadButtonClick}
                 color="primary"
-                title="PCからファイルをアップロード"
+                title="PCからファイルをアップロードする"
               >
                 <UploadFileIcon />
               </IconButton>
@@ -857,7 +1073,27 @@ export default function NewLearningDialog({
               >
                 <InsertDriveFileOutlinedIcon />
               </IconButton>
+              <IconButton
+                onClick={handleCreateNewFileClick}
+                color="primary"
+                title="新規ファイルを作成する（空の内容から直接入力できます）"
+              >
+                <NoteAddOutlinedIcon />
+              </IconButton>
             </Box>
+
+            {(localFile || isEditingFile || fileSha) && (
+              <Box sx={{ mt: 1, textAlign: "right" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PlaylistAddIcon fontSize="small" />}
+                  onClick={handleQueueAttachment}
+                >
+                  この内容を添付リストに追加
+                </Button>
+              </Box>
+            )}
           </Box>
           <Box
             sx={{
@@ -987,7 +1223,7 @@ export default function NewLearningDialog({
                   ))}
                 </List>
               </Box>
-            ) : fileContent ? (
+            ) : fileContent || isCreatingNewFile ? (
               // ★ JSX 直接条件分岐で返す
               fileType === "image" || fileType === "video" ? (
               <Box
@@ -1069,6 +1305,11 @@ export default function NewLearningDialog({
                       ※ Wordは閲覧専用です（文章のみ抽出して表示。元の書式・画像・表は再現されません）
                     </Typography>
                   )}
+                  {isCreatingNewFile && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      ※ 新しいファイルの内容を入力してください。「この内容を添付リストに追加」を押すと登録時にGitHubへ新規作成されます
+                    </Typography>
+                  )}
                 </div>
               )
             ) : (
@@ -1091,7 +1332,7 @@ export default function NewLearningDialog({
           <Button onClick={() => handleClose()} color="inherit">
             キャンセル
           </Button>
-          <Button onClick={handleSubmit} variant="contained" disabled={!title.trim()}>
+          <Button onClick={handleSubmit} variant="contained">
             {editingData ? "変更を保存" : "この内容で登録"}
           </Button>
         </DialogActions>

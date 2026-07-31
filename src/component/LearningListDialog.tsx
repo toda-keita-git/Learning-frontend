@@ -26,6 +26,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import { parseAttachments } from "./attachments";
 
 interface LearningListItem {
   id: number;
@@ -241,16 +242,13 @@ export default function LearningListDialog({
                       {formatDate(item.created_at)}
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                      {item.github_path && (
-                        <Tooltip title="ファイルを見る">
-                          <IconButton
-                            size="small"
-                            onClick={() => onViewFile(item.github_path, item.commit_sha)}
-                          >
+                      {parseAttachments(item.github_path, item.commit_sha).map((att, index) => (
+                        <Tooltip key={`${att.path}-${index}`} title={`ファイルを見る（${att.path.split("/").pop()}）`}>
+                          <IconButton size="small" onClick={() => onViewFile(att.path, att.sha)}>
                             <DescriptionOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                      )}
+                      ))}
                       {onPublish && (
                         <Tooltip title="記事化">
                           <IconButton size="small" onClick={() => onPublish(item)}>

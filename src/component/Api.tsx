@@ -103,7 +103,7 @@ export const CategoriesApi = async () => {
   }
 };
 
-// 新規学習内容を登録するAPI（user_idはJWTから特定される）
+// 新規学習記録を登録するAPI（user_idはJWTから特定される）
 export const createLearningApi = async (data: any) => {
   try {
     const response = await axios.post("/learning_insert", data);
