@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ResponsiveAppBar from "./component/ResponsiveAppBar";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -7,13 +7,15 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
-import Divider from "@mui/material/Divider";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
 import { alpha } from "@mui/material/styles";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import SearchIcon from "@mui/icons-material/Search";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -23,6 +25,8 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import InquiryDialog from "./component/InquiryDialog";
+import recordDialogShot from "./assets/screenshots/record-dialog.webp";
+import searchResultsShot from "./assets/screenshots/search-results.webp";
 
 const features = [
   {
@@ -88,6 +92,7 @@ const steps = [
 export default function Home() {
   const navigate = useNavigate();
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const stepsRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
@@ -117,19 +122,28 @@ export default function Home() {
             <br />
             あとからいつでも振り返れる学習記録アプリ。
           </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<GitHubIcon />}
-            onClick={() => navigate("/LearningContent")}
-          >
-            使ってみる（GitHubログイン）
-          </Button>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<GitHubIcon />}
+              onClick={() => navigate("/LearningContent")}
+            >
+              使ってみる（GitHubログイン）
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => stepsRef.current?.scrollIntoView({ behavior: "smooth" })}
+            >
+              まずは使い方を見る（登録不要）
+            </Button>
+          </Stack>
         </Container>
       </Box>
 
       {/* つかいかた（3ステップ） */}
-      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }} ref={stepsRef}>
         <Typography
           variant="h5"
           sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
@@ -173,7 +187,47 @@ export default function Home() {
         </Stack>
       </Container>
 
-      {/* GitHub連携について（リポジトリ自動作成の説明＋注意点） */}
+      {/* 実際の画面（文章だけでは伝わりにくいので、実際のUIをそのまま見せる） */}
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}>
+          実際の画面
+        </Typography>
+        <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
+          文章だけでは伝わりにくいので、実際の画面をそのままお見せします。
+        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+          <Paper elevation={0} sx={{ flex: 1, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+            <Box
+              component="img"
+              src={recordDialogShot}
+              alt="学んだことを記録するフォームの画面。タイトル・見出し・内容メモ・参考URL・カテゴリなどを入力する項目が並んでいる"
+              sx={{ display: "block", width: "100%" }}
+            />
+            <Box sx={{ p: 2 }}>
+              <Typography sx={{ fontWeight: 700, mb: 0.5 }}>学んだことをその場で記録</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                タイトルとメモを書くだけでOK。カテゴリ・タグ・理解度などは、必要な項目だけ入力できます。
+              </Typography>
+            </Box>
+          </Paper>
+          <Paper elevation={0} sx={{ flex: 1, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+            <Box
+              component="img"
+              src={searchResultsShot}
+              alt="検索結果の画面。過去の学習記録がタイトル・見出し・タグ・理解度の星付きでカード形式に並んでいる"
+              sx={{ display: "block", width: "100%" }}
+            />
+            <Box sx={{ p: 2 }}>
+              <Typography sx={{ fontWeight: 700, mb: 0.5 }}>チャット感覚で検索・振り返り</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                キーワードを送るだけで、過去の学びがカードになって出てきます。気になる1件だけ開いて確認できます。
+              </Typography>
+            </Box>
+          </Paper>
+        </Stack>
+      </Container>
+
+      {/* GitHubログインについて（やさしい説明＋詳細はアコーディオンに格納） */}
       <Box sx={{ bgcolor: "action.hover", py: { xs: 5, md: 7 } }}>
         <Container maxWidth="md">
           <Paper
@@ -187,56 +241,62 @@ export default function Home() {
             <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
               <GitHubIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                GitHub連携について
+                なぜGitHubのログインが必要なの？
               </Typography>
             </Stack>
-            <Typography sx={{ mb: 2, lineHeight: 1.9 }}>
-              初回ログイン時に、あなたのGitHubアカウントへ
-              <Box
-                component="code"
-                sx={{
-                  mx: 0.5,
-                  px: 1,
-                  py: 0.3,
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
-                  borderRadius: 1,
-                  fontFamily: "monospace",
-                  color: "primary.main",
-                }}
-              >
-                learning-site-&lt;ユーザー名&gt;
-              </Box>
-              という保存先リポジトリが自動で作成されます。学習記録に添付したコードやファイルは、ここに保存されます。
+            <Typography sx={{ mb: 1, lineHeight: 1.9 }}>
+              GitHubでログインすると、<b>あなた専用の保存場所</b>が自動で用意され、書いた学習記録を無料でずっと保存しておけます。
+              難しい設定は不要で、むずかしいことが分からなくても大丈夫です。ボタンを押すだけで準備が整います。
+            </Typography>
+            <Typography sx={{ mb: 2, lineHeight: 1.9, color: "text.secondary" }}>
+              その保存場所は他の人には見えない非公開の状態で作られるので、安心して使えます（念のため、パスワードなどの重要な情報は書かないようにしてください）。
             </Typography>
 
-            <Divider sx={{ my: 2 }} />
-
-            <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
-              <InfoOutlinedIcon fontSize="small" sx={{ color: "warning.main" }} />
-              <Typography sx={{ fontWeight: 700, color: "warning.main" }}>
-                ご利用前の注意点
-              </Typography>
-            </Stack>
-            <Box component="ul" sx={{ m: 0, pl: 3, color: "text.secondary", lineHeight: 2 }}>
-              <li>
-                作成されるリポジトリは<b>非公開（Private）</b>です。あなたと、あなたが許可した相手だけが閲覧できます。
-                とはいえ念のため、<b>パスワードやAPIキーなどの機密情報は保存しない</b>ことをおすすめします。
-              </li>
-              <li>
-                ログイン時に、GitHubの<b>「repo（リポジトリの読み書き）」権限</b>の許可を求められます。
-                これは上記の保存先リポジトリを作成・更新するために使用します。
-              </li>
-              <li>
-                この
-                <Box
-                  component="code"
-                  sx={{ fontFamily: "monospace", color: "primary.main" }}
-                >
-                  learning-site-…
+            <Accordion elevation={0} disableGutters sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0 }}>
+                <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  もう少し詳しく知りたい方はこちら（技術的な内容を含みます）
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0 }}>
+                <Box component="ul" sx={{ m: 0, pl: 3, color: "text.secondary", lineHeight: 2 }}>
+                  <li>
+                    保存場所の正体は、GitHubの
+                    <Box
+                      component="code"
+                      sx={{
+                        mx: 0.5,
+                        px: 1,
+                        py: 0.3,
+                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                        borderRadius: 1,
+                        fontFamily: "monospace",
+                        color: "primary.main",
+                      }}
+                    >
+                      learning-site-&lt;ユーザー名&gt;
+                    </Box>
+                    という名前の「リポジトリ」（GitHub用語でファイル置き場のこと）です。学習記録に添付したコードやファイルは、ここに保存されます。
+                  </li>
+                  <li>
+                    作成されるリポジトリは<b>非公開（Private）</b>です。あなたと、あなたが許可した相手だけが閲覧できます。
+                  </li>
+                  <li>
+                    ログイン時に、GitHubから<b>「repo」という権限</b>の許可を求められます。これは上記の保存場所を作ったり、内容を更新したりするために必要な権限です。
+                  </li>
+                  <li>
+                    この
+                    <Box
+                      component="code"
+                      sx={{ fontFamily: "monospace", color: "primary.main" }}
+                    >
+                      learning-site-…
+                    </Box>
+                    リポジトリは、アプリのデータ保存に使われます。手動で削除・改名しないでください。
+                  </li>
                 </Box>
-                リポジトリは、アプリのデータ保存に使われます。手動で削除・改名しないでください。
-              </li>
-            </Box>
+              </AccordionDetails>
+            </Accordion>
           </Paper>
         </Container>
       </Box>

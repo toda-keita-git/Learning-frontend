@@ -192,6 +192,8 @@ type Message = {
   displayName?: string;
   // 検索結果などをカード一覧として表示する場合に使用（textはヘッダー文言として使う）
   cards?: LearningRecord[];
+  // 案内メッセージから直接次の行動に進めるための、任意のアクションボタン
+  action?: { label: string; onClick: () => void };
 };
 
 
@@ -846,13 +848,14 @@ export default function LearningContent() {
       emptyGuideShownRef.current = true;
       const guideMessage: Message = {
         id: Date.now() + 2,
-        text: "まだ学習記録がありません。左のメニューの「新規学習記録」から、最初の学びを記録してみましょう。",
+        text: "まだ学習記録がありません。まずは1件、記録してみましょう。タイトルとメモを書くだけでOKです。",
         timestamp: new Date().toLocaleTimeString("ja-JP", {
           hour: "2-digit",
           minute: "2-digit",
         }),
         type: "left",
         displayName: "システム",
+        action: { label: "学んだことを記録する", onClick: openNewLearningDialog },
       };
       setMessages((prev) => [...prev, guideMessage]);
     }
@@ -1866,6 +1869,7 @@ export default function LearningContent() {
                     timestamp={msg.timestamp}
                     photoURL={msg.photoURL}
                     displayName={msg.displayName}
+                    action={msg.action}
                   />
                 )
               ) : (

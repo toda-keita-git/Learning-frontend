@@ -3,6 +3,7 @@ import { styled } from "@mui/material/styles";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 // --- Styled Components ---
@@ -58,6 +59,8 @@ interface MessageLeftProps {
   timestamp?: string;
   photoURL?: string;
   displayName?: string;
+  // 案内メッセージから直接次の行動に進めるようにするための、任意のアクションボタン
+  action?: { label: string; onClick: () => void };
 }
 
 interface MessageRightProps {
@@ -73,6 +76,7 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
   timestamp = "",
   photoURL = "",
   displayName = "名無しさん",
+  action,
 }) => {
   // システム/Bot は外部画像に頼らず、統一したブランドアイコンで表示する
   const isSystem =
@@ -107,6 +111,16 @@ export const MessageLeft: React.FC<MessageLeftProps> = ({
           >
             {message}
           </Typography>
+          {action && (
+            <Button
+              size="small"
+              variant="contained"
+              onClick={action.onClick}
+              sx={{ mt: 1 }}
+            >
+              {action.label}
+            </Button>
+          )}
         </BubbleLeft>
         {timestamp && (
           <Typography
