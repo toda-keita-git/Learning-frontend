@@ -13,12 +13,18 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 import SearchIcon from "@mui/icons-material/Search";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 
 const features = [
   {
-    icon: <GitHubIcon fontSize="large" color="primary" />,
-    title: "GitHub連携",
-    desc: "OAuthでログインし、学習メモを自分のリポジトリのコードと紐づけて残せます。",
+    icon: <AddCircleOutlineIcon fontSize="large" color="primary" />,
+    title: "学習記録（無制限）",
+    desc: "登録・編集・削除に件数の上限はありません。いつでも無料でお使いいただけます。",
   },
   {
     icon: <LocalOfferIcon fontSize="large" color="primary" />,
@@ -29,6 +35,26 @@ const features = [
     icon: <SearchIcon fontSize="large" color="primary" />,
     title: "学習内容の検索",
     desc: "タイトルやタグから、過去の学びをチャット形式で振り返れます。",
+  },
+  {
+    icon: <GitHubIcon fontSize="large" color="primary" />,
+    title: "GitHub連携",
+    desc: "専用リポジトリが自動作成され、コードと記録を一緒に管理できます。",
+  },
+  {
+    icon: <MenuBookOutlinedIcon fontSize="large" color="primary" />,
+    title: "今日の復習",
+    desc: "3分・10分・じっくりから選べる、スキマ時間モード。忘れかけている記録から順に思い出せます。",
+  },
+  {
+    icon: <LocalOfferOutlinedIcon fontSize="large" color="primary" />,
+    title: "穴埋め復習",
+    desc: "メモの中で[[ ]]で囲んだ語句だけを隠して確認できます。",
+  },
+  {
+    icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, color: "#f97316" }} />,
+    title: "学習の記録",
+    desc: "連続で記録した日数を、GitHubの「草」のようなグラフで振り返れます。",
   },
 ];
 
@@ -205,19 +231,96 @@ export default function Home() {
         </Container>
       </Box>
 
+      {/* オンライン・オフラインの違い */}
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
+        >
+          オンライン・オフラインの違い
+        </Typography>
+        <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
+          通信が無い状態でも、多くの操作はそのまま続けられます。
+        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+          <Paper
+            variant="outlined"
+            sx={{ flex: 1, borderRadius: 3, overflow: "hidden" }}
+          >
+            <Box
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+              }}
+            >
+              <CloudSyncIcon color="success" fontSize="small" />
+              <Typography sx={{ fontWeight: 700, color: "success.main" }}>
+                オフラインでもできること
+              </Typography>
+            </Box>
+            <Box sx={{ p: 2.5 }}>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                記録の閲覧・タイトル検索・タグ絞り込み・今日の復習・学習分析ダッシュボード。
+                記録の登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
+              </Typography>
+            </Box>
+          </Paper>
+          <Paper
+            variant="outlined"
+            sx={{ flex: 1, borderRadius: 3, overflow: "hidden" }}
+          >
+            <Box
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                bgcolor: (theme) => alpha(theme.palette.warning.main, 0.14),
+              }}
+            >
+              <WifiOffIcon color="warning" fontSize="small" />
+              <Typography sx={{ fontWeight: 700, color: "warning.main" }}>
+                オンラインが必要なこと
+              </Typography>
+            </Box>
+            <Box sx={{ p: 2.5 }}>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                初回ログイン、GitHubファイルの添付・プレビュー・編集、新しいカテゴリー・タグの作成、
+                管理者によるカテゴリー・タグの編集/削除。
+              </Typography>
+            </Box>
+          </Paper>
+        </Stack>
+      </Container>
+
       {/* 機能紹介 */}
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={3}
-          justifyContent="center"
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
+        >
+          無料で使える主な機能
+        </Typography>
+        <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
+          件数の上限なく、いつでも無料でお使いいただけます。
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
+            gap: 3,
+          }}
         >
           {features.map((f) => (
             <Paper
               key={f.title}
               elevation={0}
               sx={{
-                flex: 1,
                 p: 4,
                 textAlign: "center",
                 border: "1px solid",
@@ -237,7 +340,7 @@ export default function Home() {
               <Typography sx={{ color: "text.secondary" }}>{f.desc}</Typography>
             </Paper>
           ))}
-        </Stack>
+        </Box>
       </Container>
     </>
   );
