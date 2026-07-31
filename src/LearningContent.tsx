@@ -2173,6 +2173,38 @@ export default function LearningContent() {
             </ListItem>
           </List>
 
+          {/* オンライン・オフラインの違い */}
+          <Box
+            sx={{
+              mt: 1,
+              p: 2,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 2,
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}
+            >
+              <WifiOffIcon color="primary" fontSize="small" />
+              オンライン・オフラインの違い
+            </Typography>
+            <Typography variant="caption" sx={{ color: "success.main", fontWeight: 700, display: "block" }}>
+              オフラインでもできること
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+              記録の閲覧・タイトル検索・タグ絞り込み・今日の復習・学習分析ダッシュボード。
+              記録の登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
+            </Typography>
+            <Typography variant="caption" sx={{ color: "warning.main", fontWeight: 700, display: "block" }}>
+              オンラインが必要なこと
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+              初回ログイン、GitHubファイルの添付・プレビュー・編集、新しいカテゴリー・タグの作成、管理者によるカテゴリー・タグの編集/削除。
+            </Typography>
+          </Box>
+
           {/* 復習リマインド通知の設定 */}
           {isNotificationSupported() && (
             <Box
