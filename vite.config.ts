@@ -66,7 +66,7 @@ export default defineConfig({
       },
       workbox: {
         // アプリの外枠（HTML/JS/CSS/画像）をキャッシュしてオフライン初期表示・高速化
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,woff2}"],
         // メインバンドルが大きめなので、プリキャッシュ上限を引き上げる
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // API と GitHub へのアクセスはキャッシュせず、常にネットワークから取得
@@ -85,6 +85,23 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // pdfjs-distのworkerは.mjsで出力されるが、Renderの静的ホスティングが
+        // .mjs拡張子を静的ファイルとして認識せず、SPA用のフォールバックで
+        // index.html（text/html）を返してしまい、モジュールワーカーの読み込みが
+        // 失敗する（.jsは正しく配信されている）。出力時に.jsへ差し替えて回避する
+        assetFileNames: (assetInfo) => {
+          const name = assetInfo.name ?? "";
+          if (name.endsWith(".mjs")) {
+            return "assets/[name]-[hash].js";
+          }
+          return "assets/[name]-[hash][extname]";
+        },
+      },
+    },
+  },
   server: {
     // プロキシの設定を追加
     proxy: {
