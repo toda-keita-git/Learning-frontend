@@ -14,6 +14,8 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import ReplayIcon from "@mui/icons-material/Replay";
 import MarkdownContent from "./MarkdownContent";
+import { hasCloze } from "./clozeUtils";
+import { ClozeText } from "./clozeText";
 
 export type FlashItem = {
   id: number;
@@ -34,64 +36,6 @@ interface Props {
 }
 
 const stars = (n: number) => "★".repeat(n) + "☆".repeat(Math.max(0, 5 - n));
-
-// 穴埋め記法: メモの中で [[隠したい語句]] と書くと、復習時にその部分だけを隠せる。
-// 記法が使われていないメモは、これまで通りメモ全体を隠す挙動にする（後方互換）。
-const CLOZE_PATTERN = /\[\[(.+?)\]\]/g;
-
-const hasCloze = (text: string) => /\[\[.+?\]\]/.test(text);
-
-type ClozeSegment = { text: string; hidden: boolean };
-
-const parseCloze = (text: string): ClozeSegment[] => {
-  const segments: ClozeSegment[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  CLOZE_PATTERN.lastIndex = 0;
-  while ((match = CLOZE_PATTERN.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ text: text.slice(lastIndex, match.index), hidden: false });
-    }
-    segments.push({ text: match[1], hidden: true });
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < text.length) {
-    segments.push({ text: text.slice(lastIndex), hidden: false });
-  }
-  return segments;
-};
-
-// 穴埋め部分を含むメモの表示。隠された語句は表示前は伏字、表示後はハイライトして見せる
-const ClozeText: React.FC<{ text: string; revealed: boolean }> = ({
-  text,
-  revealed,
-}) => (
-  <Typography
-    variant="body2"
-    sx={{ whiteSpace: "pre-wrap", color: "text.secondary" }}
-  >
-    {parseCloze(text).map((seg, i) =>
-      seg.hidden ? (
-        <Box
-          key={i}
-          component="span"
-          sx={{
-            display: "inline-block",
-            bgcolor: revealed ? "warning.light" : "action.selected",
-            color: revealed ? "text.primary" : "transparent",
-            borderRadius: 0.5,
-            px: 0.5,
-            mx: 0.25,
-          }}
-        >
-          {revealed ? seg.text : "█".repeat(Math.min(Math.max(seg.text.length, 2), 10))}
-        </Box>
-      ) : (
-        <React.Fragment key={i}>{seg.text}</React.Fragment>
-      )
-    )}
-  </Typography>
-);
 
 // スキマ時間の目安（1枚あたり約40秒で見積もり）
 const TIME_PRESETS = [
@@ -291,15 +235,21 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
               </Typography>
 
               {current.explanatory_text && hasCloze(current.explanatory_text) ? (
-                // 穴埋め記法があるメモ：文脈は最初から見せ、[[...]]の部分だけ隠す
+                // 穴埋め記法があるメモ：文脈は最初から見せ、[[...]]の部分だけ1つずつタップで表示する。
+                // 全て表示し終えると、通常のメモ表示（revealed=true）に自動で切り替わる
                 <>
-                  <ClozeText text={current.explanatory_text} revealed={revealed} />
+                  <ClozeText
+                    key={current.id}
+                    text={current.explanatory_text}
+                    forceRevealed={revealed}
+                    onAllRevealed={() => setRevealed(true)}
+                  />
                   {!revealed && (
                     <Typography
                       variant="caption"
                       sx={{ display: "block", textAlign: "center", color: "text.secondary", mt: "auto", pt: 1 }}
                     >
-                      タップで隠した箇所を表示
+                      隠した箇所をタップで表示（カード全体のタップで一括表示）
                     </Typography>
                   )}
                 </>
