@@ -46,12 +46,13 @@ export const getFileType = (path: string): string => {
       return "excel";
     case "docx":
       return "docx";
+    case "doc":
+      return "doc";
     case "pptx":
       return "pptx";
     case "zip":
       return "zip-archive";
-    // 旧形式(.doc/.ppt)はOOXML(zip+XML)ではないため、対応ライブラリでは扱えない
-    case "doc":
+    // 旧形式(.ppt)はOOXML(zip+XML)ではないため、対応ライブラリでは扱えない
     case "ppt":
     case "gz":
     case "tar":

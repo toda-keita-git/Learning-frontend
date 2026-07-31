@@ -478,7 +478,7 @@ export default function LearningContent() {
     // （UTF-8として強制デコードすると内容が壊れ、そのまま保存すると埋め込み図表などが消える）。
     // NewLearningDialogの取り扱いと同じ分類基準で、テキスト編集の対象外とする
     const fileType = getFileType(path);
-    const isPreviewUnsupported = ["excel", "pdf", "docx", "pptx", "zip-archive", "binary"].includes(fileType);
+    const isPreviewUnsupported = ["excel", "pdf", "docx", "doc", "pptx", "zip-archive", "binary"].includes(fileType);
 
     let content = "";
     let base64Content = "";

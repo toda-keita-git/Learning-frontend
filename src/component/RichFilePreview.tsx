@@ -14,6 +14,7 @@ import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
 import PptxSlideView from "./PptxSlideView";
 import { extractDocxText } from "./docxPreview";
+import { extractDocText } from "./docPreview";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
 interface RichFilePreviewProps {
@@ -57,6 +58,7 @@ const RichFilePreview: React.FC<RichFilePreviewProps> = ({ path, base64Content }
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]);
   const [docxText, setDocxText] = useState("");
+  const [docText, setDocText] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +88,10 @@ const RichFilePreview: React.FC<RichFilePreviewProps> = ({ path, base64Content }
           const text = await extractDocxText(cleaned);
           if (cancelled) return;
           setDocxText(text);
+        } else if (fileType === "doc") {
+          const text = await extractDocText(cleaned);
+          if (cancelled) return;
+          setDocText(text);
         } else if (fileType === "zip-archive") {
           const entries = await listZipEntries(cleaned);
           if (cancelled) return;
@@ -205,6 +211,19 @@ const RichFilePreview: React.FC<RichFilePreviewProps> = ({ path, base64Content }
         </Typography>
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
           {docxText || "（テキストがありません）"}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (fileType === "doc") {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          ※ Word（旧形式 .doc）は閲覧専用です（文章のみ抽出して表示。元の書式・画像・表は再現されません）
+        </Typography>
+        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+          {docText || "（テキストがありません）"}
         </Typography>
       </Box>
     );

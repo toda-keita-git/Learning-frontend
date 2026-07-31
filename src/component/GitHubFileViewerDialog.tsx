@@ -65,7 +65,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   // Excel/PDF/Word/PowerPoint/ZIPなどはテキストとして表示・編集すると内容が壊れるため、
   // 呼び出し元のisEditableに関わらずここでも編集不可にする（多重防御）
   const fileType = getFileType(path);
-  const isPreviewUnsupported = ["excel", "pdf", "docx", "pptx", "zip-archive", "binary"].includes(fileType);
+  const isPreviewUnsupported = ["excel", "pdf", "docx", "doc", "pptx", "zip-archive", "binary"].includes(fileType);
   const effectiveEditable = isEditable && !isPreviewUnsupported;
 
   useEffect(() => {

@@ -2,10 +2,22 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 export default defineConfig({
   plugins: [
     react(),
+    // 旧形式Word(.doc)プレビュー（docPreview.ts）で使うword-extractorが、
+    // 内部でNode組み込みのBuffer/streamに依存しているため、ブラウザ向けに
+    // 必要最小限のポリフィルのみを当てる
+    nodePolyfills({
+      include: ["buffer", "stream"],
+      globals: {
+        Buffer: true,
+        process: false,
+        global: false,
+      },
+    }),
     // PDFプレビュー（pdfPreview.ts）で、埋め込まれていないCJKフォントを
     // 正しく描画するためにpdfjs-distのcmaps/standard_fontsが必要。
     // 通常のimportでは扱えないため、ビルド成果物に直接コピーする

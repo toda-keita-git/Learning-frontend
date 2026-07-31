@@ -39,6 +39,7 @@ import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
 import PptxSlideView from "./PptxSlideView";
 import { extractDocxText } from "./docxPreview";
+import { extractDocText } from "./docPreview";
 import MarkdownContent from "./MarkdownContent";
 import MarkdownHelpDialog from "./MarkdownHelpDialog";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -296,6 +297,14 @@ export default function NewLearningDialog({
         } catch (e) {
           setPreviewError("Wordファイルの解析に失敗しました。");
         }
+      } else if (fileType === "doc" && result.base64Content) {
+        try {
+          const text = await extractDocText(result.base64Content);
+          setFileContent(text);
+          setFileSha(result.sha);
+        } catch (e) {
+          setPreviewError("Wordファイル（旧形式）の解析に失敗しました。");
+        }
       } else if (fileType === "zip-archive" && result.base64Content) {
         try {
           const entries = await listZipEntries(result.base64Content);
@@ -367,6 +376,9 @@ export default function NewLearningDialog({
         } else if (fileType === "docx") {
           const base64 = (fileData as string).split(",")[1];
           setFileContent(await extractDocxText(base64));
+        } else if (fileType === "doc") {
+          const base64 = (fileData as string).split(",")[1];
+          setFileContent(await extractDocText(base64));
         } else if (fileType === "zip-archive") {
           const base64 = (fileData as string).split(",")[1];
           setZipEntries(await listZipEntries(base64));
@@ -396,6 +408,7 @@ export default function NewLearningDialog({
       fileType === "pdf" ||
       fileType === "pptx" ||
       fileType === "docx" ||
+      fileType === "doc" ||
       fileType === "zip-archive"
     ) {
       // 画像・動画・PDF・PowerPoint・Word・ZIPはbase64 data URL形式で読み込み
@@ -433,8 +446,8 @@ export default function NewLearningDialog({
       };
     }
     // 2. GitHub上のテキストファイルが編集された場合の処理
-    //    （Word .docxは閲覧専用のため、ここでは編集対象にならない）
-    else if (isEditingFile && fileSha && fileType !== "docx") {
+    //    （Word .docx/.docは閲覧専用のため、ここでは編集対象にならない）
+    else if (isEditingFile && fileSha && fileType !== "docx" && fileType !== "doc") {
       editedFileData = {
         path: github_path,
         content: fileContent,
@@ -1035,7 +1048,7 @@ export default function NewLearningDialog({
                       />
                     ) : (
                       <SyntaxHighlighter
-                        language={fileType === "docx" ? "plaintext" : fileType}
+                        language={fileType === "docx" || fileType === "doc" ? "plaintext" : fileType}
                         style={vscDarkPlus}
                         showLineNumbers
                         customStyle={{ margin: 0, height: "100%" }}
@@ -1044,14 +1057,14 @@ export default function NewLearningDialog({
                       </SyntaxHighlighter>
                     )}
                   </Box>
-                  {fileType !== "binary" && fileType !== "docx" && (
+                  {fileType !== "binary" && fileType !== "docx" && fileType !== "doc" && (
                     <Box sx={{ mt: 1, textAlign: "right" }}>
                       <Button size="small" onClick={() => setIsEditingFile(!isEditingFile)}>
                         {isEditingFile ? "プレビューに戻る" : "編集"}
                       </Button>
                     </Box>
                   )}
-                  {fileType === "docx" && (
+                  {(fileType === "docx" || fileType === "doc") && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
                       ※ Wordは閲覧専用です（文章のみ抽出して表示。元の書式・画像・表は再現されません）
                     </Typography>
