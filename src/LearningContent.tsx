@@ -70,6 +70,7 @@ import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -2202,6 +2203,13 @@ export default function LearningContent() {
               <ListItemText
                 primary="タグでサッと絞り込み（入力欄の上）"
                 secondary="登録済みのタグをタップするだけで、そのタグが付いた学習記録だけを表示します。片手でサッと絞り込めます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><HubOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="関連する過去の記録（詳細を見る）"
+                secondary="記録の「詳細を見る」を開くと、タグ・カテゴリー・タイトルが似ている過去の記録を自動でピックアップして表示します。タップするとその記録を開けます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">

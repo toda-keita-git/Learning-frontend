@@ -20,6 +20,7 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import InquiryDialog from "./component/InquiryDialog";
 
@@ -38,6 +39,11 @@ const features = [
     icon: <SearchIcon fontSize="large" color="primary" />,
     title: "学習内容の検索",
     desc: "タイトルやタグから、過去の学びをチャット形式で振り返れます。",
+  },
+  {
+    icon: <HubOutlinedIcon fontSize="large" color="primary" />,
+    title: "関連する過去の記録",
+    desc: "記録の詳細を開くと、タグ・カテゴリー・タイトルが似ている過去の記録を自動で表示します。",
   },
   {
     icon: <GitHubIcon fontSize="large" color="primary" />,
