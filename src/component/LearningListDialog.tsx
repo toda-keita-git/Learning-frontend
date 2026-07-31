@@ -214,7 +214,9 @@ export default function LearningListDialog({
                       {item.title}
                     </TableCell>
                     <TableCell>
-                      <Chip label={item.category_name} size="small" color="primary" />
+                      {item.category_name && (
+                        <Chip label={item.category_name} size="small" color="primary" />
+                      )}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 200 }}>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>

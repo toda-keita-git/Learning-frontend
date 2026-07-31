@@ -174,12 +174,14 @@ export default function LearningResultCards({
                         mb: 0.75,
                       }}
                     >
-                      <Chip
-                        label={item.category_name}
-                        size="small"
-                        color="primary"
-                        sx={{ fontWeight: 600 }}
-                      />
+                      {item.category_name && (
+                        <Chip
+                          label={item.category_name}
+                          size="small"
+                          color="primary"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      )}
                       {item.tags.length > 0 ? (
                         item.tags.map((tag) => (
                           <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />

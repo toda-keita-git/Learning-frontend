@@ -99,6 +99,11 @@ import {
 import { getFileType, getMimeType } from "./component/getFileType";
 import { parseAttachments, serializeAttachments } from "./component/attachments";
 import { parseReferenceUrls } from "./component/referenceUrls";
+import {
+  listGuestRecords,
+  clearGuestRecords,
+  type GuestLearningRecord,
+} from "./component/guestStorage";
 
 
 
@@ -207,6 +212,11 @@ export default function LearningContent() {
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
   const emptyGuideShownRef = useRef(false); // 「まだ記録がありません」案内の二重表示防止
+  // ゲストモードで貯めた記録を、実際のログイン後にインポートするかどうかの確認
+  const guestImportPromptShownRef = useRef(false);
+  const [guestImportRecords, setGuestImportRecords] = useState<GuestLearningRecord[]>([]);
+  const [guestImportOpen, setGuestImportOpen] = useState(false);
+  const [guestImportBusy, setGuestImportBusy] = useState(false);
   const [allTags, setAllTags] = useState<Tag[]>([]); // SearchDialogに渡すための全タグリスト
   const [allCategories, setAllCategories] = useState<Categories[]>([]);
   const [messages, setMessages] = useState<Message[]>([
@@ -860,6 +870,59 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, guideMessage]);
     }
   }, [dataLoading, learningData]);
+
+  // 初回取得が完了し、かつゲストモードで貯めた記録がこの端末に残っていれば、
+  // 本アカウントへのインポートを提案する（1セッションにつき1回だけ）
+  useEffect(() => {
+    if (!dataLoading && userId && !guestImportPromptShownRef.current) {
+      const guestRecords = listGuestRecords();
+      if (guestRecords.length > 0) {
+        guestImportPromptShownRef.current = true;
+        setGuestImportRecords(guestRecords);
+        setGuestImportOpen(true);
+      }
+    }
+  }, [dataLoading, userId]);
+
+  const handleImportGuestRecords = async () => {
+    setGuestImportBusy(true);
+    try {
+      let succeeded = 0;
+      for (const record of guestImportRecords) {
+        try {
+          await createLearningApi({
+            title: record.title,
+            heading_text: record.heading_text,
+            explanatory_text: record.explanatory_text,
+            understanding_level: record.understanding_level,
+            reference_url: record.reference_url,
+            category_id: null,
+            tags: record.tags,
+            github_path: "",
+            commit_sha: "",
+            created_at: record.created_at,
+            user_id: userId,
+          });
+          succeeded++;
+        } catch (error) {
+          console.error("Failed to import a guest record:", error);
+        }
+      }
+      clearGuestRecords();
+      await refetchData();
+      setGuestImportOpen(false);
+      if (succeeded === guestImportRecords.length) {
+        showToast(`ゲストモードの記録を${succeeded}件インポートしました。`, "success");
+      } else {
+        showToast(
+          `${succeeded}/${guestImportRecords.length}件をインポートしました。一部失敗した記録があります。`,
+          "warning"
+        );
+      }
+    } finally {
+      setGuestImportBusy(false);
+    }
+  };
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -2033,6 +2096,32 @@ export default function LearningContent() {
         prefillData={sharePrefill} // ★ 共有からの初期値
         onFetchFile={fetchFileForDialog}
       />
+
+      {/* ゲストモードの記録インポート確認 */}
+      <Dialog open={guestImportOpen} onClose={() => !guestImportBusy && setGuestImportOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>ゲストモードの記録をインポートしますか？</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 1.5 }}>
+            この端末にゲストモードで記録した学習記録が{guestImportRecords.length}件あります。あなたのアカウントに取り込みますか？
+          </DialogContentText>
+          <List dense sx={{ maxHeight: 200, overflow: "auto", border: 1, borderColor: "divider", borderRadius: 1 }}>
+            {guestImportRecords.map((r) => (
+              <ListItem key={r.id}>
+                <ListItemText primary={r.title} />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={guestImportBusy} onClick={() => setGuestImportOpen(false)}>
+            スキップ
+          </Button>
+          <Button variant="contained" disabled={guestImportBusy} onClick={handleImportGuestRecords}>
+            {guestImportBusy ? "インポート中…" : "インポートする"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <GitHubFileViewerDialog
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}

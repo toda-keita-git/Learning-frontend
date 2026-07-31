@@ -11,6 +11,9 @@ import TuneIcon from "@mui/icons-material/Tune"; // 詳細検索アイコン
 type TextInputProps = {
   onSendMessage: (message: string) => void;
   onSearchMenuClick: () => void;
+  // 詳細検索（カテゴリ・タグ絞り込み）自体を提供しない画面（ゲストモードなど）では、
+  // 押しても何も起きないボタンを置かないようアイコンごと非表示にする
+  hideDetailedSearch?: boolean;
 };
 
 /**
@@ -19,6 +22,7 @@ type TextInputProps = {
 export const TextInputLearning: React.FC<TextInputProps> = ({
   onSendMessage,
   onSearchMenuClick,
+  hideDetailedSearch = false,
 }) => {
   const [inputValue, setInputValue] = useState("");
 
@@ -41,14 +45,16 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
         }}
       >
         {/* スマホでは下部ナビの「検索」から同じ詳細検索を開けるため、ここでは重複を避けて非表示にする */}
-        <IconButton
-          color="primary"
-          onClick={onSearchMenuClick}
-          title="詳細検索（カテゴリ・タグでの絞り込み、並び替え）"
-          sx={{ display: { xs: "none", sm: "inline-flex" } }}
-        >
-          <TuneIcon />
-        </IconButton>
+        {!hideDetailedSearch && (
+          <IconButton
+            color="primary"
+            onClick={onSearchMenuClick}
+            title="詳細検索（カテゴリ・タグでの絞り込み、並び替え）"
+            sx={{ display: { xs: "none", sm: "inline-flex" } }}
+          >
+            <TuneIcon />
+          </IconButton>
+        )}
         <TextField
           fullWidth
           variant="outlined"
@@ -66,7 +72,9 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
         variant="caption"
         sx={{ display: "block", mt: 0.5, ml: 0.5, color: "text.secondary" }}
       >
-        タイトル・内容・タグなどをまとめて検索します。カテゴリ・タグでの絞り込みや並び替えは「詳細検索」から。
+        {hideDetailedSearch
+          ? "タイトル・内容・タグなどをまとめて検索します。"
+          : "タイトル・内容・タグなどをまとめて検索します。カテゴリ・タグでの絞り込みや並び替えは「詳細検索」から。"}
       </Typography>
     </Box>
   );

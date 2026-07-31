@@ -9,6 +9,7 @@ import { AuthProvider } from "./Context";
 // 初回表示（Home）のバンドルから切り離すために遅延読み込みする
 const FileSearch = lazy(() => import("./FileSearch"));
 const LearningContent = lazy(() => import("./LearningContent"));
+const GuestLearningContent = lazy(() => import("./GuestLearningContent"));
 const PageNotFound = lazy(() => import("./PageNotFound"));
 
 const RouteFallback = () => (
@@ -31,6 +32,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/FileSearch" element={<FileSearch />} />
+          <Route path="/guest" element={<GuestLearningContent />} />
           <Route
             path="/LearningContent"
             element={

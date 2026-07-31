@@ -224,7 +224,9 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
               onClick={() => !revealed && setRevealed(true)}
             >
               <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1 }}>
-                <Chip label={current.category_name} size="small" color="primary" variant="outlined" />
+                {current.category_name && (
+                  <Chip label={current.category_name} size="small" color="primary" variant="outlined" />
+                )}
                 {current.tags.map((t) => (
                   <Chip key={t} label={`#${t}`} size="small" />
                 ))}

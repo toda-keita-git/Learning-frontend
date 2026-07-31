@@ -101,6 +101,9 @@ interface NewLearningDialogProps {
   onFetchFile: (
     path: string
   ) => Promise<{ content: string; sha: string; base64Content: string } | null>;
+  // GitHubリポジトリを持たないゲストモードなど、ファイル添付機能そのものを
+  // 使えない場面で「ファイルを添付する」欄自体を非表示にする
+  hideAttachments?: boolean;
 }
 
 export default function NewLearningDialog({
@@ -112,6 +115,7 @@ export default function NewLearningDialog({
   editingData = null,
   prefillData = null,
   onFetchFile,
+  hideAttachments = false,
 }: NewLearningDialogProps) {
   // フォーム項目のためのState
   const [title, setTitle] = useState("");
@@ -949,7 +953,9 @@ export default function NewLearningDialog({
               ★が多いほど「よく理解できた」。未設定のまま検索用のメモとしてだけ残すこともできます。
             </Typography>
           </Box>
-          {/* === ファイル添付 === */}
+          {/* === ファイル添付（ゲストモードなどGitHubリポジトリが無い場合は非表示） === */}
+          {!hideAttachments && (
+          <>
           <Box sx={{ mt: 3 }}>
             <Box
               sx={{
@@ -1327,6 +1333,8 @@ export default function NewLearningDialog({
               </Box>
             )}
           </Box>
+          </>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => handleClose()} color="inherit">

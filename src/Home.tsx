@@ -25,8 +25,14 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import InquiryDialog from "./component/InquiryDialog";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import recordDialogShot from "./assets/screenshots/record-dialog.webp";
 import searchResultsShot from "./assets/screenshots/search-results.webp";
+import { isStorageAvailable, detectPlatformHint } from "./component/guestStorage";
 
 const features = [
   {
@@ -92,7 +98,26 @@ const steps = [
 export default function Home() {
   const navigate = useNavigate();
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [storageWarningOpen, setStorageWarningOpen] = useState(false);
   const stepsRef = useRef<HTMLDivElement>(null);
+
+  // ゲストモードはこの端末のlocalStorageだけで完結するため、シークレット/
+  // プライベートブラウジングなどで保存できない環境では入る前に案内する
+  const handleTryGuestMode = () => {
+    if (isStorageAvailable()) {
+      navigate("/guest");
+    } else {
+      setStorageWarningOpen(true);
+    }
+  };
+
+  const platformHint = detectPlatformHint();
+  const storageWarningDetail =
+    platformHint === "ios"
+      ? "iPhoneやiPadのSafariで「プライベートブラウズ」中の場合、通常のタブに切り替えてからお試しください。"
+      : platformHint === "android"
+      ? "Androidのブラウザで「シークレットタブ」中の場合、通常のタブに切り替えてからお試しください。"
+      : "シークレットウィンドウ／プライベートブラウジング中の場合、通常のウィンドウに切り替えてからお試しください。";
 
   return (
     <>
@@ -131,14 +156,27 @@ export default function Home() {
             >
               使ってみる（GitHubログイン）
             </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => stepsRef.current?.scrollIntoView({ behavior: "smooth" })}
-            >
-              まずは使い方を見る（登録不要）
+            <Button variant="outlined" size="large" onClick={handleTryGuestMode}>
+              アカウント登録なしで試す
             </Button>
           </Stack>
+          <Typography sx={{ mt: 2 }}>
+            <Box
+              component="button"
+              onClick={() => stepsRef.current?.scrollIntoView({ behavior: "smooth" })}
+              sx={{
+                border: "none",
+                background: "none",
+                color: "primary.main",
+                cursor: "pointer",
+                font: "inherit",
+                textDecoration: "underline",
+                p: 0,
+              }}
+            >
+              まずは使い方を見る
+            </Box>
+          </Typography>
         </Container>
       </Box>
 
@@ -429,6 +467,22 @@ export default function Home() {
       </Box>
 
       <InquiryDialog open={inquiryOpen} onClose={() => setInquiryOpen(false)} />
+
+      <Dialog open={storageWarningOpen} onClose={() => setStorageWarningOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <WarningAmberIcon color="warning" />
+          この端末では保存できません
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1.5 }}>
+            ゲストモードは、この端末のブラウザ内に記録を保存する仕組みです。今の状態では保存ができないようです。
+          </Typography>
+          <Typography sx={{ color: "text.secondary" }}>{storageWarningDetail}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStorageWarningOpen(false)}>閉じる</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
