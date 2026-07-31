@@ -73,8 +73,11 @@ function getPh(shape: Element): { type: string | null; idx: string | null } {
   };
 }
 
-// スライド/レイアウト/マスターいずれのXMLからも、指定したプレースホルダー
-// (idx優先、無ければtype)に一致する図形の位置・サイズを探す
+// スライド/レイアウト/マスターいずれのXMLからも、指定したプレースホルダーに
+// 一致する図形の位置・サイズを探す。
+// idxとtype両方を満たす図形を最優先し、次にidxのみ・typeのみの順で探す。
+// idxは独自定義のテンプレートで役割の異なる図形同士が同じ番号を使うことも
+// あるため、typeも分かっている場合はidxだけでの一致を採用しない。
 function findXfrmForPh(
   doc: Document,
   type: string | null,
@@ -85,17 +88,20 @@ function findXfrmForPh(
   const shapes = Array.from(spTree.getElementsByTagName("p:sp"));
   const normType = normalizePhType(type);
 
-  if (idx !== null) {
-    for (const shape of shapes) {
-      if (getPh(shape).idx === idx) {
-        const xfrm = readXfrm(shape);
-        if (xfrm) return xfrm;
-      }
-    }
+  const matchers: Array<(ph: { type: string | null; idx: string | null }) => boolean> = [];
+  if (idx !== null && normType !== null) {
+    matchers.push((ph) => ph.idx === idx && normalizePhType(ph.type) === normType);
+  }
+  if (idx !== null && normType === null) {
+    matchers.push((ph) => ph.idx === idx);
   }
   if (normType !== null) {
+    matchers.push((ph) => normalizePhType(ph.type) === normType);
+  }
+
+  for (const matches of matchers) {
     for (const shape of shapes) {
-      if (normalizePhType(getPh(shape).type) === normType) {
+      if (matches(getPh(shape))) {
         const xfrm = readXfrm(shape);
         if (xfrm) return xfrm;
       }
@@ -126,6 +132,79 @@ async function resolvePhXfrm(
     if (fromMaster) return fromMaster;
   }
   return null;
+}
+
+type EmuBox = { x: number; y: number; cx: number; cy: number };
+type GroupTransform = { off: { x: number; y: number }; ext: { cx: number; cy: number }; chOff: { x: number; y: number }; chExt: { cx: number; cy: number } };
+
+// <p:grpSpPr><a:xfrm><a:off/><a:ext/><a:chOff/><a:chExt/></a:xfrm></p:grpSpPr>
+// グループ化された図形は、子図形のxfrmがグループ自身の子座標系(chOff/chExt)を
+// 基準にした値になっているため、グループのoff/extとの比率でスライド座標に変換する
+function readGroupTransform(groupEl: Element): GroupTransform | null {
+  const grpSpPr = Array.from(groupEl.childNodes).find(
+    (n): n is Element => n.nodeType === 1 && (n as Element).tagName === "p:grpSpPr"
+  );
+  const xfrm = grpSpPr?.getElementsByTagName("a:xfrm")[0];
+  if (!xfrm) return null;
+  const off = xfrm.getElementsByTagName("a:off")[0];
+  const ext = xfrm.getElementsByTagName("a:ext")[0];
+  const chOff = xfrm.getElementsByTagName("a:chOff")[0];
+  const chExt = xfrm.getElementsByTagName("a:chExt")[0];
+  if (!off || !ext) return null;
+  const num = (el: Element | undefined, attr: string, fallback: number) => {
+    const v = Number(el?.getAttribute(attr));
+    return Number.isNaN(v) ? fallback : v;
+  };
+  const extCx = num(ext, "cx", 1);
+  const extCy = num(ext, "cy", 1);
+  return {
+    off: { x: num(off, "x", 0), y: num(off, "y", 0) },
+    ext: { cx: extCx, cy: extCy },
+    chOff: { x: num(chOff, "x", 0), y: num(chOff, "y", 0) },
+    chExt: { cx: num(chExt, "cx", extCx), cy: num(chExt, "cy", extCy) },
+  };
+}
+
+function applyGroupTransform(box: EmuBox, group: GroupTransform): EmuBox {
+  const scaleX = group.chExt.cx !== 0 ? group.ext.cx / group.chExt.cx : 1;
+  const scaleY = group.chExt.cy !== 0 ? group.ext.cy / group.chExt.cy : 1;
+  return {
+    x: group.off.x + (box.x - group.chOff.x) * scaleX,
+    y: group.off.y + (box.y - group.chOff.y) * scaleY,
+    cx: box.cx * scaleX,
+    cy: box.cy * scaleY,
+  };
+}
+
+// spTree（またはグループ）直下の図形を出現順に収集する。p:grpSpは中の図形を
+// 再帰的に取り出し、グループの変換をかけてスライド座標系に揃える
+async function collectShapes(
+  container: Element,
+  layoutDoc: Document | null,
+  masterDoc: Document | null
+): Promise<Array<{ shape: Element; box: EmuBox | null }>> {
+  const children = Array.from(container.childNodes).filter(
+    (n): n is Element => n.nodeType === 1
+  );
+  const results: Array<{ shape: Element; box: EmuBox | null }> = [];
+
+  for (const child of children) {
+    if (child.tagName === "p:sp" || child.tagName === "p:pic") {
+      const box = await resolvePhXfrm(child, layoutDoc, masterDoc);
+      results.push({ shape: child, box });
+    } else if (child.tagName === "p:grpSp") {
+      const groupTransform = readGroupTransform(child);
+      const inner = await collectShapes(child, layoutDoc, masterDoc);
+      for (const item of inner) {
+        results.push({
+          shape: item.shape,
+          box: item.box && groupTransform ? applyGroupTransform(item.box, groupTransform) : item.box,
+        });
+      }
+    }
+  }
+
+  return results;
 }
 
 export async function extractPptxText(
@@ -231,17 +310,12 @@ export async function extractPptxText(
     let title: string | null = null;
     const bodyLines: string[] = [];
 
-    // スペースツリー直下の図形を出現順に処理する（p:sp=テキスト等の図形、p:pic=画像）
+    // スペースツリー内の図形をグループ化(p:grpSp)も辿って出現順に処理する
+    // （p:sp=テキスト等の図形、p:pic=画像）
     const spTree = doc.getElementsByTagName("p:spTree")[0];
-    const topLevelShapes = spTree
-      ? Array.from(spTree.childNodes).filter(
-          (n): n is Element =>
-            n.nodeType === 1 && ((n as Element).tagName === "p:sp" || (n as Element).tagName === "p:pic")
-        )
-      : [];
+    const collectedShapes = spTree ? await collectShapes(spTree, layoutDoc, masterDoc) : [];
 
-    for (const shape of topLevelShapes) {
-      const xfrm = await resolvePhXfrm(shape, layoutDoc, masterDoc);
+    for (const { shape, box: xfrm } of collectedShapes) {
       const x = xfrm ? (xfrm.x / slideWidth) * 100 : 0;
       const y = xfrm ? (xfrm.y / slideHeight) * 100 : 0;
       const width = xfrm ? (xfrm.cx / slideWidth) * 100 : 100;
