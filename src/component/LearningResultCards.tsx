@@ -22,6 +22,8 @@ import MarkdownContent from "./MarkdownContent";
 interface LearningResultItem {
   id: number;
   title: string;
+  // 検索結果一覧のプレビューに表示する見出し（未設定ならexplanatory_textの先頭を代わりに表示）
+  heading_text: string | null;
   explanatory_text: string;
   understanding_level: number | null;
   reference_url: string | null;
@@ -144,7 +146,7 @@ export default function LearningResultCards({
                       )}
                     </Box>
 
-                    {!isOpen && item.explanatory_text && (
+                    {!isOpen && (item.heading_text || item.explanatory_text) && (
                       <Typography
                         variant="body2"
                         sx={{
@@ -157,7 +159,7 @@ export default function LearningResultCards({
                           WebkitBoxOrient: "vertical",
                         }}
                       >
-                        {item.explanatory_text}
+                        {item.heading_text || item.explanatory_text}
                       </Typography>
                     )}
 

@@ -129,6 +129,8 @@ const describeSearchFilters = (filters: {
 interface LearningRecord {
   id: number;
   title: string;
+  // 検索結果一覧のプレビューに表示する見出し（未設定ならexplanatory_textの先頭を代わりに表示）
+  heading_text: string | null;
   explanatory_text: string;
   understanding_level: number | null;
   reference_url: string | null; // nullの可能性も考慮

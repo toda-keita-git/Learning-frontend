@@ -77,6 +77,7 @@ interface NewLearningDialogProps {
   // 共有(Web Share Target)などから、新規登録の初期値を差し込む用
   prefillData?: {
     title?: string;
+    heading_text?: string;
     explanatory_text?: string;
     reference_url?: string;
   } | null;
@@ -97,6 +98,7 @@ export default function NewLearningDialog({
 }: NewLearningDialogProps) {
   // フォーム項目のためのState
   const [title, setTitle] = useState("");
+  const [headingText, setHeadingText] = useState("");
   const [explanatoryText, setExplanatoryText] = useState("");
   const [showMemoPreview, setShowMemoPreview] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
@@ -212,6 +214,7 @@ export default function NewLearningDialog({
     if (open) {
       if (editingData) {
         setTitle(editingData.title || "");
+        setHeadingText(editingData.heading_text || "");
         setExplanatoryText(editingData.explanatory_text || "");
         setUnderstandingLevel(editingData.understanding_level ?? null);
         setReferenceUrl(editingData.reference_url || "");
@@ -228,6 +231,7 @@ export default function NewLearningDialog({
         // 共有などからの新規登録：一度リセットしてから初期値を差し込む
         handleClose(true);
         setTitle(prefillData.title || "");
+        setHeadingText(prefillData.heading_text || "");
         setExplanatoryText(prefillData.explanatory_text || "");
         setReferenceUrl(prefillData.reference_url || "");
       } else {
@@ -440,6 +444,7 @@ export default function NewLearningDialog({
 
     const learningData = {
       title,
+      heading_text: headingText,
       explanatory_text: explanatoryText,
       understanding_level: understandingLevel,
       reference_url: referenceUrl,
@@ -472,6 +477,7 @@ export default function NewLearningDialog({
     setActiveSheetIndex(0);
     setSpreadsheetData(null);
     setTitle("");
+    setHeadingText("");
     setExplanatoryText("");
     setUnderstandingLevel(null);
     setReferenceUrl("");
@@ -552,6 +558,19 @@ export default function NewLearningDialog({
             helperText="何について学んだかを短く書きます（必須）"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+          />
+
+          {/* 見出し内容（任意） */}
+          <TextField
+            margin="normal"
+            label="見出し内容（任意）"
+            type="text"
+            fullWidth
+            variant="outlined"
+            placeholder="例: XLOOKUPはVLOOKUPの上位互換で、左方向の検索もできる"
+            helperText="検索結果の一覧に表示される1行目です。未入力の場合は内容・メモの先頭が表示されます"
+            value={headingText}
+            onChange={(e) => setHeadingText(e.target.value)}
           />
 
           {/* 内容・メモ */}
