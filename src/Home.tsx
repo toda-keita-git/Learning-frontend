@@ -294,8 +294,7 @@ export default function Home() {
             </Box>
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                初回ログイン、GitHubファイルの添付・プレビュー・編集、新しいカテゴリー・タグの作成、
-                管理者によるカテゴリー・タグの編集/削除。
+                初回ログイン、GitHubファイルの添付・プレビュー・編集、カテゴリー・タグの作成・編集・削除。
               </Typography>
             </Box>
           </Paper>

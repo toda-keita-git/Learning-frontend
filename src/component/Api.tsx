@@ -147,7 +147,7 @@ export const createCategoryApi = async (categoryData: { name: string }) => {
   }
 };
 
-// カテゴリーの名前を変更するAPI（管理者かどうかはJWTから判定される）
+// カテゴリーの名前を変更するAPI（本人が作成したものかどうかはJWTから判定される）
 export const updateCategoryApi = async (id: number, name: string) => {
   try {
     const response = await axios.post(`/category_update/${id}`, { name });
@@ -158,7 +158,7 @@ export const updateCategoryApi = async (id: number, name: string) => {
   }
 };
 
-// カテゴリーを削除するAPI（使用中の場合は409、管理者以外は403が返る）
+// カテゴリーを削除するAPI（使用中の場合は409、本人が作成したもの以外は403が返る）
 export const deleteCategoryApi = async (id: number) => {
   try {
     const response = await axios.post(`/category_delete/${id}`);
@@ -180,7 +180,7 @@ export const createTagApi = async (tagData: { name: string }) => {
   }
 };
 
-// タグの名前を変更するAPI（管理者かどうかはJWTから判定される）
+// タグの名前を変更するAPI（本人が作成したものかどうかはJWTから判定される）
 export const updateTagApi = async (id: number, name: string) => {
   try {
     const response = await axios.post(`/tag_update/${id}`, { name });
@@ -191,7 +191,7 @@ export const updateTagApi = async (id: number, name: string) => {
   }
 };
 
-// タグを削除するAPI（使用中の場合は409、管理者以外は403が返る）
+// タグを削除するAPI（使用中の場合は409、本人が作成したもの以外は403が返る）
 export const deleteTagApi = async (id: number) => {
   try {
     const response = await axios.post(`/tag_delete/${id}`);

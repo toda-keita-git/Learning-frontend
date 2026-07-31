@@ -172,7 +172,7 @@ type Message = {
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, logout, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
   const { showToast } = useToast();
-  // カテゴリー・タグの管理と同様、管理者（id=1）のみお問い合わせ管理を開けるようにする
+  // お問い合わせ管理は管理者（id=1）のみ開けるようにする
   const isAdmin = userId === 1;
   const [isLoggingIn, setIsLoggingIn] = useState(false); // GitHubログインボタン押下〜リダイレクトまでの表示用
   // APIから取得した学習記録データを保持するState
@@ -2046,7 +2046,6 @@ export default function LearningContent() {
         categories={allCategories}
         tags={allTags}
         onChanged={refetchData}
-        userId={userId}
       />
        <GitHubFolderSelector
         open={isFolderSelectorOpen}
@@ -2249,7 +2248,7 @@ export default function LearningContent() {
               オンラインが必要なこと
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
-              初回ログイン、GitHubファイルの添付・プレビュー・編集、新しいカテゴリー・タグの作成、管理者によるカテゴリー・タグの編集/削除。
+              初回ログイン、GitHubファイルの添付・プレビュー・編集、カテゴリー・タグの作成・編集・削除。
             </Typography>
           </Box>
 
