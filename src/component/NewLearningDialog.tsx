@@ -39,6 +39,8 @@ import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
 import { extractDocxText } from "./docxPreview";
 import MarkdownContent from "./MarkdownContent";
+import MarkdownHelpDialog from "./MarkdownHelpDialog";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
 
@@ -95,6 +97,7 @@ export default function NewLearningDialog({
   const [title, setTitle] = useState("");
   const [explanatoryText, setExplanatoryText] = useState("");
   const [showMemoPreview, setShowMemoPreview] = useState(false);
+  const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const [understandingLevel, setUnderstandingLevel] = useState<number | null>(null);
   const [referenceUrl, setReferenceUrl] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -548,7 +551,14 @@ export default function NewLearningDialog({
 
           {/* 内容・メモ */}
           <Box sx={{ mt: 2, mb: explanatoryText || !showMemoPreview ? 0 : 1 }}>
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 0.5 }}>
+              <IconButton
+                size="small"
+                onClick={() => setShowMarkdownHelp(true)}
+                title="書き方（Markdown記法）を見る"
+              >
+                <InfoOutlinedIcon fontSize="small" />
+              </IconButton>
               <Button
                 size="small"
                 onClick={() => setShowMemoPreview((v) => !v)}
@@ -584,7 +594,7 @@ export default function NewLearningDialog({
                 rows={4}
                 variant="outlined"
                 placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
-                helperText="[[ ]] で囲んだ部分は復習時にその箇所だけ隠されます。Markdown記法が使えます（「- 項目」で箇条書き、表、**太字**、*斜体*、==マーカー==など）"
+                helperText="[[ ]] で囲んだ部分は復習時にその箇所だけ隠されます。Markdown記法が使えます（書き方は上の ⓘ アイコンから確認できます）"
                 value={explanatoryText}
                 onChange={(e) => setExplanatoryText(e.target.value)}
               />
@@ -1060,6 +1070,7 @@ export default function NewLearningDialog({
         accessToken={tokenSafe}
         setSelectedPath={setSelectedFolderPath}
       />
+      <MarkdownHelpDialog open={showMarkdownHelp} onClose={() => setShowMarkdownHelp(false)} />
     </>
   );
 }
