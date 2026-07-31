@@ -12,6 +12,7 @@ import Spreadsheet from "react-spreadsheet";
 import { getFileType } from "./getFileType";
 import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
+import PptxSlideView from "./PptxSlideView";
 import { extractDocxText } from "./docxPreview";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
@@ -188,42 +189,9 @@ const RichFilePreview: React.FC<RichFilePreviewProps> = ({ path, base64Content }
         </Tabs>
         <Box sx={{ p: 2, display: "flex", flexDirection: "column", alignItems: "center", bgcolor: "#e8e8e8" }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-            ※ テキストのみのプレビューです（レイアウト・画像は表示されません）
+            ※ 簡易プレビューです（フォント・装飾・アニメーションは再現されません）
           </Typography>
-          {slide && (
-            <Box
-              sx={{
-                width: "100%",
-                maxWidth: 480,
-                aspectRatio: "16 / 9",
-                bgcolor: "#fff",
-                border: "1px solid #ddd",
-                borderRadius: 1,
-                boxShadow: 1,
-                p: 3,
-                overflow: "auto",
-              }}
-            >
-              {slide.title && (
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, color: "#000" }}>
-                  {slide.title}
-                </Typography>
-              )}
-              {slide.bodyLines.length > 0 ? (
-                <Stack spacing={0.5}>
-                  {slide.bodyLines.map((line, i) => (
-                    <Typography key={i} variant="body2" sx={{ color: "#333" }}>
-                      ・{line}
-                    </Typography>
-                  ))}
-                </Stack>
-              ) : !slide.title ? (
-                <Typography variant="body2" color="text.secondary">
-                  （テキストなし）
-                </Typography>
-              ) : null}
-            </Box>
-          )}
+          {slide && <PptxSlideView slide={slide} />}
         </Box>
       </Box>
     );

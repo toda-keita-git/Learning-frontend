@@ -37,6 +37,7 @@ import GitHubFolderSelector from "./GitHubFolderSelector";
 import { AuthContext } from "../Context";
 import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
+import PptxSlideView from "./PptxSlideView";
 import { extractDocxText } from "./docxPreview";
 import MarkdownContent from "./MarkdownContent";
 import MarkdownHelpDialog from "./MarkdownHelpDialog";
@@ -949,41 +950,10 @@ export default function NewLearningDialog({
                   }}
                 >
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                    ※ テキストのみのプレビューです（レイアウト・画像は表示されません）
+                    ※ 簡易プレビューです（フォント・装飾・アニメーションは再現されません）
                   </Typography>
                   {pptxSlides[activeSlideIndex] && (
-                    <Box
-                      sx={{
-                        width: "100%",
-                        maxWidth: 480,
-                        aspectRatio: "16 / 9",
-                        bgcolor: "#fff",
-                        border: "1px solid #ddd",
-                        borderRadius: 1,
-                        boxShadow: 1,
-                        p: 3,
-                        overflow: "auto",
-                      }}
-                    >
-                      {pptxSlides[activeSlideIndex].title && (
-                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, color: "#000" }}>
-                          {pptxSlides[activeSlideIndex].title}
-                        </Typography>
-                      )}
-                      {pptxSlides[activeSlideIndex].bodyLines.length > 0 ? (
-                        <Stack spacing={0.5}>
-                          {pptxSlides[activeSlideIndex].bodyLines.map((line, i) => (
-                            <Typography key={i} variant="body2" sx={{ color: "#333" }}>
-                              ・{line}
-                            </Typography>
-                          ))}
-                        </Stack>
-                      ) : !pptxSlides[activeSlideIndex].title ? (
-                        <Typography variant="body2" color="text.secondary">
-                          （テキストなし）
-                        </Typography>
-                      ) : null}
-                    </Box>
+                    <PptxSlideView slide={pptxSlides[activeSlideIndex]} />
                   )}
                 </Box>
               </>
