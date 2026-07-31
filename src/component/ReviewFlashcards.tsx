@@ -13,6 +13,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import ReplayIcon from "@mui/icons-material/Replay";
+import MarkdownContent from "./MarkdownContent";
 
 export type FlashItem = {
   id: number;
@@ -303,12 +304,13 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
                   )}
                 </>
               ) : revealed ? (
-                <Typography
-                  variant="body2"
-                  sx={{ whiteSpace: "pre-wrap", color: "text.secondary" }}
-                >
-                  {current.explanatory_text || "（メモはありません）"}
-                </Typography>
+                current.explanatory_text ? (
+                  <MarkdownContent text={current.explanatory_text} />
+                ) : (
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    （メモはありません）
+                  </Typography>
+                )
               ) : (
                 <Box sx={{ mt: "auto", textAlign: "center", color: "text.secondary" }}>
                   <Typography variant="body2">

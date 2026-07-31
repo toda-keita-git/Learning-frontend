@@ -38,6 +38,7 @@ import { AuthContext } from "../Context";
 import { renderPdfPagesToImages } from "./pdfPreview";
 import { extractPptxText, type PptxSlide } from "./pptxPreview";
 import { extractDocxText } from "./docxPreview";
+import MarkdownContent from "./MarkdownContent";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
 
@@ -93,6 +94,7 @@ export default function NewLearningDialog({
   // フォーム項目のためのState
   const [title, setTitle] = useState("");
   const [explanatoryText, setExplanatoryText] = useState("");
+  const [showMemoPreview, setShowMemoPreview] = useState(false);
   const [understandingLevel, setUnderstandingLevel] = useState<number | null>(null);
   const [referenceUrl, setReferenceUrl] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -545,19 +547,49 @@ export default function NewLearningDialog({
           />
 
           {/* 内容・メモ */}
-          <TextField
-            margin="normal"
-            label="内容・メモ"
-            type="text"
-            fullWidth
-            multiline
-            rows={4}
-            variant="outlined"
-            placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
-            helperText="[[ ]] で囲んだ部分は、復習時にその箇所だけ隠されます（例: useEffectは[[副作用]]を扱うためのフック）"
-            value={explanatoryText}
-            onChange={(e) => setExplanatoryText(e.target.value)}
-          />
+          <Box sx={{ mt: 2, mb: explanatoryText || !showMemoPreview ? 0 : 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                size="small"
+                onClick={() => setShowMemoPreview((v) => !v)}
+                sx={{ fontSize: "0.75rem" }}
+              >
+                {showMemoPreview ? "編集に戻る" : "プレビュー"}
+              </Button>
+            </Box>
+            {showMemoPreview ? (
+              <Box
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  p: 2,
+                  minHeight: 100,
+                }}
+              >
+                {explanatoryText ? (
+                  <MarkdownContent text={explanatoryText} color="text.primary" />
+                ) : (
+                  <Typography variant="body2" sx={{ color: "text.disabled" }}>
+                    まだ内容がありません
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <TextField
+                label="内容・メモ"
+                type="text"
+                fullWidth
+                multiline
+                rows={4}
+                variant="outlined"
+                placeholder="学んだこと・ポイント・つまずいた点などを自由に書きます"
+                helperText="[[ ]] で囲んだ部分は復習時にその箇所だけ隠されます。Markdown記法が使えます（「- 項目」で箇条書き、表、**太字**、*斜体*、==マーカー==など）"
+                value={explanatoryText}
+                onChange={(e) => setExplanatoryText(e.target.value)}
+              />
+            )}
+          </Box>
 
           {/* 参考URL（任意） */}
           <TextField

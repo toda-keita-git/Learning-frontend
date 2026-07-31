@@ -17,6 +17,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import { findRelatedItems } from "./relatedNotes";
+import MarkdownContent from "./MarkdownContent";
 
 interface LearningResultItem {
   id: number;
@@ -206,17 +207,9 @@ export default function LearningResultCards({
 
                     <Collapse in={isOpen} timeout="auto" unmountOnExit>
                       <Box sx={{ mt: 1, pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: "text.secondary",
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                            mb: 1,
-                          }}
-                        >
-                          {item.explanatory_text}
-                        </Typography>
+                        <Box sx={{ mb: 1 }}>
+                          <MarkdownContent text={item.explanatory_text} />
+                        </Box>
 
                         {item.reference_url && (
                           <Typography variant="body2" sx={{ mb: 1 }}>
