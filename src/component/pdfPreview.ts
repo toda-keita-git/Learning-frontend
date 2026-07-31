@@ -21,7 +21,14 @@ export async function renderPdfPagesToImages(
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
   const data = base64ToUint8Array(base64Content);
-  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  // 日本語などのフォントが埋め込まれていないPDFでも文字が正しく描画されるよう、
+  // cmaps・標準フォント（vite.config.tsでビルド成果物にコピーしている）を指定する
+  const pdf = await pdfjsLib.getDocument({
+    data,
+    cMapUrl: "/cmaps/",
+    cMapPacked: true,
+    standardFontDataUrl: "/standard_fonts/",
+  }).promise;
 
   const pageImages: string[] = [];
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {

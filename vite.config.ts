@@ -1,10 +1,28 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 export default defineConfig({
   plugins: [
     react(),
+    // PDFプレビュー（pdfPreview.ts）で、埋め込まれていないCJKフォントを
+    // 正しく描画するためにpdfjs-distのcmaps/standard_fontsが必要。
+    // 通常のimportでは扱えないため、ビルド成果物に直接コピーする
+    viteStaticCopy({
+      targets: [
+        {
+          src: "node_modules/pdfjs-dist/cmaps/*",
+          dest: "cmaps",
+          rename: { stripBase: true },
+        },
+        {
+          src: "node_modules/pdfjs-dist/standard_fonts/*",
+          dest: "standard_fonts",
+          rename: { stripBase: true },
+        },
+      ],
+    }),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["pwa-icon.svg"],
