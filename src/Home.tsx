@@ -30,7 +30,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import recordDialogShot from "./assets/screenshots/record-dialog.webp";
+import recordDialogEditShot from "./assets/screenshots/record-dialog-edit.webp";
+import recordDialogPreviewShot from "./assets/screenshots/record-dialog-preview.webp";
 import searchResultsShot from "./assets/screenshots/search-results.webp";
 import { isStorageAvailable, detectPlatformHint } from "./component/guestStorage";
 
@@ -233,26 +234,46 @@ export default function Home() {
         <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
           文章だけでは伝わりにくいので、実際の画面をそのままお見せします。
         </Typography>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
-          <Paper elevation={0} sx={{ flex: 1, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
+            gap: 3,
+          }}
+        >
+          <Paper elevation={0} sx={{ border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
             <Box
               component="img"
-              src={recordDialogShot}
-              alt="学んだことを記録するフォームの画面。タイトル・見出し・内容メモ・参考URL・カテゴリなどを入力する項目が並んでいる"
+              src={recordDialogEditShot}
+              alt="学んだことを記録するフォームの画面。タイトル・見出し・Markdown記法と[[ ]]を使った内容メモ・参考URL2件・カテゴリ・ハッシュタグ3件・理解度・添付ファイルまで、すべての項目に入力例が入っている"
               sx={{ display: "block", width: "100%" }}
             />
             <Box sx={{ p: 2 }}>
               <Typography sx={{ fontWeight: 700, mb: 0.5 }}>学んだことをその場で記録</Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                タイトルとメモを書くだけでOK。カテゴリ・タグ・理解度などは、必要な項目だけ入力できます。
+                タイトルとメモを書くだけでOK。カテゴリ・タグ・理解度・参考URL・ファイル添付などは、必要な項目だけ入力できます。
               </Typography>
             </Box>
           </Paper>
-          <Paper elevation={0} sx={{ flex: 1, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+          <Paper elevation={0} sx={{ border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+            <Box
+              component="img"
+              src={recordDialogPreviewShot}
+              alt="内容メモのプレビュー画面。Markdown記法が見出しや箇条書きとして整形され、[[ ]]で囲んだ部分が伏字になって表示されている"
+              sx={{ display: "block", width: "100%" }}
+            />
+            <Box sx={{ p: 2 }}>
+              <Typography sx={{ fontWeight: 700, mb: 0.5 }}>Markdown記法と穴埋め復習</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                メモはMarkdownで整形して見やすく。[[ ]]で囲んだ語句は復習時に伏字になり、思い出す練習ができます。
+              </Typography>
+            </Box>
+          </Paper>
+          <Paper elevation={0} sx={{ border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
             <Box
               component="img"
               src={searchResultsShot}
-              alt="検索結果の画面。過去の学習記録がタイトル・見出し・タグ・理解度の星付きでカード形式に並んでいる"
+              alt="検索結果の画面。登録済みの学習記録3件がカード形式に並び、そのうち1件だけ詳細を見るが開かれ、メモ・参考リンク・添付ファイル・編集削除ボタンまで表示されている"
               sx={{ display: "block", width: "100%" }}
             />
             <Box sx={{ p: 2 }}>
@@ -262,7 +283,7 @@ export default function Home() {
               </Typography>
             </Box>
           </Paper>
-        </Stack>
+        </Box>
       </Container>
 
       {/* GitHubログインについて（やさしい説明＋詳細はアコーディオンに格納） */}

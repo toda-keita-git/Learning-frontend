@@ -1,12 +1,20 @@
 import Button from "@mui/material/Button";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import { useNavigate } from "react-router-dom";
 
-export default function BackButton() {
+interface BackButtonProps {
+  // スマホのドロワー内から使う場合、遷移前にドロワーを閉じておく処理。
+  // 開いたままページ遷移すると、ドロワー(MUI Modal)のスクロールロックが
+  // 解除されないまま残り、遷移後のページがスクロールできなくなることがあるため
+  onBeforeNavigate?: () => void;
+}
+
+export default function BackButton({ onBeforeNavigate }: BackButtonProps) {
   const navigate = useNavigate();
 
-  // 戻るボタン押下時処理
+  // ホームへ戻るボタン押下時処理
   const clickBack = () => {
+    onBeforeNavigate?.();
     navigate("/");
   };
 
@@ -16,10 +24,10 @@ export default function BackButton() {
         margin: "10px",
       }}
       variant="contained"
-      endIcon={<ArrowBackIosNewIcon />}
+      startIcon={<HomeOutlinedIcon />}
       onClick={clickBack}
     >
-      戻る
+      ホーム
     </Button>
   );
 }

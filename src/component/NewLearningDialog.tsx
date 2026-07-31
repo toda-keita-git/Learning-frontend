@@ -8,6 +8,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Rating from "@mui/material/Rating";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -169,6 +170,10 @@ export default function NewLearningDialog({
   const [pptxSlides, setPptxSlides] = useState<PptxSlide[]>([]); // PPTX各スライドのテキスト（閲覧専用）
   const [activeSlideIndex, setActiveSlideIndex] = useState(0); // 表示中のスライド番号
   const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]); // ZIP内のファイル一覧（閲覧専用）
+
+  // タッチ操作が主な端末（スマホ等）では、物理キーボードの「Enter」ではなく
+  // ソフトキーボードの確定/改行ボタンでの操作になるため、案内文を出し分ける
+  const isTouchDevice = useMediaQuery("(pointer: coarse)");
 
   // ← AuthContext から値を取得（これらは string | null の可能性がある想定）
   const auth = useContext(AuthContext);
@@ -690,12 +695,20 @@ export default function NewLearningDialog({
   };
 
   const fileType = getFileType(github_path);
-  // fileContent が Base64 っぽいならそのまま使う。既にデコード済みの場合はエンコードし直す
-  const mediaSrc = fileContent.startsWith("data:")
-    ? fileContent
-    : fileContent.match(/^[A-Za-z0-9+/=]+$/)
-    ? `data:${getMimeType(github_path)};base64,${fileContent}`
-    : `data:${getMimeType(github_path)};base64,${btoa(fileContent)}`;
+  // 画像・動画以外ではmediaSrcを使わないため、無駄なbase64変換（かつ日本語などの
+  // 非Latin1文字を含むテキストファイルでbtoa()が例外を投げて画面が真っ白になる
+  // 不具合の原因）を避けるよう、必要なときだけ計算する
+  const mediaSrc =
+    fileType === "image" || fileType === "video"
+      ? fileContent.startsWith("data:")
+        ? fileContent
+        : fileContent.match(/^[A-Za-z0-9+/=]+$/)
+        ? `data:${getMimeType(github_path)};base64,${fileContent}`
+        : // 既にデコード済みのテキストを再エンコードする場合、btoa()は
+          // Latin1範囲外の文字（日本語など）で例外を投げるため、UTF-8対応の
+          // エンコード方法を使う
+          `data:${getMimeType(github_path)};base64,${btoa(unescape(encodeURIComponent(fileContent)))}`
+      : "";
 
 
   return (
@@ -931,7 +944,7 @@ export default function NewLearningDialog({
                 {...params}
                 variant="outlined"
                 label="ハッシュタグ（任意）"
-                placeholder="入力してEnterで追加"
+                placeholder={isTouchDevice ? "入力して確定（改行）ボタンで追加" : "入力してEnterで追加"}
                 helperText="複数OK。一覧にない言葉も新しく追加できます"
               />
             )}
@@ -957,29 +970,9 @@ export default function NewLearningDialog({
           {!hideAttachments && (
           <>
           <Box sx={{ mt: 3 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 1,
-                mb: 0.5,
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
-                ファイルを添付する（任意・複数選択できます）
-              </Typography>
-              {hasAttachment && (
-                <Button
-                  size="small"
-                  color="inherit"
-                  startIcon={<CloseIcon fontSize="small" />}
-                  onClick={handleClearAttachment}
-                >
-                  添付を解除
-                </Button>
-              )}
-            </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main", mb: 0.5 }}>
+              ファイルを添付する（任意・複数選択できます）
+            </Typography>
             <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mb: 1.5 }}>
               学んだコードやファイルをGitHubリポジトリに保存して紐づけられます。使わなくても登録できます。
             </Typography>
@@ -1015,7 +1008,8 @@ export default function NewLearningDialog({
             <Box
               sx={{
                 display: "flex",
-                alignItems: "flex-end",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "stretch", sm: "flex-end" },
                 gap: 1,
                 mb: 1.5,
               }}
@@ -1031,64 +1025,66 @@ export default function NewLearningDialog({
                 placeholder="未入力ならリポジトリ直下"
                 helperText="例: src/components"
               />
-              <IconButton
+              <Button
                 onClick={() => setIsFolderSelectorOpen(true)}
-                color="primary"
-                title="GitHubのフォルダから選ぶ"
+                variant="outlined"
+                startIcon={<FolderOpenIcon />}
+                sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
               >
-                <FolderOpenIcon />
-              </IconButton>
+                GitHubのフォルダから選ぶ
+              </Button>
             </Box>
 
             {/* --- ファイル名（新規作成 or アップロード or 既存ファイル選択） --- */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "flex-end",
-                gap: 1,
-              }}
-            >
-              <TextField
-                label="ファイル名"
-                type="text"
-                variant="outlined"
+            <TextField
+              label="ファイル名"
+              type="text"
+              variant="outlined"
+              size="small"
+              fullWidth
+              value={fileName}
+              onChange={(e) => setFileName(e.target.value)}
+              placeholder="例: index.tsx"
+              sx={{ mb: 1 }}
+            />
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleLocalFileSelect}
+              style={{ display: "none" }}
+            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
                 size="small"
-                fullWidth
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                placeholder="例: index.tsx"
-              />
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleLocalFileSelect}
-                style={{ display: "none" }}
-              />
-              <IconButton
+                variant="outlined"
                 onClick={handleUploadButtonClick}
-                color="primary"
-                title="PCからファイルをアップロードする"
+                startIcon={<UploadFileIcon />}
+                sx={{ whiteSpace: "nowrap" }}
               >
-                <UploadFileIcon />
-              </IconButton>
-              <IconButton
+                PCからアップロード
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
                 onClick={() => setIsSelectorOpen(true)}
-                color="primary"
-                title="GitHub上の既存ファイルを選ぶ"
+                startIcon={<InsertDriveFileOutlinedIcon />}
+                sx={{ whiteSpace: "nowrap" }}
               >
-                <InsertDriveFileOutlinedIcon />
-              </IconButton>
-              <IconButton
+                GitHubの既存ファイルを選ぶ
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
                 onClick={handleCreateNewFileClick}
-                color="primary"
-                title="新規ファイルを作成する（空の内容から直接入力できます）"
+                startIcon={<NoteAddOutlinedIcon />}
+                sx={{ whiteSpace: "nowrap" }}
               >
-                <NoteAddOutlinedIcon />
-              </IconButton>
-            </Box>
+                新規ファイルを作成
+              </Button>
+            </Stack>
 
-            {(localFile || isEditingFile || fileSha) && (
+            {(localFile || isEditingFile || fileSha) && github_path.trim() && (
               <Box sx={{ mt: 1, textAlign: "right" }}>
                 <Button
                   size="small"
@@ -1105,6 +1101,7 @@ export default function NewLearningDialog({
             sx={{
               mt: 2,
               p: 1,
+              position: "relative",
               border: "1px solid #ddd",
               borderRadius: 1,
               minHeight: 150,
@@ -1115,6 +1112,25 @@ export default function NewLearningDialog({
               bgcolor: "#fff",
             }}
           >
+            {hasAttachment && (
+              <IconButton
+                size="small"
+                onClick={handleClearAttachment}
+                title="選択中のファイルを解除する"
+                sx={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  zIndex: 1,
+                  bgcolor: "background.paper",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
             {isLoadingFile ? (
               <Box
                 sx={{

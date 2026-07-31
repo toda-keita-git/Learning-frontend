@@ -301,7 +301,7 @@ export default function LeftToolBar({
   const drawerContent = (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center" }}>
-        <BackButton />
+        <BackButton onBeforeNavigate={closeMobile} />
         {!isMobile && onToggleCollapsed && (
           <Tooltip title="折りたたむ">
             <IconButton onClick={onToggleCollapsed} sx={{ ml: "auto", mr: 1 }} size="small">
