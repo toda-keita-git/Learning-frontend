@@ -265,35 +265,31 @@ export default function LearningContent() {
   const isVideoFile = VIDEO_EXTENSIONS.includes(ext);
 
   let content = "";
-  let base64Content = "";
+  // ✅ Base64が空（1MB超などでContents APIがcontentを省略する場合。画像・動画に
+  // 限らずExcel/PDF/Word/PowerPoint/ZIPでも起こりうる）は、認証付きでblobを取得する
+  let base64Content =
+    data.content && data.content.trim() !== "" ? data.content.replace(/\r?\n/g, "") : "";
+  if (!base64Content) {
+    try {
+      const blob = await octokit.request(
+        "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+        { owner: githubLogin, repo: repoName, file_sha: data.sha }
+      );
+      base64Content = ((blob.data as any).content || "").replace(/\r?\n/g, "");
+    } catch (e) {
+      console.error("ファイルの取得に失敗:", e);
+    }
+  }
 
   if (isImageFile || isVideoFile) {
     const mimeType = getMimeType(path);
-    if (data.content && data.content.trim() !== "") {
-      // ✅ Base64データがある通常パターン
-      base64Content = data.content.replace(/\r?\n/g, "");
-      content = `data:${mimeType};base64,${base64Content}`;
-    } else {
-      // ⚠️ Base64が空（LFSや大容量ファイルなど。動画は特にこのケースが多い）
-      // ✅ 認証付きで blob を取得（プライベートリポジトリでも表示できる）
-      try {
-        const blob = await octokit.request(
-          "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
-          { owner: githubLogin, repo: repoName, file_sha: data.sha }
-        );
-        base64Content = ((blob.data as any).content || "").replace(/\r?\n/g, "");
-        content = base64Content ? `data:${mimeType};base64,${base64Content}` : "";
-      } catch (e) {
-        console.error("メディアファイルの取得に失敗:", e);
-        content = "";
-      }
-    }
-  } else if (data.content) {
+    content = base64Content ? `data:${mimeType};base64,${base64Content}` : "";
+  } else if (base64Content) {
     // ✅ テキストの場合：Base64デコード
     try {
       const decoded = decodeURIComponent(
         Array.prototype.map
-          .call(atob(data.content), (c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .call(atob(base64Content), (c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
           .join("")
       );
       content = decoded;
@@ -306,7 +302,7 @@ export default function LearningContent() {
   return {
     content,
     sha: data.sha,
-    base64Content: data.content,
+    base64Content,
   };
   } catch (error: any) {
     console.error("Error fetching file for dialog:", error);
