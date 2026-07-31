@@ -15,7 +15,6 @@ import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt
 import ReplayIcon from "@mui/icons-material/Replay";
 import MarkdownContent from "./MarkdownContent";
 import { hasCloze } from "./clozeUtils";
-import { ClozeText } from "./clozeText";
 
 export type FlashItem = {
   id: number;
@@ -235,12 +234,14 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
               </Typography>
 
               {current.explanatory_text && hasCloze(current.explanatory_text) ? (
-                // 穴埋め記法があるメモ：文脈は最初から見せ、[[...]]の部分だけ1つずつタップで表示する。
+                // 穴埋め記法があるメモ：Markdown書式（リスト・表など）を保ったまま、
+                // 文脈は最初から見せ、[[...]]の部分だけ1つずつタップで表示する。
                 // 全て表示し終えると、通常のメモ表示（revealed=true）に自動で切り替わる
                 <>
-                  <ClozeText
+                  <MarkdownContent
                     key={current.id}
                     text={current.explanatory_text}
+                    color="text.secondary"
                     forceRevealed={revealed}
                     onAllRevealed={() => setRevealed(true)}
                   />

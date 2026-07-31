@@ -42,7 +42,6 @@ import MarkdownContent from "./MarkdownContent";
 import MarkdownHelpDialog from "./MarkdownHelpDialog";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { hasCloze } from "./clozeUtils";
-import { ClozeText } from "./clozeText";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 
@@ -102,7 +101,6 @@ export default function NewLearningDialog({
   const [showMemoPreview, setShowMemoPreview] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   // 穴埋め記法([[ ]])が復習時にどう隠れるかを、プレビュー内で確認するためのState
-  const [clozePreviewMode, setClozePreviewMode] = useState(false);
   const [clozeAllRevealed, setClozeAllRevealed] = useState(false);
   const [clozeResetKey, setClozeResetKey] = useState(0);
   const [understandingLevel, setUnderstandingLevel] = useState<number | null>(null);
@@ -570,8 +568,8 @@ export default function NewLearningDialog({
                 size="small"
                 onClick={() => {
                   setShowMemoPreview((v) => !v);
-                  setClozePreviewMode(false);
                   setClozeAllRevealed(false);
+                  setClozeResetKey((k) => k + 1);
                 }}
                 sx={{ fontSize: "0.75rem" }}
               >
@@ -589,55 +587,44 @@ export default function NewLearningDialog({
                 }}
               >
                 {explanatoryText ? (
-                  hasCloze(explanatoryText) && clozePreviewMode ? (
-                    <Box>
-                      <ClozeText
-                        key={clozeResetKey}
-                        text={explanatoryText}
-                        onAllRevealed={() => setClozeAllRevealed(true)}
-                      />
-                      <Typography
-                        variant="caption"
-                        sx={{ display: "block", mt: 1, color: "text.secondary" }}
-                      >
-                        {clozeAllRevealed
-                          ? "すべて表示しました。これが復習の最後に見える状態です"
-                          : "隠した箇所を1つずつタップすると表示されます"}
-                      </Typography>
-                      {clozeAllRevealed && (
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setClozeResetKey((k) => k + 1);
-                            setClozeAllRevealed(false);
-                          }}
-                          sx={{ mt: 0.5, fontSize: "0.75rem" }}
+                  <>
+                    <MarkdownContent
+                      key={clozeResetKey}
+                      text={explanatoryText}
+                      color="text.primary"
+                      forceRevealed={clozeAllRevealed}
+                      onAllRevealed={() => setClozeAllRevealed(true)}
+                    />
+                    {hasCloze(explanatoryText) && (
+                      <>
+                        <Typography
+                          variant="caption"
+                          sx={{ display: "block", mt: 1, color: "text.secondary" }}
                         >
-                          もう一度隠した状態から確認
-                        </Button>
-                      )}
-                    </Box>
-                  ) : (
-                    <MarkdownContent text={explanatoryText} color="text.primary" />
-                  )
+                          {clozeAllRevealed
+                            ? "すべて表示しました。これが復習の最後に見える状態です"
+                            : "[[ ]]で囲んだ箇所は伏字になります。タップすると1つずつ表示されます"}
+                        </Typography>
+                        {clozeAllRevealed && (
+                          <Button
+                            size="small"
+                            startIcon={<VisibilityOffOutlinedIcon fontSize="small" />}
+                            onClick={() => {
+                              setClozeAllRevealed(false);
+                              setClozeResetKey((k) => k + 1);
+                            }}
+                            sx={{ mt: 0.5, fontSize: "0.75rem" }}
+                          >
+                            もう一度隠した状態から確認
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </>
                 ) : (
                   <Typography variant="body2" sx={{ color: "text.disabled" }}>
                     まだ内容がありません
                   </Typography>
-                )}
-                {hasCloze(explanatoryText) && (
-                  <Button
-                    size="small"
-                    startIcon={<VisibilityOffOutlinedIcon fontSize="small" />}
-                    onClick={() => {
-                      setClozePreviewMode((v) => !v);
-                      setClozeAllRevealed(false);
-                      setClozeResetKey((k) => k + 1);
-                    }}
-                    sx={{ mt: 1, fontSize: "0.75rem" }}
-                  >
-                    {clozePreviewMode ? "通常表示に戻る" : "隠した状態で確認"}
-                  </Button>
                 )}
               </Box>
             ) : (
