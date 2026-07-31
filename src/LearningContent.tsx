@@ -104,6 +104,27 @@ const APPBAR_HEIGHT_XS = 56; // スマホ用AppBar（ヘッダー）の高さ(px
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"];
 
+const SORT_LABELS: Record<string, string> = {
+  "name-asc": "タイトル (昇順)",
+  "name-desc": "タイトル (降順)",
+  "understanding-desc": "理解度が高い順",
+  "understanding-asc": "理解度が低い順",
+  "date-desc": "更新日が新しい順",
+  "date-asc": "更新日が古い順",
+};
+
+// 検索の設定内容（カテゴリー・ハッシュタグ・ソート）を、チャット表示用のテキストにまとめる
+const describeSearchFilters = (filters: {
+  category: string;
+  hashtags: string[];
+  sort: string;
+}) =>
+  `カテゴリー: ${filters.category === "all" ? "すべて" : filters.category}\n` +
+  `ハッシュタグ: ${
+    filters.hashtags.length > 0 ? filters.hashtags.join(", ") : "指定なし"
+  }\n` +
+  `ソート: ${SORT_LABELS[filters.sort] ?? filters.sort}`;
+
 // APIデータの型定義を実際のデータ構造に合わせる
 interface LearningRecord {
   id: number;
@@ -830,23 +851,7 @@ export default function LearningContent() {
   }) => {
     setSearchFilters(filters);
 
-    const sortLabels: Record<string, string> = {
-      "name-asc": "タイトル (昇順)",
-      "name-desc": "タイトル (降順)",
-      "understanding-desc": "理解度が高い順",
-      "understanding-asc": "理解度が低い順",
-      "date-desc": "更新日が新しい順",
-      "date-asc": "更新日が古い順",
-    };
-
-    let filterSummary = "<b>検索条件が更新されました</b><br>";
-    filterSummary += `カテゴリー: ${
-      filters.category === "all" ? "すべて" : filters.category
-    }<br>`;
-    filterSummary += `ハッシュタグ: ${
-      filters.hashtags.length > 0 ? filters.hashtags.join(", ") : "指定なし"
-    }<br>`;
-    filterSummary += `ソート: ${sortLabels[filters.sort] ?? filters.sort}`;
+    const filterSummary = `検索条件が更新されました\n${describeSearchFilters(filters)}`;
 
     const systemMessage: Message = {
       id: Date.now(),
@@ -1154,7 +1159,7 @@ export default function LearningContent() {
 
     const userMessage: Message = {
       id: Date.now(),
-      text: trimmedQuery || "詳細条件のみで検索",
+      text: trimmedQuery || `詳細検索\n${describeSearchFilters(searchFilters)}`,
       timestamp: new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
         minute: "2-digit",
