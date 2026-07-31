@@ -20,6 +20,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType } from "./getFileType";
+import RichFilePreview from "./RichFilePreview";
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -35,6 +36,8 @@ interface Props {
   path: string;
   /** すでにデコード済みのテキスト or data:image/... URL */
   content: string;
+  /** Excel/PDF/Word/PowerPoint/ZIPなどを本来の見た目で表示するための生のBase64 */
+  base64Content?: string;
   isEditable: boolean;
   onUpdateFile: (path: string, newContent: string) => Promise<void>;
   /** 省データモード: 画像を自動表示せず、タップするまで読み込まない */
@@ -46,6 +49,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   onClose,
   path,
   content,
+  base64Content,
   isEditable,
   onUpdateFile,
   dataSaverOn = false,
@@ -89,32 +93,10 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     setSnackbarOpen(false);
   };
 
-  const getLanguage = (path: string) => {
-    const ext = path.split(".").pop()?.toLowerCase();
-    const filename = path.split("/").pop()?.toLowerCase();
-    if (filename === "dockerfile") return "docker";
-    const map: Record<string, string> = {
-      js: "javascript",
-      ts: "typescript",
-      jsx: "jsx",
-      tsx: "tsx",
-      html: "html",
-      css: "css",
-      scss: "scss",
-      java: "java",
-      py: "python",
-      sql: "sql",
-      md: "markdown",
-      json: "json",
-      xml: "xml",
-      yaml: "yaml",
-      yml: "yaml",
-      sh: "bash",
-    };
-    return map[ext || ""] || "plaintext";
-  };
-
-  const language = getLanguage(path);
+  // シンタックスハイライトの言語は、getFileTypeの全対応言語をそのまま使う
+  // （isPreviewUnsupportedなファイルはここに来ないため、image/video/excel等の
+  // 値がlanguageとして渡ることはない）
+  const language = fileType;
 
   return (
     <>
@@ -248,8 +230,11 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               );
             }
 
-            // Excel/PDF/Word/PowerPoint/ZIPなどのバイナリ形式（テキスト表示・編集不可）
+            // Excel/PDF/Word/PowerPoint/ZIPなどは、本来に近い見た目で表示する（編集は常に不可）
             if (isPreviewUnsupported) {
+              if (base64Content) {
+                return <RichFilePreview path={path} base64Content={base64Content} />;
+              }
               return (
                 <Box
                   sx={{

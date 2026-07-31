@@ -446,6 +446,7 @@ export default function LearningContent() {
     path: "",
     content: "",
     sha: "",
+    base64Content: "",
   });
   // ★★★ ビューアが編集可能かどうかを管理するStateを追加 ★★★
   const [isViewerEditable, setIsViewerEditable] = useState<boolean>(false);
@@ -507,8 +508,23 @@ export default function LearningContent() {
         }
       }
     } else if (isPreviewUnsupported) {
-      // バイナリ形式はテキストとしてデコードしない（内容が壊れて表示・保存されるのを防ぐ）
+      // バイナリ形式はテキストとしてデコードしない（内容が壊れて表示・保存されるのを防ぐ）。
+      // Excel/PDF等をそれぞれの見た目で表示するため、Base64はそのまま保持しておく
       content = "";
+      if (response.data.content && response.data.content.trim() !== "") {
+        base64Content = response.data.content.replace(/\r?\n/g, "");
+      } else {
+        // ⚠️ 1MB超などでcontentが省略される場合：認証付きでblobを取得
+        try {
+          const blob = await octokit.request(
+            "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+            { owner: githubLogin, repo: repoName, file_sha: response.data.sha }
+          );
+          base64Content = ((blob.data as any).content || "").replace(/\r?\n/g, "");
+        } catch (e) {
+          console.error("ファイルの取得に失敗:", e);
+        }
+      }
     } else {
       // テキストの場合は通常のBase64デコード
       content = decodeBase64Text(response.data.content);
@@ -518,6 +534,7 @@ export default function LearningContent() {
       path: response.data.path,
       content,
       sha: response.data.sha,
+      base64Content,
     });
 
     // 過去のコミット、およびExcel/PDF/Word/PowerPoint/ZIPなどのバイナリ形式は編集不可
@@ -2006,6 +2023,7 @@ export default function LearningContent() {
         onClose={() => setViewerOpen(false)}
         path={viewingContent.path}
         content={viewingContent.content}
+        base64Content={viewingContent.base64Content}
         // ★★★ 編集可能フラグをpropsとして渡す ★★★
         isEditable={isViewerEditable}
         onUpdateFile={async (path, newContent) => {
