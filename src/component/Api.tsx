@@ -213,3 +213,34 @@ export const checkPlanInterestApi = async (): Promise<boolean> => {
   const response = await axios.get(`/plan_interest_check`);
   return !!response.data?.requested;
 };
+
+// お問い合わせの送信（未ログインでも送れる公開API）
+export const submitInquiryApi = async (data: {
+  name?: string;
+  email: string;
+  message: string;
+}) => {
+  const response = await axios.post("/inquiry_submit", data);
+  return response.data;
+};
+
+export interface Inquiry {
+  id: number;
+  name: string | null;
+  email: string;
+  message: string;
+  status: "new" | "read" | "done";
+  created_at: string;
+}
+
+// お問い合わせ一覧の取得（管理者のみ）
+export const listInquiriesApi = async (): Promise<Inquiry[]> => {
+  const response = await axios.get("/inquiry_list");
+  return response.data;
+};
+
+// お問い合わせのステータス更新（管理者のみ）
+export const updateInquiryStatusApi = async (id: number, status: string) => {
+  const response = await axios.post(`/inquiry_status/${id}`, { status });
+  return response.data;
+};

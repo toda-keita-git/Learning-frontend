@@ -46,6 +46,7 @@ import LearningListDialog from "./component/LearningListDialog";
 import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
 import ArticlePreviewDialog from "./component/ArticlePreviewDialog";
 import PlanComparisonDialog from "./component/PlanComparisonDialog";
+import InquiryManageDialog from "./component/InquiryManageDialog";
 import { saveLearningCache, loadLearningCache } from "./component/offlineCache";
 import { enqueueAction, flushQueue, queueLength } from "./component/offlineQueue";
 import { getCard, isDue, reviewCard } from "./component/srs";
@@ -171,6 +172,8 @@ type Message = {
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, logout, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
   const { showToast } = useToast();
+  // カテゴリー・タグの管理と同様、管理者（id=1）のみお問い合わせ管理を開けるようにする
+  const isAdmin = userId === 1;
   const [isLoggingIn, setIsLoggingIn] = useState(false); // GitHubログインボタン押下〜リダイレクトまでの表示用
   // APIから取得した学習記録データを保持するState
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
@@ -533,6 +536,7 @@ export default function LearningContent() {
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
   const [planDialogOpen, setPlanDialogOpen] = useState<boolean>(false); // プラン比較
+  const [inquiryManageOpen, setInquiryManageOpen] = useState<boolean>(false); // お問い合わせ管理（管理者のみ）
   const [publishingItem, setPublishingItem] = useState<PublishableItem | null>(null); // 記事化プレビュー
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator === "undefined" ? true : navigator.onLine
@@ -1722,6 +1726,14 @@ export default function LearningContent() {
           setPlanDialogOpen(true);
           setMobileNavOpen(false);
         }}
+        onOpenInquiries={
+          isAdmin
+            ? () => {
+                setInquiryManageOpen(true);
+                setMobileNavOpen(false);
+              }
+            : undefined
+        }
         onLogout={() => {
           logout();
           setMobileNavOpen(false);
@@ -2090,6 +2102,14 @@ export default function LearningContent() {
         userId={userId}
         githubLogin={githubLogin}
       />
+
+      {/* お問い合わせ管理（管理者のみ） */}
+      {isAdmin && (
+        <InquiryManageDialog
+          open={inquiryManageOpen}
+          onClose={() => setInquiryManageOpen(false)}
+        />
+      )}
 
       {/* 記事化プレビュー */}
       <ArticlePreviewDialog

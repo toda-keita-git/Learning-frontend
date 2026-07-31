@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ResponsiveAppBar from "./component/ResponsiveAppBar";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -19,6 +20,8 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import InquiryDialog from "./component/InquiryDialog";
 
 const features = [
   {
@@ -78,6 +81,7 @@ const steps = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const [inquiryOpen, setInquiryOpen] = useState(false);
 
   return (
     <>
@@ -342,6 +346,24 @@ export default function Home() {
           ))}
         </Box>
       </Container>
+
+      {/* お問い合わせ */}
+      <Box sx={{ bgcolor: "action.hover", py: { xs: 4, md: 5 } }}>
+        <Container maxWidth="md" sx={{ textAlign: "center" }}>
+          <Typography sx={{ color: "text.secondary", mb: 2 }}>
+            ご不明な点やご要望があれば、お気軽にお問い合わせください。
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<MailOutlineIcon />}
+            onClick={() => setInquiryOpen(true)}
+          >
+            お問い合わせ
+          </Button>
+        </Container>
+      </Box>
+
+      <InquiryDialog open={inquiryOpen} onClose={() => setInquiryOpen(false)} />
     </>
   );
 }

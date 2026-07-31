@@ -34,6 +34,7 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import TableRowsIcon from "@mui/icons-material/TableRows";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import BackButton from "./BackButton";
 
@@ -60,6 +61,7 @@ interface LeftToolBarProps {
   onOpenList?: () => void;
   onOpenAnalytics?: () => void;
   onOpenPlans?: () => void;
+  onOpenInquiries?: () => void;
   onLogout?: () => void;
   onFileSelect: (path: string) => void;
   files: GitHubFile[];
@@ -192,6 +194,7 @@ export default function LeftToolBar({
   onOpenList,
   onOpenAnalytics,
   onOpenPlans,
+  onOpenInquiries,
   onLogout,
   onFileSelect,
   files,
@@ -277,6 +280,13 @@ export default function LeftToolBar({
         <Tooltip title="プラン" placement="right">
           <IconButton onClick={onOpenPlans} sx={{ mb: 0.5 }}>
             <WorkspacePremiumOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onOpenInquiries && (
+        <Tooltip title="お問い合わせ管理" placement="right">
+          <IconButton onClick={onOpenInquiries} sx={{ mb: 0.5 }}>
+            <MailOutlineIcon />
           </IconButton>
         </Tooltip>
       )}
@@ -384,6 +394,19 @@ export default function LeftToolBar({
             </ListItemIcon>
             <ListItemText
               primary="プラン"
+              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+            />
+          </ListItemButton>
+        )}
+
+        {/* --- お問い合わせ管理 --- */}
+        {onOpenInquiries && (
+          <ListItemButton onClick={onOpenInquiries}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <MailOutlineIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="お問い合わせ管理"
               primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
             />
           </ListItemButton>
