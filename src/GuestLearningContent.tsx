@@ -14,8 +14,10 @@ import LearningResultCards from "./component/LearningResultCards";
 import NewLearningDialog from "./component/NewLearningDialog";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { parseReferenceUrls } from "./component/referenceUrls";
+import { useToast } from "./ToastContext";
 import {
   type GuestLearningRecord,
+  GUEST_RECORD_LIMIT,
   listGuestRecords,
   createGuestRecord,
   updateGuestRecord,
@@ -38,12 +40,18 @@ const nowLabel = () =>
 
 export default function GuestLearningContent() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [records, setRecords] = useState<GuestLearningRecord[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<GuestLearningRecord | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const welcomeShownRef = useRef(false);
+  // 「元に戻す」猶予中の削除を保持する(タイマーが切れたら実際に削除を確定する)
+  const pendingDeleteRef = useRef<{
+    item: GuestLearningRecord;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   const openNewLearningDialog = () => {
     setEditingItem(null);
@@ -117,22 +125,42 @@ export default function GuestLearningContent() {
     }
   };
 
+  const commitDelete = (item: GuestLearningRecord) => {
+    deleteGuestRecord(item.id);
+    setRecords(listGuestRecords());
+  };
+
   const handleDelete = (id: number) => {
     const item = records.find((r) => r.id === id);
     if (!item) return;
-    if (!window.confirm(`「${item.title}」を削除しますか？この操作は元に戻せません。`)) return;
-    deleteGuestRecord(id);
-    setRecords(listGuestRecords());
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        text: `「${item.title}」を削除しました。`,
-        timestamp: nowLabel(),
-        type: "left",
-        displayName: "システム",
+
+    // 直前に猶予中の削除があれば先に確定させる
+    if (pendingDeleteRef.current) {
+      clearTimeout(pendingDeleteRef.current.timer);
+      commitDelete(pendingDeleteRef.current.item);
+    }
+
+    setRecords((prev) => prev.filter((r) => r.id !== id));
+
+    const timer = setTimeout(() => {
+      commitDelete(item);
+      pendingDeleteRef.current = null;
+    }, 6000);
+    pendingDeleteRef.current = { item, timer };
+
+    showToast(`「${item.title}」を削除しました。`, "info", {
+      action: {
+        label: "元に戻す",
+        onClick: () => {
+          if (pendingDeleteRef.current?.item.id === item.id) {
+            clearTimeout(pendingDeleteRef.current.timer);
+            pendingDeleteRef.current = null;
+            setRecords((prev) => [item, ...prev]);
+          }
+        },
       },
-    ]);
+      durationMs: 6000,
+    });
   };
 
   const handleSubmit = async (submissionData: any) => {
@@ -142,16 +170,23 @@ export default function GuestLearningContent() {
     if (isEdit) {
       updateGuestRecord(learningData.id, learningData);
     } else {
-      const created = createGuestRecord(learningData);
-      if (!created) {
+      const result = createGuestRecord(learningData);
+      if (!result.ok) {
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now(),
-            text: "この端末に保存できませんでした。プライベートブラウジング中でないかご確認ください。",
+            text:
+              result.reason === "limit"
+                ? `ゲストモードでは${GUEST_RECORD_LIMIT}件までとなっています。もっと記録したい場合は、GitHubでログインすると無制限に保存でき、この端末の記録もそのまま引き継げます。`
+                : "この端末に保存できませんでした。プライベートブラウジング中でないかご確認ください。",
             timestamp: nowLabel(),
             type: "left",
             displayName: "システム",
+            action:
+              result.reason === "limit"
+                ? { label: "GitHubでログインする", onClick: () => navigate("/LearningContent") }
+                : undefined,
           },
         ]);
         return;
@@ -186,7 +221,7 @@ export default function GuestLearningContent() {
             <Stack direction="row" spacing={1} alignItems="center">
               <InfoOutlinedIcon fontSize="small" />
               <Typography variant="body2">
-                ゲストモードで利用中です。記録はこの端末にのみ保存されます（他の端末とは共有されません）。
+                ゲストモードで利用中です（{records.length}/{GUEST_RECORD_LIMIT}件）。記録はこの端末にのみ保存されます。
               </Typography>
             </Stack>
             <Button

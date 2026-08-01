@@ -951,57 +951,65 @@ export default function LearningContent() {
     setMessages((prev) => [...prev, systemMessage]);
   };
 
-  // ★ 削除確認ダイアログ用のStateを追加
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
   // ★ 編集対象のデータを保持するState
   const [editingItem, setEditingItem] = useState<LearningRecord | null>(null);
 
-  // ★ 削除処理を実行する関数
-  const handleDeleteLearning = async () => {
-    if (deletingItemId === null) return;
+  // ★「元に戻す」猶予中の削除を保持する（タイマーが切れたら実際に削除を確定する）
+  const pendingDeleteRef = useRef<{
+    item: LearningRecord;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
+  // ★ 猶予時間経過後（または連続削除時）に実際の削除を確定する関数
+  const commitDelete = async (item: LearningRecord) => {
     if (!navigator.onLine) {
-      // オフライン時は削除を保留し、ローカル表示からは即座に消す（楽観的更新）
-      enqueueAction(userId, { kind: "delete", id: deletingItemId, label: "" });
+      // オフライン時は削除を保留する（表示からはすでに消えている）
+      enqueueAction(userId, { kind: "delete", id: item.id, label: "" });
       setSyncQueueCount(queueLength(userId));
-      setLearningData((prev) => prev.filter((item) => item.id !== deletingItemId));
-      setDeleteConfirmOpen(false);
-      setDeletingItemId(null);
-      showToast("オフラインのため削除を保留しました。オンライン復帰時に反映します。", "warning");
       return;
     }
-
     try {
-      await deleteLearningApi(deletingItemId);
-      setDeleteConfirmOpen(false);
-      setDeletingItemId(null);
+      await deleteLearningApi(item.id);
       refetchData(); // データを再取得して表示を更新
-      // 削除成功のメッセージをチャットに追加
-      setMessages((prev: Message[]) => [
-        ...prev,
-        {
-          id: Date.now(),
-          text: "学習記録を削除しました。",
-          timestamp: new Date().toLocaleTimeString("ja-JP", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          type: "left",
-          photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
-          displayName: "システム",
-        },
-      ]);
     } catch (error) {
       console.error("Failed to delete learning record:", error);
-      showToast("削除に失敗しました。", "error");
+      showToast("削除に失敗しました。表示を元に戻します。", "error");
+      setLearningData((prev) => [...prev, item]);
     }
   };
 
-  // ★ 削除ボタンがクリックされたときに確認ダイアログを開く関数
-  const openDeleteConfirm = (id: number) => {
-    setDeletingItemId(id);
-    setDeleteConfirmOpen(true);
+  // ★ 削除ボタンがクリックされたときに、即座に削除して「元に戻す」トーストを出す関数
+  const handleDeleteWithUndo = (id: number) => {
+    const item = learningData.find((l) => l.id === id);
+    if (!item) return;
+
+    // 直前に猶予中の削除があれば先に確定させる
+    if (pendingDeleteRef.current) {
+      clearTimeout(pendingDeleteRef.current.timer);
+      commitDelete(pendingDeleteRef.current.item);
+    }
+
+    setLearningData((prev) => prev.filter((l) => l.id !== id));
+
+    const timer = setTimeout(() => {
+      commitDelete(item);
+      pendingDeleteRef.current = null;
+    }, 6000);
+    pendingDeleteRef.current = { item, timer };
+
+    showToast(`「${item.title}」を削除しました。`, "info", {
+      action: {
+        label: "元に戻す",
+        onClick: () => {
+          if (pendingDeleteRef.current?.item.id === item.id) {
+            clearTimeout(pendingDeleteRef.current.timer);
+            pendingDeleteRef.current = null;
+            setLearningData((prev) => [item, ...prev]);
+          }
+        },
+      },
+      durationMs: 6000,
+    });
   };
 
   // ★ 新規カテゴリーダイアログを開くハンドラ
@@ -1921,7 +1929,7 @@ export default function LearningContent() {
                       handleViewFile(path, false, commitSha ?? undefined)
                     }
                     onEdit={openEditDialog}
-                    onDelete={openDeleteConfirm}
+                    onDelete={handleDeleteWithUndo}
                     onOpenRelated={openEditDialog}
                     onPublish={setPublishingItem}
                   />
@@ -2136,25 +2144,6 @@ export default function LearningContent() {
         }}
         dataSaverOn={dataSaverOn}
       />
-      <Dialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-      >
-        <DialogTitle>削除の確認</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            この学習記録を本当に削除しますか？この操作は元に戻せません。
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>
-            キャンセル
-          </Button>
-          <Button onClick={handleDeleteLearning} color="error">
-            削除
-          </Button>
-        </DialogActions>
-      </Dialog>
       {/* ★ 新規カテゴリー追加ダイアログをレンダリング */}
       <NewCategoryDialog
         open={isCategoryDialogOpen}
@@ -2212,7 +2201,7 @@ export default function LearningContent() {
         }}
         onDelete={(id) => {
           setListDialogOpen(false);
-          openDeleteConfirm(id);
+          handleDeleteWithUndo(id);
         }}
         onPublish={setPublishingItem}
       />

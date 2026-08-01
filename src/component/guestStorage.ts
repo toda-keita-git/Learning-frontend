@@ -20,6 +20,11 @@ export type GuestLearningRecord = {
 
 const DATA_KEY = "guestLearningData";
 
+// ゲストモードは体験版という位置づけのため件数に上限を設ける。
+// 0.5GB規模のDB容量的には何万件でも収まるが、そもそも「気軽に試す」
+// 用途であり、上限を設けることでGitHub連携への自然な移行も促せる
+export const GUEST_RECORD_LIMIT = 30;
+
 // localStorageが実際に読み書きできるかを確認する。
 // iOS/AndroidのプライベートブラウジングやPCのシークレットウィンドウでは、
 // window.localStorage自体は存在してもwrite時に例外が飛ぶ（あるいはブラウザに
@@ -71,11 +76,19 @@ export function listGuestRecords(): GuestLearningRecord[] {
   );
 }
 
-// 新規作成。書き込みに失敗した場合はnullを返す（呼び出し側でエラー表示する）
+export type CreateGuestRecordResult =
+  | { ok: true; record: GuestLearningRecord }
+  | { ok: false; reason: "limit" | "storage_error" };
+
+// 新規作成。上限に達している場合はreason:"limit"、書き込みに失敗した場合は
+// reason:"storage_error"を返す（呼び出し側でそれぞれ異なる案内を出す）
 export function createGuestRecord(
   data: Omit<GuestLearningRecord, "id" | "user_id" | "github_path" | "commit_sha">
-): GuestLearningRecord | null {
+): CreateGuestRecordResult {
   const records = loadAll();
+  if (records.length >= GUEST_RECORD_LIMIT) {
+    return { ok: false, reason: "limit" };
+  }
   const record: GuestLearningRecord = {
     ...data,
     id: Date.now(),
@@ -84,7 +97,7 @@ export function createGuestRecord(
     commit_sha: null,
   };
   records.push(record);
-  return saveAll(records) ? record : null;
+  return saveAll(records) ? { ok: true, record } : { ok: false, reason: "storage_error" };
 }
 
 export function updateGuestRecord(
