@@ -76,6 +76,34 @@ const toBase64 = (file: File): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
+// 最近使ったカテゴリー・タグをワンタップ候補として出すためのlocalStorage保存
+const RECENT_CATEGORY_KEY = "recentCategoryIds";
+const RECENT_TAG_KEY = "recentTagNames";
+const RECENT_PICKS_LIMIT = 6;
+
+function loadRecentPicks<T>(key: string): T[] {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// 使ったばかりのものが先頭に来るよう、既存の並びから除いてから先頭に積み直す
+function pushRecentPicks<T>(key: string, values: T[]): void {
+  if (values.length === 0) return;
+  try {
+    const current = loadRecentPicks<T>(key).filter((v) => !values.includes(v));
+    const next = [...values, ...current].slice(0, RECENT_PICKS_LIMIT);
+    window.localStorage.setItem(key, JSON.stringify(next));
+  } catch {
+    // 保存できなくても致命的ではないので無視する
+  }
+}
+
 // "src/components/Foo.tsx" のようなフルパスを、フォルダ部分とファイル名部分に分割する
 const splitPath = (path: string): { folder: string; file: string } => {
   const trimmed = (path || "").replace(/^\/+/, "");
@@ -137,6 +165,9 @@ export default function NewLearningDialog({
   const [referenceUrls, setReferenceUrls] = useState<string[]>([""]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // 最近使ったカテゴリー・タグ（ワンタップ候補用）
+  const [recentCategoryIds, setRecentCategoryIds] = useState<(number | string)[]>([]);
+  const [recentTagNames, setRecentTagNames] = useState<string[]>([]);
   // 添付ファイルの保存先は「フォルダ」と「ファイル名」を別々のStateで持つ。
   // 1本の文字列(github_path)をパースして扱うと、片方だけ更新したつもりが
   // もう片方の内容を巻き込んで消してしまうバグの温床になるため。
@@ -256,6 +287,8 @@ export default function NewLearningDialog({
 
   useEffect(() => {
     if (!open) return;
+    setRecentCategoryIds(loadRecentPicks<number | string>(RECENT_CATEGORY_KEY));
+    setRecentTagNames(loadRecentPicks<string>(RECENT_TAG_KEY));
 
     if (editingData) {
       setTitle(editingData.title || "");
@@ -630,6 +663,8 @@ export default function NewLearningDialog({
 
     try {
       await onSubmit(submissionData);
+      if (selectedCategory) pushRecentPicks(RECENT_CATEGORY_KEY, [selectedCategory]);
+      if (selectedTags.length > 0) pushRecentPicks(RECENT_TAG_KEY, selectedTags);
       resetFormFields();
       prevEditingIdRef.current = null;
       onClose();
@@ -719,6 +754,11 @@ export default function NewLearningDialog({
           `data:${getMimeType(github_path)};base64,${btoa(unescape(encodeURIComponent(fileContent)))}`
       : "";
 
+  // 最近使ったカテゴリー・タグのワンタップ候補（すでに選択中のものは出さない）
+  const recentCategoryChips = recentCategoryIds
+    .map((id) => allCategories.find((c) => c.id === id))
+    .filter((c): c is { id: number; name: string } => !!c && String(c.id) !== String(selectedCategory));
+  const recentTagChips = recentTagNames.filter((t) => !selectedTags.includes(t));
 
   return (
     <>
@@ -937,6 +977,22 @@ export default function NewLearningDialog({
             )}
             sx={{ mt: 2 }}
           />
+          {recentCategoryChips.length > 0 && (
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", mr: 0.5 }}>
+                最近使った:
+              </Typography>
+              {recentCategoryChips.map((c) => (
+                <Chip
+                  key={c.id}
+                  label={c.name}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setSelectedCategory(c.id as any)}
+                />
+              ))}
+            </Box>
+          )}
 
           {/* ハッシュタグ（複数選択・自由入力可） */}
           <Autocomplete
@@ -967,6 +1023,22 @@ export default function NewLearningDialog({
             )}
             sx={{ mt: 2 }}
           />
+          {recentTagChips.length > 0 && (
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", mr: 0.5 }}>
+                よく使う:
+              </Typography>
+              {recentTagChips.map((t) => (
+                <Chip
+                  key={t}
+                  label={`#${t}`}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setSelectedTags((prev) => [...prev, t])}
+                />
+              ))}
+            </Box>
+          )}
 
           {/* === 理解度 === */}
           <Box sx={{ mt: 3 }}>
