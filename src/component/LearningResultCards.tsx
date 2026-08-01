@@ -46,6 +46,8 @@ interface LearningResultCardsProps {
   onViewFile: (path: string, commitSha?: string | null) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
+  // 星をクリックして理解度を直接更新する（省略時は読み取り専用表示のまま）
+  onRateChange?: (id: number, value: number | null) => void;
   // 関連メモをタップしたときの遷移先（省略時は関連メモ欄自体を出さない）
   onOpenRelated?: (id: number) => void;
   // 記事化プレビューを開く（省略時は「記事化」ボタン自体を出さない）
@@ -62,10 +64,14 @@ export default function LearningResultCards({
   onViewFile,
   onEdit,
   onDelete,
+  onRateChange,
   onOpenRelated,
   onPublish,
 }: LearningResultCardsProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  // itemsは検索実行時点のスナップショットで、親側で理解度が更新されても再取得するまで
+  // 反映されないため、星クリック直後の見た目だけこのMapで即座に上書きする
+  const [ratingOverrides, setRatingOverrides] = useState<Map<number, number | null>>(new Map());
 
   const toggle = (id: number) => {
     setExpandedIds((prev) => {
@@ -74,6 +80,11 @@ export default function LearningResultCards({
       else next.add(id);
       return next;
     });
+  };
+
+  const handleRatingChange = (id: number, newValue: number | null) => {
+    setRatingOverrides((prev) => new Map(prev).set(id, newValue));
+    onRateChange?.(id, newValue);
   };
 
   return (
@@ -105,6 +116,9 @@ export default function LearningResultCards({
               const isOpen = expandedIds.has(item.id);
               const relatedItems =
                 allItems && onOpenRelated ? findRelatedItems(item, allItems) : [];
+              const displayedRating = ratingOverrides.has(item.id)
+                ? ratingOverrides.get(item.id) ?? null
+                : item.understanding_level;
               return (
                 <Card
                   key={item.id}
@@ -131,7 +145,14 @@ export default function LearningResultCards({
                       >
                         {item.title}
                       </Typography>
-                      {item.understanding_level == null ? (
+                      {onRateChange ? (
+                        <Rating
+                          value={displayedRating}
+                          size="small"
+                          sx={{ flexShrink: 0 }}
+                          onChange={(_event, newValue) => handleRatingChange(item.id, newValue)}
+                        />
+                      ) : item.understanding_level == null ? (
                         <Chip
                           label="未設定"
                           size="small"

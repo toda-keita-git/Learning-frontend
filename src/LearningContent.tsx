@@ -1433,6 +1433,56 @@ export default function LearningContent() {
     );
   };
 
+  // 検索結果カードの星を直接クリックして理解度を更新する（編集ダイアログを開かずに済む）
+  const handleRateChange = async (id: number, newValue: number | null) => {
+    const item = learningData.find((l) => l.id === id);
+    if (!item || newValue === item.understanding_level) return;
+
+    const previousLevel = item.understanding_level;
+    setLearningData((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, understanding_level: newValue } : l))
+    );
+
+    // category_name から category_id を解決（更新APIはidが必要）
+    const category = allCategories.find((c) => c.name === item.category_name);
+    const payload = {
+      id: item.id,
+      title: item.title,
+      heading_text: item.heading_text,
+      explanatory_text: item.explanatory_text,
+      understanding_level: newValue,
+      reference_url: item.reference_url,
+      created_at: item.created_at,
+      category_id: category ? category.id : null,
+      tags: item.tags,
+      github_path: item.github_path,
+      commit_sha: item.commit_sha,
+      user_id: userId,
+    };
+
+    if (!navigator.onLine) {
+      enqueueAction(userId, {
+        kind: "update",
+        id: item.id,
+        payload,
+        userId: userId ?? 0,
+        label: item.title,
+      });
+      setSyncQueueCount(queueLength(userId));
+      return;
+    }
+
+    try {
+      await updateLearningApi(item.id, payload);
+    } catch (error) {
+      console.error("Failed to update rating:", error);
+      showToast("評価の更新に失敗しました。", "error");
+      setLearningData((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, understanding_level: previousLevel } : l))
+      );
+    }
+  };
+
   // タグをタップして、そのタグが付いた学習記録だけをサッと絞り込み表示する
   const handleTagFilter = (tag: string) => {
     const userMessage: Message = {
@@ -1930,6 +1980,7 @@ export default function LearningContent() {
                     }
                     onEdit={openEditDialog}
                     onDelete={handleDeleteWithUndo}
+                    onRateChange={handleRateChange}
                     onOpenRelated={openEditDialog}
                     onPublish={setPublishingItem}
                   />

@@ -163,6 +163,11 @@ export default function GuestLearningContent() {
     });
   };
 
+  const handleRateChange = (id: number, value: number | null) => {
+    updateGuestRecord(id, { understanding_level: value });
+    setRecords(listGuestRecords());
+  };
+
   const handleSubmit = async (submissionData: any) => {
     const { learningData } = submissionData;
     const isEdit = !!learningData.id;
@@ -252,6 +257,7 @@ export default function GuestLearningContent() {
                   onViewFile={() => {}}
                   onEdit={openEditDialog}
                   onDelete={handleDelete}
+                  onRateChange={handleRateChange}
                   onOpenRelated={openEditDialog}
                 />
               ) : (
