@@ -13,6 +13,7 @@ import { MessageLeft, MessageRight } from "./component/Message";
 import LearningResultCards from "./component/LearningResultCards";
 import NewLearningDialog from "./component/NewLearningDialog";
 import { TextInputLearning } from "./component/TextInputLearning";
+import AdBanner from "./component/AdBanner";
 import { parseReferenceUrls } from "./component/referenceUrls";
 import { useToast } from "./ToastContext";
 import {
@@ -263,6 +264,8 @@ export default function GuestLearningContent() {
       </Paper>
 
       <Container maxWidth="md" sx={{ flexGrow: 1, display: "flex", flexDirection: "column", py: 2, overflow: "hidden" }}>
+        {/* ゲストモードは常にフリー相当のため広告を表示する */}
+        <AdBanner />
         <Box sx={{ flexGrow: 1, overflowY: "auto", px: 0.5 }}>
           {messages.map((msg) =>
             msg.type === "left" ? (

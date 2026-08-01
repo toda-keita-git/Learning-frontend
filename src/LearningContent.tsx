@@ -6,6 +6,7 @@ import { Button } from "@mui/material";
 import Chip from "@mui/material/Chip";
 import { MessageLeft, MessageRight } from "./component/Message";
 import LearningResultCards from "./component/LearningResultCards";
+import AdBanner from "./component/AdBanner";
 import { TextInputLearning } from "./component/TextInputLearning";
 import { SearchDialog } from "./component/SearchDialog";
 import Toolbar from "@mui/material/Toolbar";
@@ -2090,6 +2091,9 @@ export default function LearningContent() {
             )}
             <div ref={messageEndRef} />
           </Box>
+
+          {/* フリープラン向けの広告枠（Proプランを実装したら isPro で非表示にする） */}
+          <AdBanner />
 
           {/* 検索ダイアログ */}
           <SearchDialog
