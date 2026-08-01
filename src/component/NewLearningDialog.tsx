@@ -762,7 +762,19 @@ export default function NewLearningDialog({
 
   return (
     <>
-      <Dialog open={open} onClose={() => handleClose()} fullWidth maxWidth="md">
+      <Dialog
+        open={open}
+        onClose={() => handleClose()}
+        fullWidth
+        maxWidth="md"
+        onKeyDown={(e) => {
+          // Cmd/Ctrl+Enterで送信（複数行の入力欄でも改行と競合しないように）
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+      >
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <MenuBookOutlinedIcon color="primary" />
           {editingData ? "学習内容の編集" : "学んだことを記録する"}
@@ -1445,7 +1457,12 @@ export default function NewLearningDialog({
           </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          {!isTouchDevice && (
+            <Typography variant="caption" sx={{ color: "text.secondary", mr: "auto" }}>
+              {navigator.platform.toLowerCase().includes("mac") ? "⌘" : "Ctrl"} + Enterでも登録できます
+            </Typography>
+          )}
           <Button onClick={() => handleClose()} color="inherit">
             キャンセル
           </Button>
