@@ -110,6 +110,10 @@ import {
 const BOTTOM_NAV_HEIGHT = 56; // スマホ用ボトムナビの高さ(px)
 const APPBAR_HEIGHT_XS = 56; // スマホ用AppBar（ヘッダー）の高さ(px)
 
+// フリープランの登録上限（Proプランとの差別化のための制限。バックエンド側でも
+// 同じ上限を強制しており、こちらは主に事前チェックとメッセージ表示のため）
+const FREE_PLAN_LIMIT = 100;
+
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"];
 
 const SORT_LABELS: Record<string, string> = {
@@ -212,6 +216,7 @@ export default function LearningContent() {
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
   const emptyGuideShownRef = useRef(false); // 「まだ記録がありません」案内の二重表示防止
+  const planLimitNoticeShownRef = useRef(false); // フリープラン上限の案内の二重表示防止
   // ゲストモードで貯めた記録を、実際のログイン後にインポートするかどうかの確認
   const guestImportPromptShownRef = useRef(false);
   const [guestImportRecords, setGuestImportRecords] = useState<GuestLearningRecord[]>([]);
@@ -871,6 +876,30 @@ export default function LearningContent() {
     }
   }, [dataLoading, learningData]);
 
+  // フリープランの上限に近づいている・達している場合に、1セッションにつき1回だけ案内する
+  useEffect(() => {
+    if (dataLoading || planLimitNoticeShownRef.current || learningData.length === 0) return;
+    const remaining = FREE_PLAN_LIMIT - learningData.length;
+    if (remaining > 10) return;
+
+    planLimitNoticeShownRef.current = true;
+    const noticeMessage: Message = {
+      id: Date.now() + 3,
+      text:
+        remaining <= 0
+          ? `学習記録がフリープランの上限（${FREE_PLAN_LIMIT}件）に達しています。新しく記録するには、不要な記録を削除するか、Proプランをご検討ください。`
+          : `学習記録が${learningData.length}件になりました。フリープランでは${FREE_PLAN_LIMIT}件までとなっています。`,
+      timestamp: new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      type: "left",
+      displayName: "システム",
+      action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) },
+    };
+    setMessages((prev) => [...prev, noticeMessage]);
+  }, [dataLoading, learningData]);
+
   // 初回取得が完了し、かつゲストモードで貯めた記録がこの端末に残っていれば、
   // 本アカウントへのインポートを提案する（1セッションにつき1回だけ）
   useEffect(() => {
@@ -1079,10 +1108,23 @@ export default function LearningContent() {
 
 
 
+  // フリープランの上限に達しているか（新規登録をブロックする判定に使う。
+  // 編集は件数を増やさないので対象外）
+  const isAtFreePlanLimit = learningData.length >= FREE_PLAN_LIMIT;
+
   // ★ 新規・更新の両方を処理するハンドラ
   const handleSubmitLearning = async (submissionData: any) => {
     // submissionDataから learningData と editedFiles（複数の添付ファイル）を取り出す
     const { learningData, editedFiles = [] } = submissionData;
+
+    if (!learningData.id && isAtFreePlanLimit) {
+      showToast(
+        `フリープランでは学習記録は${FREE_PLAN_LIMIT}件までとなっています。Proプランのご案内をご確認ください。`,
+        "warning",
+        { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+      );
+      throw new Error("free plan limit reached");
+    }
 
     if (!navigator.onLine) {
       // GitHub上のファイル添付・編集はネットワークが必須のため、オフラインでは保留できない
@@ -1200,7 +1242,20 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to save learning record:", error);
-      showToast(`登録またはファイルの更新に失敗しました: ${error}`, "error");
+      // 他端末での登録などにより、クライアント側の件数チェックをすり抜けて
+      // サーバー側の上限チェックに引っかかった場合の案内
+      const apiError = error as { response?: { status?: number; data?: string } };
+      if (!learningData.id && apiError?.response?.status === 403) {
+        showToast(
+          apiError.response?.data ||
+            `フリープランでは学習記録は${FREE_PLAN_LIMIT}件までとなっています。`,
+          "warning",
+          { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+        );
+      } else {
+        showToast(`登録またはファイルの更新に失敗しました: ${error}`, "error");
+      }
+      throw error;
     }
   };
 

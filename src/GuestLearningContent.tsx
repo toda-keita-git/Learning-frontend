@@ -202,7 +202,7 @@ export default function GuestLearningContent() {
             id: Date.now(),
             text:
               result.reason === "limit"
-                ? `ゲストモードでは${GUEST_RECORD_LIMIT}件までとなっています。もっと記録したい場合は、GitHubでログインすると無制限に保存でき、この端末の記録もそのまま引き継げます。`
+                ? `ゲストモードでは${GUEST_RECORD_LIMIT}件までとなっています。もっと記録したい場合は、GitHubでログインすると（フリープランで100件まで）保存でき、この端末の記録もそのまま引き継げます。`
                 : "この端末に保存できませんでした。プライベートブラウジング中でないかご確認ください。",
             timestamp: nowLabel(),
             type: "left",

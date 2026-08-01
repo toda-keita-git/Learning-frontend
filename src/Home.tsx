@@ -41,8 +41,8 @@ import { isStorageAvailable, detectPlatformHint } from "./component/guestStorage
 const features = [
   {
     icon: <AddCircleOutlineIcon fontSize="large" color="primary" />,
-    title: "学習記録（無制限）",
-    desc: "登録・編集・削除に件数の上限はありません。いつでも無料でお使いいただけます。",
+    title: "学習記録",
+    desc: "登録・編集・削除はいつでも無料。フリープランでも100件まで記録できます。",
   },
   {
     icon: <LocalOfferIcon fontSize="large" color="primary" />,
@@ -452,7 +452,7 @@ export default function Home() {
           無料で使える主な機能
         </Typography>
         <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
-          件数の上限なく、いつでも無料でお使いいただけます。
+          いつでも無料でお使いいただけます（学習記録はフリープランで100件まで）。
         </Typography>
         <Box
           sx={{

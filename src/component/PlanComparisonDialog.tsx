@@ -22,7 +22,7 @@ interface PlanComparisonDialogProps {
 }
 
 const FREE_FEATURES = [
-  "学習記録の登録・編集・削除（無制限）",
+  "学習記録の登録・編集・削除（100件まで）",
   "カテゴリ・タグでの整理と検索",
   "GitHub連携（1リポジトリ）",
   "オフライン閲覧・オフライン中の変更の自動同期",
@@ -31,6 +31,7 @@ const FREE_FEATURES = [
 ];
 
 const PRO_FEATURES = [
+  "学習記録の登録数が無制限に",
   "学習分析のCSV/PDFエクスポート",
   "複数GitHubリポジトリの連携",
   "関連メモサジェストの精度向上",

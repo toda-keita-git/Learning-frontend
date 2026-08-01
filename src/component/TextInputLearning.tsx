@@ -17,8 +17,9 @@ type TextInputProps = {
   // 押しても何も起きないボタンを置かないようアイコンごと非表示にする
   hideDetailedSearch?: boolean;
   // 入力した文字列をタイトルとして、ダイアログを開かずその場で最小限の記録を作る
-  // （省略時はクイック登録ボタン自体を出さない）
-  onQuickAdd?: (title: string) => void;
+  // （省略時はクイック登録ボタン自体を出さない。上限到達時などは例外を投げてもらう
+  // ことで、入力内容を復元できるようにしている）
+  onQuickAdd?: (title: string) => void | Promise<void>;
 };
 
 /**
@@ -31,16 +32,27 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
   onQuickAdd,
 }) => {
   const [inputValue, setInputValue] = useState("");
+  const [quickAdding, setQuickAdding] = useState(false);
 
   const handleSendClick = () => {
     onSendMessage(inputValue);
     setInputValue("");
   };
 
-  const handleQuickAddClick = () => {
-    if (!inputValue.trim()) return;
-    onQuickAdd?.(inputValue);
+  const handleQuickAddClick = async () => {
+    if (!inputValue.trim() || quickAdding) return;
+    const title = inputValue;
     setInputValue("");
+    setQuickAdding(true);
+    try {
+      await onQuickAdd?.(title);
+    } catch {
+      // 上限到達などで失敗した場合、入力内容を消さずに戻す
+      // （失敗理由のトーストは呼び出し側で表示済み）
+      setInputValue(title);
+    } finally {
+      setQuickAdding(false);
+    }
   };
 
   return (
@@ -82,7 +94,7 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
               <IconButton
                 color="primary"
                 onClick={handleQuickAddClick}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || quickAdding}
               >
                 <BoltIcon />
               </IconButton>
