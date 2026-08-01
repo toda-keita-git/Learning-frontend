@@ -168,6 +168,25 @@ export default function GuestLearningContent() {
     setRecords(listGuestRecords());
   };
 
+  // 検索欄にタイトルだけ入力して「⚡」を押したとき、ダイアログを開かずその場で
+  // 最小限の記録を作る（カテゴリー・メモなどは後から編集で追加できる）
+  const handleQuickAdd = async (title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await handleSubmit({
+      learningData: {
+        title: trimmed,
+        heading_text: "",
+        explanatory_text: "",
+        understanding_level: null,
+        reference_url: "",
+        category_name: "",
+        tags: [],
+        created_at: new Date().toISOString(),
+      },
+    });
+  };
+
   const handleSubmit = async (submissionData: any) => {
     const { learningData } = submissionData;
     const isEdit = !!learningData.id;
@@ -285,7 +304,12 @@ export default function GuestLearningContent() {
           >
             学んだことを記録する
           </Button>
-          <TextInputLearning onSendMessage={handleSearch} onSearchMenuClick={() => {}} hideDetailedSearch />
+          <TextInputLearning
+            onSendMessage={handleSearch}
+            onSearchMenuClick={() => {}}
+            hideDetailedSearch
+            onQuickAdd={handleQuickAdd}
+          />
         </Box>
       </Container>
 

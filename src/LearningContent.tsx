@@ -1204,6 +1204,28 @@ export default function LearningContent() {
     }
   };
 
+  // 検索欄にタイトルだけ入力して「⚡」を押したとき、ダイアログを開かずその場で
+  // 最小限の記録を作る（カテゴリー・メモなどは後から編集で追加できる）
+  const handleQuickAdd = async (title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await handleSubmitLearning({
+      learningData: {
+        title: trimmed,
+        heading_text: "",
+        explanatory_text: "",
+        understanding_level: null,
+        reference_url: "",
+        category_id: null,
+        tags: [],
+        github_path: "",
+        commit_sha: null,
+        created_at: new Date().toISOString(),
+      },
+      editedFiles: [],
+    });
+  };
+
   // ★ 編集ダイアログを開く関数
   const openEditDialog = (id: number) => {
     const itemToEdit = learningData.find((item) => item.id === id);
@@ -2087,6 +2109,7 @@ export default function LearningContent() {
             <TextInputLearning
               onSendMessage={handleSearch}
               onSearchMenuClick={() => setOpenSearchDialog(true)}
+              onQuickAdd={handleQuickAdd}
             />
           </Box>
 
