@@ -105,6 +105,9 @@ interface NewLearningDialogProps {
   // GitHubリポジトリを持たないゲストモードなど、ファイル添付機能そのものを
   // 使えない場面で「ファイルを添付する」欄自体を非表示にする
   hideAttachments?: boolean;
+  // カテゴリー管理機能を持たないゲストモードなど、カテゴリーを必須にできない
+  // 場面ではfalseにする（デフォルトは必須）
+  requireCategory?: boolean;
 }
 
 export default function NewLearningDialog({
@@ -117,6 +120,7 @@ export default function NewLearningDialog({
   prefillData = null,
   onFetchFile,
   hideAttachments = false,
+  requireCategory = true,
 }: NewLearningDialogProps) {
   // フォーム項目のためのState
   const [title, setTitle] = useState("");
@@ -582,7 +586,7 @@ export default function NewLearningDialog({
 
   const handleSubmit = async () => {
     setAttemptedSubmit(true);
-    if (!title.trim()) return; // タイトル未入力なら送信しない（下の必須項目の警告表示に任せる）
+    if (!title.trim() || (requireCategory && !selectedCategory)) return; // 未入力の必須項目があれば送信しない（下の警告表示に任せる）
 
     // 添付リストに追加し忘れたまま作業スロットに残っている分があれば、
     // 送信直前に自動でリストへ含める（1件だけ添付するときに毎回
@@ -693,6 +697,11 @@ export default function NewLearningDialog({
     setActiveSlideIndex(0);
     setZipEntries([]);
   };
+
+  // アップロード・既存選択・新規作成のいずれかを既に行っているか
+  // （ファイル名欄を表示するかどうかの判定に使う）
+  const hasStartedAttachment =
+    isCreatingNewFile || fileName.trim().length > 0 || !!localFile || !!fileSha;
 
   const fileType = getFileType(github_path);
   // 画像・動画以外ではmediaSrcを使わないため、無駄なbase64変換（かつ日本語などの
@@ -914,8 +923,16 @@ export default function NewLearningDialog({
                 {...params}
                 variant="outlined"
                 label="カテゴリー"
+                required={requireCategory}
                 placeholder="入力して検索"
-                helperText="学習内容を分類するカテゴリを選びます。見つからない場合は「カテゴリー・タグの管理」から新規作成できます"
+                error={requireCategory && attemptedSubmit && !selectedCategory}
+                helperText={
+                  requireCategory && attemptedSubmit && !selectedCategory
+                    ? "カテゴリーは必須です。選択してください"
+                    : requireCategory
+                    ? "学習内容を分類するカテゴリを選びます（必須）。見つからない場合は「カテゴリー・タグの管理」から新規作成できます"
+                    : "学習内容を分類するカテゴリを選びます。見つからない場合は「カテゴリー・タグの管理」から新規作成できます"
+                }
               />
             )}
             sx={{ mt: 2 }}
@@ -1008,8 +1025,8 @@ export default function NewLearningDialog({
             <Box
               sx={{
                 display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                alignItems: { xs: "stretch", sm: "flex-end" },
+                flexWrap: "wrap",
+                alignItems: "flex-end",
                 gap: 1,
                 mb: 1.5,
               }}
@@ -1019,7 +1036,7 @@ export default function NewLearningDialog({
                 type="text"
                 variant="outlined"
                 size="small"
-                fullWidth
+                sx={{ flex: "1 1 220px" }}
                 value={folderPath}
                 onChange={(e) => setFolderPath(e.target.value.replace(/^\/+/, "").replace(/\/+$/, ""))}
                 placeholder="未入力ならリポジトリ直下"
@@ -1035,26 +1052,13 @@ export default function NewLearningDialog({
               </Button>
             </Box>
 
-            {/* --- ファイル名（新規作成 or アップロード or 既存ファイル選択） --- */}
-            <TextField
-              label="ファイル名"
-              type="text"
-              variant="outlined"
-              size="small"
-              fullWidth
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              placeholder="例: index.tsx"
-              sx={{ mb: 1 }}
-            />
-
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleLocalFileSelect}
               style={{ display: "none" }}
             />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Button
                 size="small"
                 variant="outlined"
@@ -1062,7 +1066,7 @@ export default function NewLearningDialog({
                 startIcon={<UploadFileIcon />}
                 sx={{ whiteSpace: "nowrap" }}
               >
-                PCからアップロード
+                {isTouchDevice ? "スマホからアップロード" : "PCからアップロード"}
               </Button>
               <Button
                 size="small"
@@ -1082,7 +1086,24 @@ export default function NewLearningDialog({
               >
                 新規ファイルを作成
               </Button>
-            </Stack>
+            </Box>
+
+            {/* --- ファイル名（アップロード・既存選択で自動入力、新規作成では手入力。
+                何も選んでいない間は表示しない） --- */}
+            {hasStartedAttachment && (
+              <TextField
+                label="ファイル名"
+                type="text"
+                variant="outlined"
+                size="small"
+                fullWidth
+                autoFocus={isCreatingNewFile}
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="例: index.tsx"
+                sx={{ mt: 1.5 }}
+              />
+            )}
 
             {(localFile || isEditingFile || fileSha) && github_path.trim() && (
               <Box sx={{ mt: 1, textAlign: "right" }}>

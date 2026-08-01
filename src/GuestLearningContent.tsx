@@ -257,6 +257,7 @@ export default function GuestLearningContent() {
         editingData={editingItem}
         onFetchFile={async () => null}
         hideAttachments
+        requireCategory={false}
       />
     </Box>
   );
