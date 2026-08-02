@@ -32,6 +32,7 @@
     "react-router-dom": "^7.8.2",
     "react-spreadsheet": "^0.10.1",
     "react-syntax-highlighter": "^15.6.6",
+    "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "word-extractor": "^1.0.4",
     "xlsx": "^0.18.5"

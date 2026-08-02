@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { findAndReplace } from "mdast-util-find-and-replace";
 import type { Root, Content } from "mdast";
 import Box from "@mui/material/Box";
@@ -255,7 +256,7 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
       }}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkCloze, remarkHighlight]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkCloze, remarkHighlight]}
         remarkRehypeOptions={remarkRehypeOptions}
         components={{
           a: ({ ...props }) => (
