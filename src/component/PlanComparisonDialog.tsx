@@ -9,16 +9,52 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
+import LinearProgress from "@mui/material/LinearProgress";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import { useToast } from "../ToastContext";
 import { registerPlanInterestApi, checkPlanInterestApi } from "./Api";
+
+interface PlanUsage {
+  records: number;
+  recordLimit: number;
+  categories: number;
+  categoryLimit: number;
+  tags: number;
+  tagLimit: number;
+}
 
 interface PlanComparisonDialogProps {
   open: boolean;
   onClose: () => void;
   userId: number | null;
   githubLogin: string | null;
+  // 現在の利用状況（フリープランの残り件数を見せるため。省略時はこの表示自体を出さない）
+  usage?: PlanUsage;
+}
+
+function UsageRow({ label, value, limit }: { label: string; value: number; limit: number }) {
+  const percent = Math.min(100, (value / limit) * 100);
+  const atLimit = value >= limit;
+  return (
+    <Box sx={{ mb: 1 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.25 }}>
+        <Typography variant="caption">{label}</Typography>
+        <Typography
+          variant="caption"
+          sx={{ fontVariantNumeric: "tabular-nums", color: atLimit ? "error.main" : "text.secondary" }}
+        >
+          {value}/{limit}件{atLimit ? "（上限）" : `（あと${limit - value}件）`}
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={percent}
+        color={atLimit ? "error" : "primary"}
+        sx={{ height: 5, borderRadius: 3 }}
+      />
+    </Box>
+  );
 }
 
 const FREE_FEATURES = [
@@ -45,6 +81,7 @@ export default function PlanComparisonDialog({
   onClose,
   userId,
   githubLogin,
+  usage,
 }: PlanComparisonDialogProps) {
   const { showToast } = useToast();
   const [requested, setRequested] = useState(false);
@@ -95,6 +132,16 @@ export default function PlanComparisonDialog({
             <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
               ¥0
             </Typography>
+            {usage && (
+              <Box sx={{ mb: 2, p: 1.5, bgcolor: "action.hover", borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 1 }}>
+                  現在の利用状況
+                </Typography>
+                <UsageRow label="学習記録" value={usage.records} limit={usage.recordLimit} />
+                <UsageRow label="カテゴリー" value={usage.categories} limit={usage.categoryLimit} />
+                <UsageRow label="タグ" value={usage.tags} limit={usage.tagLimit} />
+              </Box>
+            )}
             <Stack spacing={1}>
               {FREE_FEATURES.map((f) => (
                 <Box key={f} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>

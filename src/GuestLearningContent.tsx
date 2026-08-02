@@ -12,18 +12,23 @@ import ResponsiveAppBar from "./component/ResponsiveAppBar";
 import { MessageLeft, MessageRight } from "./component/Message";
 import LearningResultCards from "./component/LearningResultCards";
 import NewLearningDialog from "./component/NewLearningDialog";
+import GuestManageDialog from "./component/GuestManageDialog";
 import { TextInputLearning } from "./component/TextInputLearning";
 import AdBanner from "./component/AdBanner";
 import { parseReferenceUrls } from "./component/referenceUrls";
 import { useToast } from "./ToastContext";
 import {
   type GuestLearningRecord,
+  type GuestCategory,
+  type GuestTag,
   GUEST_RECORD_LIMIT,
   listGuestRecords,
   createGuestRecord,
   updateGuestRecord,
   deleteGuestRecord,
-  extractGuestTags,
+  listGuestCategories,
+  listGuestTags,
+  ensureGuestTagsRegistered,
 } from "./component/guestStorage";
 
 type Message = {
@@ -43,9 +48,12 @@ export default function GuestLearningContent() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [records, setRecords] = useState<GuestLearningRecord[]>([]);
+  const [categories, setCategories] = useState<GuestCategory[]>([]);
+  const [tags, setTags] = useState<GuestTag[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [openNewDialog, setOpenNewDialog] = useState(false);
-  const [editingItem, setEditingItem] = useState<GuestLearningRecord | null>(null);
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<(GuestLearningRecord & { category_id?: number | "" }) | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const welcomeShownRef = useRef(false);
   // 「元に戻す」猶予中の削除を保持する(タイマーが切れたら実際に削除を確定する)
@@ -59,8 +67,14 @@ export default function GuestLearningContent() {
     setOpenNewDialog(true);
   };
 
+  const refreshCategoriesAndTags = () => {
+    setCategories(listGuestCategories());
+    setTags(listGuestTags());
+  };
+
   useEffect(() => {
     setRecords(listGuestRecords());
+    refreshCategoriesAndTags();
   }, []);
 
   useEffect(() => {
@@ -121,7 +135,9 @@ export default function GuestLearningContent() {
   const openEditDialog = (id: number) => {
     const item = records.find((r) => r.id === id);
     if (item) {
-      setEditingItem(item);
+      // category_nameからcategory_idを逆引きする（NewLearningDialogはidで選択状態を表す）
+      const category = categories.find((c) => c.name === item.category_name);
+      setEditingItem({ ...item, category_id: category ? category.id : "" });
       setOpenNewDialog(true);
     }
   };
@@ -189,8 +205,22 @@ export default function GuestLearningContent() {
   };
 
   const handleSubmit = async (submissionData: any) => {
-    const { learningData } = submissionData;
-    const isEdit = !!learningData.id;
+    const { learningData: rawData } = submissionData;
+    const isEdit = !!rawData.id;
+
+    // NewLearningDialog経由はcategory_idで選ばれているので名前に解決する
+    // （クイック登録はcategory_nameを直接持つので、その場合はそのまま使う）
+    const categoryName: string =
+      rawData.category_name !== undefined
+        ? rawData.category_name
+        : categories.find((c) => c.id === rawData.category_id)?.name || "";
+
+    // 新規タグは上限内で自動登録する。上限を超える分は記録には付けない
+    const requestedTags: string[] = rawData.tags || [];
+    const acceptedTags = ensureGuestTagsRegistered(requestedTags);
+    const droppedTagCount = requestedTags.length - acceptedTags.length;
+
+    const learningData = { ...rawData, category_name: categoryName, tags: acceptedTags };
 
     if (isEdit) {
       updateGuestRecord(learningData.id, learningData);
@@ -218,6 +248,13 @@ export default function GuestLearningContent() {
       }
     }
     setRecords(listGuestRecords());
+    refreshCategoriesAndTags();
+    if (droppedTagCount > 0) {
+      showToast(
+        `タグの上限に達しているため、新しいタグを${droppedTagCount}件付けられませんでした。`,
+        "warning"
+      );
+    }
     setMessages((prev) => [
       ...prev,
       {
@@ -252,7 +289,7 @@ export default function GuestLearningContent() {
             <Button
               size="small"
               variant="contained"
-              color="inherit"
+              color="primary"
               startIcon={<GitHubIcon />}
               onClick={() => navigate("/LearningContent")}
               sx={{ flexShrink: 0 }}
@@ -299,14 +336,18 @@ export default function GuestLearningContent() {
         </Box>
 
         <Box sx={{ mt: 1 }}>
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={openNewLearningDialog}
-            sx={{ mb: 1 }}
-          >
-            学んだことを記録する
-          </Button>
+          <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+            <Button variant="outlined" fullWidth onClick={openNewLearningDialog}>
+              学んだことを記録する
+            </Button>
+            <Button
+              variant="text"
+              onClick={() => setManageDialogOpen(true)}
+              sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              カテゴリー・タグ管理
+            </Button>
+          </Stack>
           <TextInputLearning
             onSendMessage={handleSearch}
             onSearchMenuClick={() => {}}
@@ -320,12 +361,20 @@ export default function GuestLearningContent() {
         open={openNewDialog}
         onClose={() => setOpenNewDialog(false)}
         onSubmit={handleSubmit}
-        allTags={extractGuestTags(records).map((name) => ({ name }))}
-        allCategories={[]}
+        allTags={tags}
+        allCategories={categories}
         editingData={editingItem}
         onFetchFile={async () => null}
         hideAttachments
         requireCategory={false}
+      />
+
+      <GuestManageDialog
+        open={manageDialogOpen}
+        onClose={() => setManageDialogOpen(false)}
+        categories={categories}
+        tags={tags}
+        onChanged={refreshCategoriesAndTags}
       />
     </Box>
   );

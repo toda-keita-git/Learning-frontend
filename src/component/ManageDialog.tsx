@@ -35,6 +35,9 @@ interface ManageDialogProps {
   onClose: () => void;
   categories: Entity[];
   tags: Entity[];
+  // フリープランの上限（あと何件作れるかの表示に使う。省略時は件数のみ表示）
+  categoryLimit?: number;
+  tagLimit?: number;
   // 変更後に一覧を再取得させる
   onChanged: () => void | Promise<void>;
 }
@@ -44,6 +47,8 @@ export default function ManageDialog({
   onClose,
   categories,
   tags,
+  categoryLimit,
+  tagLimit,
   onChanged,
 }: ManageDialogProps) {
   const { showToast } = useToast();
@@ -112,17 +117,24 @@ export default function ManageDialog({
     }
   };
 
-  const renderSection = (kind: Kind, items: Entity[]) => (
+  const renderSection = (kind: Kind, items: Entity[], limit?: number) => (
     <Box sx={{ mb: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
         {kind === "category" ? (
           <CategoryOutlinedIcon color="primary" fontSize="small" />
         ) : (
           <LocalOfferOutlinedIcon color="primary" fontSize="small" />
         )}
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {kind === "category" ? "カテゴリー" : "タグ"}（{items.length}）
+          {kind === "category" ? "カテゴリー" : "タグ"}
+          （{items.length}
+          {limit !== undefined ? `/${limit}` : ""}）
         </Typography>
+        {limit !== undefined && (
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            {items.length >= limit ? "上限に達しています" : `あと${limit - items.length}件追加できます`}
+          </Typography>
+        )}
       </Box>
       {items.length === 0 ? (
         <Typography variant="caption" sx={{ color: "text.secondary", pl: 1 }}>
@@ -226,9 +238,9 @@ export default function ManageDialog({
         <Typography variant="caption" sx={{ color: "text.secondary", mb: 1.5, display: "block" }}>
           名前の変更（✏️）と削除（🗑️）ができます。学習記録で使用中のものは削除できません。
         </Typography>
-        {renderSection("category", categories)}
+        {renderSection("category", categories, categoryLimit)}
         <Divider sx={{ my: 1 }} />
-        {renderSection("tag", tags)}
+        {renderSection("tag", tags, tagLimit)}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant="contained">

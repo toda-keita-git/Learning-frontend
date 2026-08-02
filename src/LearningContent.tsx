@@ -114,6 +114,9 @@ const APPBAR_HEIGHT_XS = 56; // スマホ用AppBar（ヘッダー）の高さ(px
 // フリープランの登録上限（Proプランとの差別化のための制限。バックエンド側でも
 // 同じ上限を強制しており、こちらは主に事前チェックとメッセージ表示のため）
 const FREE_PLAN_LIMIT = 100;
+// カテゴリー・タグも同様に、新規作成のみを上限でブロックする
+const FREE_CATEGORY_LIMIT = 20;
+const FREE_TAG_LIMIT = 50;
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "avi", "mkv", "ogv"];
 
@@ -1049,6 +1052,14 @@ export default function LearningContent() {
 
   // ★ 新規カテゴリーを登録するハンドラ
   const handleCategorySubmit = async (categoryName: string) => {
+    if (allCategories.length >= FREE_CATEGORY_LIMIT) {
+      showToast(
+        `フリープランのカテゴリー上限（${FREE_CATEGORY_LIMIT}件）に達しています。Proプランのご案内をご確認ください。`,
+        "warning",
+        { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+      );
+      return;
+    }
     try {
       // APIを呼び出して新しいカテゴリーをバックエンドに保存
       await createCategoryApi({ name: categoryName });
@@ -1073,7 +1084,17 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create category:", error);
-      showToast(`カテゴリーの登録に失敗しました: ${error}`, "error");
+      const apiError = error as { response?: { status?: number; data?: string } };
+      if (apiError?.response?.status === 403) {
+        showToast(
+          apiError.response?.data ||
+            `フリープランのカテゴリー上限（${FREE_CATEGORY_LIMIT}件）に達しています。`,
+          "warning",
+          { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+        );
+      } else {
+        showToast(`カテゴリーの登録に失敗しました: ${error}`, "error");
+      }
     }
   };
 
@@ -1084,6 +1105,14 @@ export default function LearningContent() {
 
   // 新規タグを登録するハンドラ
   const handleTagSubmit = async (tagName: string) => {
+    if (allTags.length >= FREE_TAG_LIMIT) {
+      showToast(
+        `フリープランのタグ上限（${FREE_TAG_LIMIT}件）に達しています。Proプランのご案内をご確認ください。`,
+        "warning",
+        { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+      );
+      return;
+    }
     try {
       await createTagApi({ name: tagName });
       await refetchData();
@@ -1103,7 +1132,16 @@ export default function LearningContent() {
       setMessages((prev) => [...prev, systemMessage]);
     } catch (error) {
       console.error("Failed to create tag:", error);
-      showToast(`タグの登録に失敗しました: ${error}`, "error");
+      const apiError = error as { response?: { status?: number; data?: string } };
+      if (apiError?.response?.status === 403) {
+        showToast(
+          apiError.response?.data || `フリープランのタグ上限（${FREE_TAG_LIMIT}件）に達しています。`,
+          "warning",
+          { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
+        );
+      } else {
+        showToast(`タグの登録に失敗しました: ${error}`, "error");
+      }
     }
   };
 
@@ -2297,6 +2335,8 @@ export default function LearningContent() {
         onClose={() => setIsManageOpen(false)}
         categories={allCategories}
         tags={allTags}
+        categoryLimit={FREE_CATEGORY_LIMIT}
+        tagLimit={FREE_TAG_LIMIT}
         onChanged={refetchData}
       />
        <GitHubFolderSelector
@@ -2352,6 +2392,14 @@ export default function LearningContent() {
         onClose={() => setPlanDialogOpen(false)}
         userId={userId}
         githubLogin={githubLogin}
+        usage={{
+          records: learningData.length,
+          recordLimit: FREE_PLAN_LIMIT,
+          categories: allCategories.length,
+          categoryLimit: FREE_CATEGORY_LIMIT,
+          tags: allTags.length,
+          tagLimit: FREE_TAG_LIMIT,
+        }}
       />
 
       {/* お問い合わせ管理（管理者のみ） */}
