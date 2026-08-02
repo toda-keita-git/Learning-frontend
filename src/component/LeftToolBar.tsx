@@ -17,14 +17,10 @@ import {
   Button,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import AddIcon from "@mui/icons-material/Add";
-import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
 import UpdateIcon from "@mui/icons-material/Update";
 import ArticleIcon from "@mui/icons-material/Article";
-import CategoryIcon from "@mui/icons-material/Category";
 import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import TuneIcon from "@mui/icons-material/Tune";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -53,10 +49,8 @@ interface FileNode {
 }
 
 interface LeftToolBarProps {
-  onAddNewLearning: () => void;
-  onAddNewCategory: () => void;
-  onAddNewTag: () => void;
-  onAddNewFolder: () => void;
+  // ファイル・フォルダーの管理（アップロード・新規作成・フォルダー作成をまとめて行う）
+  onManageFiles: () => void;
   onManage: () => void;
   onOpenList?: () => void;
   onOpenAnalytics?: () => void;
@@ -186,10 +180,7 @@ function FileTree({
 }
 
 export default function LeftToolBar({
-  onAddNewLearning,
-  onAddNewCategory,
-  onAddNewTag,
-  onAddNewFolder,
+  onManageFiles,
   onManage,
   onOpenList,
   onOpenAnalytics,
@@ -206,7 +197,6 @@ export default function LeftToolBar({
   collapsed = false,
   onToggleCollapsed,
 }: LeftToolBarProps) {
-  const [open1, setOpen1] = useState(true);
   const [open2, setOpen2] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
@@ -237,23 +227,8 @@ export default function LeftToolBar({
         </IconButton>
       </Tooltip>
       <Divider sx={{ width: "70%", mb: 1 }} />
-      <Tooltip title="新規学習記録" placement="right">
-        <IconButton onClick={onAddNewLearning} sx={{ mb: 0.5 }}>
-          <LocalLibraryIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="新規カテゴリー" placement="right">
-        <IconButton onClick={onAddNewCategory} sx={{ mb: 0.5 }}>
-          <CategoryIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="新規タグ" placement="right">
-        <IconButton onClick={onAddNewTag} sx={{ mb: 0.5 }}>
-          <LocalOfferIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="新規フォルダー" placement="right">
-        <IconButton onClick={onAddNewFolder} sx={{ mb: 0.5 }}>
+      <Tooltip title="ファイル・フォルダーの管理" placement="right">
+        <IconButton onClick={onManageFiles} sx={{ mb: 0.5 }}>
           <FolderOpenIcon />
         </IconButton>
       </Tooltip>
@@ -312,42 +287,16 @@ export default function LeftToolBar({
       </Box>
       <Divider />
       <List>
-        {/* --- 追加セクション --- */}
-        <ListItemButton onClick={() => setOpen1(!open1)}>
-          <ListItemIcon>
-            <AddIcon />
+        {/* --- ファイル・フォルダーの管理（アップロード・新規作成・フォルダー作成） --- */}
+        <ListItemButton onClick={onManageFiles}>
+          <ListItemIcon sx={{ minWidth: 40 }}>
+            <FolderOpenIcon />
           </ListItemIcon>
-          <ListItemText primary="追加" />
-          {open1 ? <ExpandLess /> : <ExpandMore />}
+          <ListItemText
+            primary="ファイル・フォルダーの管理"
+            primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
+          />
         </ListItemButton>
-        <Collapse in={open1} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewLearning}>
-              <ListItemIcon>
-                <LocalLibraryIcon />
-              </ListItemIcon>
-              <ListItemText primary="新規学習記録" />
-            </ListItemButton>
-            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewCategory}>
-              <ListItemIcon>
-                <CategoryIcon />
-              </ListItemIcon>
-              <ListItemText primary="新規カテゴリー" />
-            </ListItemButton>
-            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewTag}>
-              <ListItemIcon>
-                <LocalOfferIcon />
-              </ListItemIcon>
-              <ListItemText primary="新規タグ" />
-            </ListItemButton>
-            <ListItemButton sx={{ pl: 4 }} onClick={onAddNewFolder}>
-              <ListItemIcon>
-                <FolderOpenIcon />
-              </ListItemIcon>
-              <ListItemText primary="新規フォルダー" />
-            </ListItemButton>
-          </List>
-        </Collapse>
 
         {/* --- カテゴリー・タグの管理（編集・削除） --- */}
         <ListItemButton onClick={onManage}>

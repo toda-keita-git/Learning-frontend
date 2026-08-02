@@ -17,11 +17,14 @@ import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import {
+  createCategoryApi,
   updateCategoryApi,
   deleteCategoryApi,
+  createTagApi,
   updateTagApi,
   deleteTagApi,
 } from "./Api";
@@ -56,6 +59,9 @@ export default function ManageDialog({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newTagName, setNewTagName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const startEdit = (kind: Kind, item: Entity) => {
     setEditingKey(`${kind}-${item.id}`);
@@ -117,6 +123,35 @@ export default function ManageDialog({
     }
   };
 
+  const handleCreate = async (kind: Kind, items: Entity[]) => {
+    const raw = kind === "category" ? newCategoryName : newTagName;
+    const name = raw.trim().replace(/^#/, "");
+    const label = kind === "category" ? "カテゴリー" : "タグ";
+    if (!name) return;
+    if (items.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+      showToast("その名前はすでに使われています。", "warning");
+      return;
+    }
+    setCreating(true);
+    try {
+      if (kind === "category") await createCategoryApi({ name });
+      else await createTagApi({ name });
+      if (kind === "category") setNewCategoryName("");
+      else setNewTagName("");
+      await onChanged();
+      showToast(`${label}を追加しました。`, "success");
+    } catch (e) {
+      const apiError = e as { response?: { status?: number; data?: string } };
+      if (apiError?.response?.status === 403) {
+        showToast(apiError.response?.data || `${label}の上限に達しています。`, "warning");
+      } else {
+        showToast(`${label}の追加に失敗しました。`, "error");
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const renderSection = (kind: Kind, items: Entity[], limit?: number) => (
     <Box sx={{ mb: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
@@ -136,6 +171,36 @@ export default function ManageDialog({
           </Typography>
         )}
       </Box>
+
+      <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder={kind === "category" ? "新しいカテゴリー名" : "新しいタグ名"}
+          value={kind === "category" ? newCategoryName : newTagName}
+          disabled={creating || (limit !== undefined && items.length >= limit)}
+          onChange={(e) =>
+            kind === "category" ? setNewCategoryName(e.target.value) : setNewTagName(e.target.value)
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCreate(kind, items);
+          }}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          disabled={
+            creating ||
+            (limit !== undefined && items.length >= limit) ||
+            !(kind === "category" ? newCategoryName : newTagName).trim()
+          }
+          onClick={() => handleCreate(kind, items)}
+          sx={{ flexShrink: 0 }}
+        >
+          追加
+        </Button>
+      </Box>
+
       {items.length === 0 ? (
         <Typography variant="caption" sx={{ color: "text.secondary", pl: 1 }}>
           まだありません。
@@ -236,7 +301,7 @@ export default function ManageDialog({
       <DialogTitle>カテゴリー・タグの管理</DialogTitle>
       <DialogContent dividers>
         <Typography variant="caption" sx={{ color: "text.secondary", mb: 1.5, display: "block" }}>
-          名前の変更（✏️）と削除（🗑️）ができます。学習記録で使用中のものは削除できません。
+          追加・名前の変更（✏️）・削除（🗑️）ができます。学習記録で使用中のものは削除できません。
         </Typography>
         {renderSection("category", categories, categoryLimit)}
         <Divider sx={{ my: 1 }} />

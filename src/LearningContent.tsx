@@ -29,8 +29,6 @@ import {
   createLearningApi,
   updateLearningApi,
   deleteLearningApi,
-  createCategoryApi,
-  createTagApi,
 } from "./component/Api";
 import NewLearningDialog from "./component/NewLearningDialog";
 import { AuthContext } from "./Context";
@@ -40,8 +38,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import NewCategoryDialog from "./component/NewCategoryDialog";
-import NewTagDialog from "./component/NewTagDialog";
 import ManageDialog from "./component/ManageDialog";
 import LearningListDialog from "./component/LearningListDialog";
 import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
@@ -249,11 +245,6 @@ export default function LearningContent() {
   const tokenSafe: string = (auth.token) ?? "";
 
   const [isFolderSelectorOpen, setIsFolderSelectorOpen] = useState(false);
-  const [_githubPath, setGithubPath] = useState("");
-
-  const [_selectedFolderPath, setSelectedFolderPath] = useState("");
-
-
 
   // ← LeftToolBar から呼ばれる
   const handleFolderSelect = () => {
@@ -589,9 +580,6 @@ export default function LearningContent() {
   const [remindersOn, setRemindersOn] = useState<boolean>(
     isNotificationSupported() && isRemindersEnabled()
   );
-  // ★ カテゴリー追加ダイアログ用のStateを追加
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState<boolean>(false);
-  const [isTagDialogOpen, setIsTagDialogOpen] = useState<boolean>(false); // 新規タグ追加
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
@@ -1045,108 +1033,6 @@ export default function LearningContent() {
     });
   };
 
-  // ★ 新規カテゴリーダイアログを開くハンドラ
-  const handleAddNewCategory = () => {
-    setIsCategoryDialogOpen(true);
-  };
-
-  // ★ 新規カテゴリーを登録するハンドラ
-  const handleCategorySubmit = async (categoryName: string) => {
-    if (allCategories.length >= FREE_CATEGORY_LIMIT) {
-      showToast(
-        `フリープランのカテゴリー上限（${FREE_CATEGORY_LIMIT}件）に達しています。Proプランのご案内をご確認ください。`,
-        "warning",
-        { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
-      );
-      return;
-    }
-    try {
-      // APIを呼び出して新しいカテゴリーをバックエンドに保存
-      await createCategoryApi({ name: categoryName });
-      // 成功したら、全データを再取得して表示を更新
-      await refetchData();
-
-      // ダイアログを閉じる
-      setIsCategoryDialogOpen(false);
-
-      // チャットに成功メッセージを追加
-      const systemMessage: Message = {
-        id: Date.now(),
-        text: `新しいカテゴリー「${categoryName}」を登録しました。`,
-        timestamp: new Date().toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        type: "left",
-        photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
-        displayName: "システム",
-      };
-      setMessages((prev) => [...prev, systemMessage]);
-    } catch (error) {
-      console.error("Failed to create category:", error);
-      const apiError = error as { response?: { status?: number; data?: string } };
-      if (apiError?.response?.status === 403) {
-        showToast(
-          apiError.response?.data ||
-            `フリープランのカテゴリー上限（${FREE_CATEGORY_LIMIT}件）に達しています。`,
-          "warning",
-          { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
-        );
-      } else {
-        showToast(`カテゴリーの登録に失敗しました: ${error}`, "error");
-      }
-    }
-  };
-
-  // 新規タグ追加ダイアログを開く
-  const handleAddNewTag = () => {
-    setIsTagDialogOpen(true);
-  };
-
-  // 新規タグを登録するハンドラ
-  const handleTagSubmit = async (tagName: string) => {
-    if (allTags.length >= FREE_TAG_LIMIT) {
-      showToast(
-        `フリープランのタグ上限（${FREE_TAG_LIMIT}件）に達しています。Proプランのご案内をご確認ください。`,
-        "warning",
-        { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
-      );
-      return;
-    }
-    try {
-      await createTagApi({ name: tagName });
-      await refetchData();
-      setIsTagDialogOpen(false);
-
-      const systemMessage: Message = {
-        id: Date.now(),
-        text: `新しいタグ「#${tagName}」を登録しました。`,
-        timestamp: new Date().toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        type: "left",
-        photoURL: "https://placehold.co/40x40/EFEFEF/AAAAAA?text=BOT",
-        displayName: "システム",
-      };
-      setMessages((prev) => [...prev, systemMessage]);
-    } catch (error) {
-      console.error("Failed to create tag:", error);
-      const apiError = error as { response?: { status?: number; data?: string } };
-      if (apiError?.response?.status === 403) {
-        showToast(
-          apiError.response?.data || `フリープランのタグ上限（${FREE_TAG_LIMIT}件）に達しています。`,
-          "warning",
-          { action: { label: "プランを見る", onClick: () => setPlanDialogOpen(true) } }
-        );
-      } else {
-        showToast(`タグの登録に失敗しました: ${error}`, "error");
-      }
-    }
-  };
-
-
-
   // フリープランの上限に達しているか（新規登録をブロックする判定に使う。
   // 編集は件数を増やさないので対象外）
   const isAtFreePlanLimit = learningData.length >= FREE_PLAN_LIMIT;
@@ -1395,7 +1281,7 @@ export default function LearningContent() {
     // 1. カテゴリでフィルタリング
     if (searchFilters.category !== "all") {
       results = results.filter(
-        (item) => item.category_name.toString() === searchFilters.category
+        (item) => item.category_name?.toString() === searchFilters.category
       );
     }
 
@@ -1966,23 +1852,11 @@ export default function LearningContent() {
         )}
       </AppBar>
       <LeftToolBar
-        onAddNewLearning={() => {
-          openNewLearningDialog();
-          setMobileNavOpen(false); // スマホでは選択後にメニューを閉じる
-        }}
-        onAddNewCategory={() => {
-          handleAddNewCategory();
-          setMobileNavOpen(false);
-        }}
-        onAddNewTag={() => {
-          handleAddNewTag();
-          setMobileNavOpen(false);
-        }}
         onFileSelect={(path) => {
           handleFileSelect(path);
           setMobileNavOpen(false);
         }}
-        onAddNewFolder={() => {
+        onManageFiles={() => {
           handleFolderSelect();
           setMobileNavOpen(false);
         }}
@@ -2315,21 +2189,7 @@ export default function LearningContent() {
         }}
         dataSaverOn={dataSaverOn}
       />
-      {/* ★ 新規カテゴリー追加ダイアログをレンダリング */}
-      <NewCategoryDialog
-        open={isCategoryDialogOpen}
-        onClose={() => setIsCategoryDialogOpen(false)}
-        onSubmit={handleCategorySubmit}
-        existingCategories={allCategories.map((category) => category.name)}
-      />
-      {/* 新規タグ追加ダイアログ */}
-      <NewTagDialog
-        open={isTagDialogOpen}
-        onClose={() => setIsTagDialogOpen(false)}
-        onSubmit={handleTagSubmit}
-        existingTags={allTags.map((tag) => tag.name)}
-      />
-      {/* カテゴリー・タグの管理（編集・削除）ダイアログ */}
+      {/* カテゴリー・タグの管理（追加・編集・削除）ダイアログ */}
       <ManageDialog
         open={isManageOpen}
         onClose={() => setIsManageOpen(false)}
@@ -2342,14 +2202,12 @@ export default function LearningContent() {
        <GitHubFolderSelector
         open={isFolderSelectorOpen}
         onClose={() => setIsFolderSelectorOpen(false)}
-        onSelectFolder={(folderPath: string) => {
-          setGithubPath(folderPath + "/"); // 選択結果を格納
-          setIsFolderSelectorOpen(false);
-        }}
+        onSelectFolder={() => setIsFolderSelectorOpen(false)}
         githubLogin={githubLoginSafe}
         repoName={repoNameSafe}
         accessToken={tokenSafe}
-         setSelectedPath={setSelectedFolderPath}
+        setSelectedPath={() => {}}
+        standalone
       />
 
       {/* 学習の記録（連続日数・草グラフ） */}
@@ -2377,6 +2235,10 @@ export default function LearningContent() {
           handleDeleteWithUndo(id);
         }}
         onPublish={setPublishingItem}
+        onAddNew={() => {
+          setListDialogOpen(false);
+          openNewLearningDialog();
+        }}
       />
 
       {/* 学習分析ダッシュボード */}

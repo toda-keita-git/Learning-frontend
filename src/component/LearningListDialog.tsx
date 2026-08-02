@@ -22,6 +22,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -55,6 +56,8 @@ interface LearningListDialogProps {
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
   onPublish?: (item: LearningListItem) => void;
+  // 一覧から直接、新規学習記録の登録ダイアログを開く
+  onAddNew?: () => void;
 }
 
 type OrderBy = "title" | "category_name" | "understanding_level" | "created_at";
@@ -80,6 +83,7 @@ export default function LearningListDialog({
   onEdit,
   onDelete,
   onPublish,
+  onAddNew,
 }: LearningListDialogProps) {
   const [searchText, setSearchText] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -111,7 +115,7 @@ export default function LearningListDialog({
     rows = [...rows].sort((a, b) => {
       let cmp = 0;
       if (orderBy === "title" || orderBy === "category_name") {
-        cmp = a[orderBy].localeCompare(b[orderBy], "ja");
+        cmp = (a[orderBy] || "").localeCompare(b[orderBy] || "", "ja");
       } else if (orderBy === "understanding_level") {
         // 未設定（メモのみ）は最後尾に回す
         cmp = (a.understanding_level ?? -1) - (b.understanding_level ?? -1);
@@ -153,6 +157,16 @@ export default function LearningListDialog({
             disableClearable
             renderInput={(params) => <TextField {...params} label="カテゴリー" />}
           />
+          {onAddNew && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={onAddNew}
+              sx={{ flexShrink: 0 }}
+            >
+              新規追加
+            </Button>
+          )}
         </Box>
 
         {filteredSorted.length === 0 ? (
