@@ -17,6 +17,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
+import { alpha } from "@mui/material/styles";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { format } from "date-fns";
 import GitHubFileSelector from "./GitHubFileSelector";
@@ -178,6 +179,8 @@ export default function NewLearningDialog({
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localFile, setLocalFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ファイル添付エリアへのドラッグ&ドロップ中かどうか（枠の見た目を変えるためのフラグ）
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   // 作業スロット（今まさに選択・作成中の1件）とは別に、複数添付できるよう
   // 「添付リスト」に確定済みの分を溜めておく。最終送信時に、リストに
   // 未追加のまま作業スロットに残っている分があれば自動でリストに含める
@@ -437,8 +440,13 @@ export default function NewLearningDialog({
 
   // ローカルファイルのプレビュー処理
   const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (e.target.files && e.target.files[0]) {
-    const file = e.target.files[0];
+    if (e.target.files && e.target.files[0]) {
+      processLocalFile(e.target.files[0]);
+    }
+  };
+
+  // ファイル選択（input）・ドラッグ&ドロップ、どちらから来たFileも同じ処理にまとめる
+  const processLocalFile = (file: File) => {
     setLocalFile(file);
     // ファイル名だけ更新し、既に選んでいる保存先フォルダはそのまま維持する
     setFileName(file.name);
@@ -521,8 +529,7 @@ export default function NewLearningDialog({
     } else {
       reader.readAsText(file);
     }
-  }
-};
+  };
 
 
   const handleFileSelectFromGitHub = (path: string) => {
@@ -719,6 +726,24 @@ export default function NewLearningDialog({
 
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
+  };
+
+  // ファイル添付エリアへのドラッグ&ドロップ（Notionのように、その場にドロップして添付できるようにする）
+  const handleAttachmentDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes("Files")) setIsDraggingFile(true);
+  };
+  const handleAttachmentDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    // 子要素間の移動でも発火するため、本当にエリア外に出た時だけ解除する
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingFile(false);
+  };
+  const handleAttachmentDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processLocalFile(file);
   };
 
   // 添付ファイルの選択内容をすべてクリアする（作業スロットのみ。添付リストは残す）
@@ -1092,7 +1117,21 @@ export default function NewLearningDialog({
           {/* === ファイル添付（ゲストモードなどGitHubリポジトリが無い場合は非表示） === */}
           {!hideAttachments && (
           <>
-          <Box sx={{ mt: 3 }}>
+          <Box
+            data-testid="attachment-dropzone"
+            onDragOver={handleAttachmentDragOver}
+            onDragLeave={handleAttachmentDragLeave}
+            onDrop={handleAttachmentDrop}
+            sx={{
+              mt: 3,
+              p: isDraggingFile ? 1.5 : 0,
+              border: isDraggingFile ? "2px dashed" : "2px dashed transparent",
+              borderColor: isDraggingFile ? "primary.main" : "transparent",
+              borderRadius: 2,
+              bgcolor: isDraggingFile ? (theme) => alpha(theme.palette.primary.main, 0.06) : "transparent",
+              transition: "background-color .15s, border-color .15s, padding .15s",
+            }}
+          >
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main", mb: 0.5 }}>
               ファイルを添付する（任意・複数選択できます）
             </Typography>
@@ -1193,6 +1232,16 @@ export default function NewLearningDialog({
                 新規ファイルを作成
               </Button>
             </Box>
+            {!isTouchDevice && (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 0.75, color: isDraggingFile ? "primary.main" : "text.secondary" }}
+              >
+                {isDraggingFile
+                  ? "ここでドロップして添付"
+                  : "またはファイルをこのあたりにドラッグ&ドロップしても添付できます"}
+              </Typography>
+            )}
 
             {/* --- ファイル名（アップロード・既存選択で自動入力、新規作成では手入力。
                 何も選んでいない間は表示しない） --- */}
