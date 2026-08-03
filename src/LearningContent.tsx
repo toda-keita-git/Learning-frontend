@@ -1848,6 +1848,20 @@ export default function LearningContent() {
               />
             </Tooltip>
           )}
+          {/* 「記録する」はスマホでは下部ナビ中央の丸ボタンと重複するため、PCのみここに大きめのボタンで表示する */}
+          <Button
+            color="secondary"
+            variant="contained"
+            size="small"
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={openNewLearningDialog}
+            sx={{
+              mr: 0.5,
+              display: { xs: "none", sm: "inline-flex" },
+            }}
+          >
+            記録する
+          </Button>
           {/* 「今日の復習」はスマホでは下部ナビと重複するため、PCのみボタンで表示する */}
           <Button
             color="inherit"
@@ -2150,7 +2164,6 @@ export default function LearningContent() {
               onSendMessage={handleSearch}
               onSearchMenuClick={() => setOpenSearchDialog(true)}
               onQuickAdd={handleQuickAdd}
-              onAddClick={openNewLearningDialog}
             />
           </Box>
 
