@@ -41,6 +41,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import ManageDialog from "./component/ManageDialog";
 import LearningListDialog from "./component/LearningListDialog";
 import LearningAnalyticsDialog from "./component/LearningAnalyticsDialog";
+import RelatedGraphDialog from "./component/RelatedGraphDialog";
 import ArticlePreviewDialog from "./component/ArticlePreviewDialog";
 import PlanComparisonDialog from "./component/PlanComparisonDialog";
 import InquiryManageDialog from "./component/InquiryManageDialog";
@@ -603,6 +604,7 @@ export default function LearningContent() {
   const [isManageOpen, setIsManageOpen] = useState<boolean>(false); // カテゴリー・タグの管理
   const [listDialogOpen, setListDialogOpen] = useState<boolean>(false); // 一覧(テーブル)表示
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false); // 学習分析ダッシュボード
+  const [graphOpen, setGraphOpen] = useState<boolean>(false); // 学びのつながり（グラフビュー）
   const [planDialogOpen, setPlanDialogOpen] = useState<boolean>(false); // プラン比較
   const [inquiryManageOpen, setInquiryManageOpen] = useState<boolean>(false); // お問い合わせ管理（管理者のみ）
   const [publishingItem, setPublishingItem] = useState<PublishableItem | null>(null); // 記事化プレビュー
@@ -1953,6 +1955,10 @@ export default function LearningContent() {
           setAnalyticsOpen(true);
           setMobileNavOpen(false);
         }}
+        onOpenGraph={() => {
+          setGraphOpen(true);
+          setMobileNavOpen(false);
+        }}
         onOpenPlans={() => {
           setPlanDialogOpen(true);
           setMobileNavOpen(false);
@@ -2389,6 +2395,17 @@ export default function LearningContent() {
         open={analyticsOpen}
         onClose={() => setAnalyticsOpen(false)}
         items={learningData}
+      />
+
+      {/* 学びのつながり（グラフビュー） */}
+      <RelatedGraphDialog
+        open={graphOpen}
+        onClose={() => setGraphOpen(false)}
+        items={learningData}
+        onOpenItem={(id) => {
+          setGraphOpen(false);
+          openEditDialog(id);
+        }}
       />
 
       {/* プラン比較（課金ロジックなし） */}
