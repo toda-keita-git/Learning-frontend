@@ -10,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { useTheme } from "@mui/material/styles";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import { useFullScreenDialog } from "./useFullScreenDialog";
+import { calculateStreakStats } from "./streakStats";
 
 type Props = {
   open: boolean;
@@ -52,6 +53,8 @@ export const StreakDialog: React.FC<Props> = ({ open, onClose, dates }) => {
       countMap.set(key, (countMap.get(key) || 0) + 1);
     });
 
+    const { current, longest, total } = calculateStreakStats(dates);
+
     // 表示範囲：今日から遡り、開始日はその週の日曜に揃える
     const end = new Date();
     end.setHours(0, 0, 0, 0);
@@ -84,38 +87,6 @@ export const StreakDialog: React.FC<Props> = ({ open, onClose, dates }) => {
         i > 0 && weeks[i - 1][0] ? weeks[i - 1][0].date.getMonth() : -1;
       return m !== prev ? MONTH_LABELS[m] : null;
     });
-
-    // 現在の連続日数：今日（なければ昨日）から遡って連続している日数
-    let current = 0;
-    const cursor = new Date(end);
-    if (!countMap.has(toKey(cursor))) {
-      cursor.setDate(cursor.getDate() - 1); // 今日未記録でも昨日までの連続は保持
-    }
-    while (countMap.has(toKey(cursor))) {
-      current += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-
-    // 最長連続日数：記録のある日付を並べて最大の連続を数える
-    const sortedKeys = Array.from(countMap.keys()).sort();
-    let longest = 0;
-    let run = 0;
-    let prevDate: Date | null = null;
-    sortedKeys.forEach((k) => {
-      const d = new Date(k + "T00:00:00");
-      if (prevDate) {
-        const diff = Math.round(
-          (d.getTime() - prevDate.getTime()) / 86400000
-        );
-        run = diff === 1 ? run + 1 : 1;
-      } else {
-        run = 1;
-      }
-      if (run > longest) longest = run;
-      prevDate = d;
-    });
-
-    const total = dates.filter((d) => !isNaN(new Date(d).getTime())).length;
 
     return { weeks, current, longest, total, monthCols };
   }, [dates]);

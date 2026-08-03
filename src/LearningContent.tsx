@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -58,6 +58,7 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import Badge from "@mui/material/Badge";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -83,6 +84,7 @@ import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { ColorModeContext } from "./ColorModeContext";
 import StreakDialog from "./component/StreakDialog";
+import { calculateStreakStats } from "./component/streakStats";
 import { useToast } from "./ToastContext";
 import ReviewFlashcards from "./component/ReviewFlashcards";
 import {
@@ -571,6 +573,11 @@ export default function LearningContent() {
   // ヘルプ（機能説明）ダイアログ
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
   const [streakOpen, setStreakOpen] = useState<boolean>(false); // 学習の記録（連続日数）
+  // AppBarの炎アイコンに常時バッジ表示するための、現在の連続記録日数
+  const currentStreak = useMemo(
+    () => calculateStreakStats(learningData.map((l) => l.created_at)).current,
+    [learningData]
+  );
   const [reviewOpen, setReviewOpen] = useState<boolean>(false); // 今日の復習（フラッシュカード）
   const [reviewItems, setReviewItems] = useState<LearningRecord[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false); // スマホの左メニュー開閉
@@ -1816,13 +1823,27 @@ export default function LearningContent() {
           >
             今日の復習
           </Button>
-          <Tooltip title="学習の記録（連続日数・草）">
+          <Tooltip title={`学習の記録（現在${currentStreak}日連続）`}>
             <IconButton
               color="inherit"
               size="small"
               onClick={() => setStreakOpen(true)}
+              sx={{ mr: 0.5 }}
             >
-              <LocalFireDepartmentIcon />
+              <Badge
+                badgeContent={currentStreak}
+                max={999}
+                invisible={currentStreak <= 0}
+                sx={{
+                  "& .MuiBadge-badge": {
+                    bgcolor: "#f97316",
+                    color: "#fff",
+                    fontWeight: 700,
+                  },
+                }}
+              >
+                <LocalFireDepartmentIcon />
+              </Badge>
             </IconButton>
           </Tooltip>
           {/* 「一覧表示」「学習分析ダッシュボード」は左メニューと重複するため、AppBarには置かない */}
