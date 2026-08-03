@@ -130,7 +130,10 @@ export default function Home() {
 
   return (
     <>
-      <ResponsiveAppBar />
+      <ResponsiveAppBar
+        ctaLabel={isAlreadyLoggedIn ? "アプリを開く" : "使ってみる"}
+        onCtaClick={() => navigate("/LearningContent")}
+      />
 
       {/* ヒーロー */}
       <Box
@@ -163,7 +166,7 @@ export default function Home() {
               startIcon={<GitHubIcon />}
               onClick={() => navigate("/LearningContent")}
             >
-              使ってみる（GitHubログイン）
+              {isAlreadyLoggedIn ? "アプリを開く" : "使ってみる（GitHubログイン）"}
             </Button>
             {!isAlreadyLoggedIn && (
               <Button variant="outlined" size="large" onClick={handleTryGuestMode}>
