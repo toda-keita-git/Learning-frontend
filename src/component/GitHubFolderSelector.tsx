@@ -188,13 +188,17 @@ export default function GitHubFolderSelector({
       reader.onerror = (err) => reject(err);
     });
 
-  // 同名のファイルが既に存在するかを確認する（アップロード・作成の誤上書き防止）
+  // 同名のファイルが既に存在するかを確認する（アップロード・作成の誤上書き防止）。
+  // 404（存在しない）だけをfalse扱いにする。401/403やネットワークエラーまで
+  // 「存在しない」と誤判定すると、本当の原因が隠れたままアップロードに進んで
+  // しまい、失敗理由が分かりにくくなるため呼び出し元に投げ直す
   const fileExists = async (path: string): Promise<boolean> => {
     try {
       await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
       return true;
-    } catch {
-      return false;
+    } catch (err: any) {
+      if (err?.status === 404) return false;
+      throw err;
     }
   };
 
@@ -221,9 +225,17 @@ export default function GitHubFolderSelector({
       });
       showToast(`「${file.name}」をアップロードしました。`, "success");
       await loadFolders(currentPath);
-    } catch (err) {
+    } catch (err: any) {
       console.error("upload file error:", err);
-      setError("ファイルのアップロードに失敗しました。時間をおいて、もう一度お試しください。");
+      if (err?.status === 401 || err?.status === 403) {
+        setError("GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。");
+      } else if (err?.status === 404) {
+        setError("リポジトリが見つかりませんでした。使用するリポジトリの設定を確認してください。");
+      } else if (err?.status === 413 || err?.status === 422) {
+        setError("ファイルサイズが大きすぎる可能性があります（目安として100MBまで）。別のファイルでお試しください。");
+      } else {
+        setError("ファイルのアップロードに失敗しました。時間をおいて、もう一度お試しください。");
+      }
     } finally {
       setUploading(false);
     }
@@ -257,9 +269,15 @@ export default function GitHubFolderSelector({
       setNewFileContent("");
       showToast(`「${name}」を作成しました。`, "success");
       await loadFolders(currentPath);
-    } catch (err) {
+    } catch (err: any) {
       console.error("create file error:", err);
-      setError("ファイルの作成に失敗しました。時間をおいて、もう一度お試しください。");
+      if (err?.status === 401 || err?.status === 403) {
+        setError("GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。");
+      } else if (err?.status === 404) {
+        setError("リポジトリが見つかりませんでした。使用するリポジトリの設定を確認してください。");
+      } else {
+        setError("ファイルの作成に失敗しました。時間をおいて、もう一度お試しください。");
+      }
     } finally {
       setCreatingFile(false);
     }

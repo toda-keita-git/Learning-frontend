@@ -492,7 +492,9 @@ export default function NewLearningDialog({
           setFileContent(fileData as string);
         }
       } catch (err) {
-        setPreviewError("ファイルのプレビューに失敗しました。");
+        console.error("local file preview error:", err);
+        const detail = err instanceof Error ? err.message : String(err);
+        setPreviewError(`ファイルのプレビューに失敗しました。（${detail}）`);
       } finally {
         setIsLoadingFile(false);
       }
