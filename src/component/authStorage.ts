@@ -16,6 +16,9 @@ export type PersistedSession = {
   appToken: string; // このアプリのバックエンドAPI呼び出し用（本人確認）
   userId: number;
   githubLogin: string;
+  // 学習記録の添付先として使うリポジトリ名。このカラムが無かった頃に保存された
+  // セッションにはまだ含まれないため、任意項目として扱う
+  repoName?: string | null;
 };
 
 export const savePersistedSession = (session: PersistedSession) => {
@@ -48,6 +51,20 @@ export const loadPersistedSession = (): PersistedSession | null => {
 export const clearPersistedSession = () => {
   try {
     localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // noop
+  }
+};
+
+// repoNameだけを更新する。appToken等の他フィールドを保持したまま書き換えたいので、
+// savePersistedSessionで丸ごと上書きするのではなく既存の保存内容を読んでから更新する
+export const updatePersistedRepoName = (repoName: string) => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    parsed.repoName = repoName;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
   } catch {
     // noop
   }

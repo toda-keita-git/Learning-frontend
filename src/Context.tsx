@@ -6,6 +6,7 @@ import {
   savePersistedSession,
   loadPersistedSession,
   clearPersistedSession,
+  updatePersistedRepoName,
 } from "./component/authStorage";
 
 const client = import.meta.env.VITE_GITHUB_CLIENT_ID;
@@ -18,6 +19,8 @@ interface AuthContextType {
   userId: number | null;
   githubLogin: string | null;
   repoName: string | null;
+  // 使用するリポジトリを既存のものに切り替える（バックエンドへの保存とContextの更新を両方行う）
+  setRepoName: (repoName: string) => void;
   token: string | null;
   login: () => void;
   logout: () => void;
@@ -30,6 +33,7 @@ export const AuthContext = createContext<AuthContextType>({
   userId: null,
   githubLogin: null,
   repoName: null,
+  setRepoName: () => {},
   token: null,
   login: () => {},
   logout: () => {},
@@ -40,11 +44,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [octokit, setOctokit] = useState<Octokit | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [githubLogin, setGithubLogin] = useState<string | null>(null);
+  const [repoNameState, setRepoNameState] = useState<string | null>(null);
   const [token, _setToken] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const effectRan = useRef(false);
-  const repoName = githubLogin ? `learning-site-${githubLogin}` : null;
+  // repo_nameカラムが無かった頃に保存されたセッションなど、値がまだ無い場合の保険
+  const repoName = repoNameState ?? (githubLogin ? `learning-site-${githubLogin}` : null);
 
   const login = () => {
     const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
@@ -57,7 +63,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setOctokit(null);
     setUserId(null);
     setGithubLogin(null);
+    setRepoNameState(null);
     _setToken(null);
+  };
+
+  // 使用するリポジトリを既存のものに切り替える。バックエンドへの保存は呼び出し元
+  // （selectRepoApi）が行い、ここではContextとlocalStorageの更新のみを担う
+  const setRepoName = (newRepoName: string) => {
+    setRepoNameState(newRepoName);
+    updatePersistedRepoName(newRepoName);
   };
 
   useEffect(() => {
@@ -83,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const appToken = data.app_token; // このアプリのバックエンドAPI呼び出し用（本人確認）
           const id = data.user_id;
           const loginName = data.github_login;
+          const repoNameFromServer: string | null = data.repo_name ?? null;
 
           if (!token) throw new Error("レスポンスにトークンが含まれていません。");
           if (!appToken) throw new Error("レスポンスに認証トークンが含まれていません。");
@@ -90,6 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setOctokit(new Octokit({ auth: token }));
           setUserId(id);
           setGithubLogin(loginName);
+          setRepoNameState(repoNameFromServer);
           _setToken(token); // ← トークンをContextに保存（フォルダ選択等の認証に必要）
           setAppToken(appToken); // ← 以降の自バックエンドへのAPIリクエストに自動で付与される
 
@@ -99,6 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             appToken,
             userId: id,
             githubLogin: loginName,
+            repoName: repoNameFromServer,
           });
 
           // URLからcodeを削除
@@ -122,6 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setOctokit(new Octokit({ auth: saved.accessToken }));
       setUserId(saved.userId);
       setGithubLogin(saved.githubLogin);
+      setRepoNameState(saved.repoName ?? null);
       _setToken(saved.accessToken);
       setAppToken(saved.appToken);
     }
@@ -135,6 +153,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated: !!octokit,
     githubLogin,
     repoName,  // ここでリポジトリ名を追加
+    setRepoName,
     userId,
     token,
     login,

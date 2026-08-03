@@ -207,7 +207,7 @@ type Message = {
 
 
 export default function LearningContent() {
-  const { octokit,isAuthenticated, login, logout, userId,repoName,githubLogin, isAuthenticating } = useContext(AuthContext);
+  const { octokit,isAuthenticated, login, logout, userId,repoName,setRepoName,githubLogin, isAuthenticating } = useContext(AuthContext);
   const { showToast } = useToast();
   // お問い合わせ管理は管理者（id=1）のみ開けるようにする
   const isAdmin = userId === 1;
@@ -1095,6 +1095,9 @@ export default function LearningContent() {
       let finalLearningData = { ...learningData };
 
       finalLearningData.user_id = userId;
+      // 添付ファイルがどのリポジトリのものかを記録しておく。後で使用リポジトリを
+      // 切り替えても、この記録の添付が指すリポジトリが分かるようにするため
+      finalLearningData.repo_name = repoName;
 
       // 添付ファイルのうち、アップロード・作成・編集が必要なものをすべて反映する。
       // 1件でも失敗したら全体を中断する（一部だけ保存されて添付情報とズレるのを防ぐため）
@@ -2208,6 +2211,7 @@ export default function LearningContent() {
         accessToken={tokenSafe}
         setSelectedPath={() => {}}
         standalone
+        onRepoChanged={setRepoName}
       />
 
       {/* 学習の記録（連続日数・草グラフ） */}

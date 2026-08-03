@@ -23,8 +23,10 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Octokit } from "@octokit/rest";
 import { useToast } from "../ToastContext";
+import RepoSelectDialog from "./RepoSelectDialog";
 
 interface GitHubFolderSelectorProps {
   open: boolean;
@@ -38,6 +40,8 @@ interface GitHubFolderSelectorProps {
   // ファイルをその場で管理するための単体ダイアログとして振る舞う
   // （ファイルのアップロード・新規作成もできるようになる）
   standalone?: boolean;
+  // standalone時のみ使用。使用するリポジトリを既存のものに切り替えた後に呼ばれる
+  onRepoChanged?: (repoName: string) => void;
 }
 
 export default function GitHubFolderSelector({
@@ -49,6 +53,7 @@ export default function GitHubFolderSelector({
   accessToken,
   setSelectedPath,
   standalone = false,
+  onRepoChanged,
 }: GitHubFolderSelectorProps) {
   const { showToast } = useToast();
   const [folders, setFolders] = useState<string[]>([]);
@@ -61,6 +66,7 @@ export default function GitHubFolderSelector({
   const [newFileName, setNewFileName] = useState("");
   const [newFileContent, setNewFileContent] = useState("");
   const [creatingFile, setCreatingFile] = useState(false);
+  const [repoSelectOpen, setRepoSelectOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const octokit = useMemo(
@@ -78,7 +84,7 @@ export default function GitHubFolderSelector({
       loadFolders("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, repoName]);
 
   // フォルダ名だけ取り出す（path の最後の区切り以降）
   const baseName = (p: string) => p.split("/").filter(Boolean).pop() || p;
@@ -283,6 +289,33 @@ export default function GitHubFolderSelector({
         <FolderIcon color="primary" /> {standalone ? "ファイル・フォルダーの管理" : "保存先フォルダーを選ぶ"}
       </DialogTitle>
       <DialogContent dividers>
+        {standalone && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+              mb: 2,
+              p: 1.25,
+              border: "1px solid #eceef3",
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="body2">
+              使用するリポジトリ: <strong>{repoName}</strong>
+            </Typography>
+            <Button
+              size="small"
+              startIcon={<SwapHorizIcon />}
+              onClick={() => setRepoSelectOpen(true)}
+            >
+              変更する
+            </Button>
+          </Box>
+        )}
+
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
           {standalone
             ? "フォルダーをクリックすると中に入ります。今いるフォルダーの中に、新しいフォルダー・ファイルを追加できます。"
@@ -475,6 +508,16 @@ export default function GitHubFolderSelector({
           </>
         )}
       </DialogActions>
+
+      {standalone && (
+        <RepoSelectDialog
+          open={repoSelectOpen}
+          onClose={() => setRepoSelectOpen(false)}
+          accessToken={accessToken}
+          currentRepoName={repoName}
+          onSelected={(newRepoName) => onRepoChanged?.(newRepoName)}
+        />
+      )}
     </Dialog>
   );
 }

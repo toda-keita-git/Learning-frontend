@@ -202,6 +202,17 @@ export const deleteTagApi = async (id: number) => {
   }
 };
 
+// 学習記録の添付先として使うリポジトリを、本人の既存リポジトリに切り替えるAPI
+export const selectRepoApi = async (repoName: string): Promise<string> => {
+  try {
+    const response = await axios.post(`/user_repo_select`, { repo_name: repoName });
+    return response.data.repo_name as string;
+  } catch (error) {
+    console.error("ERROR!! occurred in selectRepoApi.", error);
+    throw error;
+  }
+};
+
 // Proプラン「通知を希望する」を登録するAPI（user_id・github_loginともJWTから特定される）
 export const registerPlanInterestApi = async () => {
   const response = await axios.post("/plan_interest_register");
