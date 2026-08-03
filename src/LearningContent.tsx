@@ -2088,56 +2088,116 @@ export default function LearningContent() {
               onSendMessage={handleSearch}
               onSearchMenuClick={() => setOpenSearchDialog(true)}
               onQuickAdd={handleQuickAdd}
+              onAddClick={openNewLearningDialog}
             />
           </Box>
 
           {/* スマホ用ボトムナビ：片手操作で主要な導線に届くように画面下部へ集約。
               メッセージ一覧・タグ絞り込み・入力欄と同じPaperの中でflex columnの
-              最後の要素にすることで、独自にposition:fixedする必要がなくなる */}
+              最後の要素にすることで、独自にposition:fixedする必要がなくなる。
+              「記録」は最も押す頻度が高いため中央に、バーの上に少しはみ出す
+              大きめの丸ボタンとして目立たせる */}
           <Box
             sx={{
               display: { xs: "flex", sm: "none" },
+              position: "relative",
               flexShrink: 0,
               height: BOTTOM_NAV_HEIGHT,
-              justifyContent: "space-around",
-              alignItems: "stretch",
               borderTop: 1,
               borderColor: "divider",
               bgcolor: "background.paper",
             }}
           >
-            {[
-              { label: "記録", icon: <AddCircleOutlineIcon />, onClick: openNewLearningDialog },
-              { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
-              { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
-              { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
-              { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
-            ].map((item) => (
-              <Box
-                key={item.label}
-                component="button"
-                onClick={item.onClick}
-                sx={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 0.25,
-                  border: "none",
-                  background: "none",
-                  color: "text.secondary",
-                  cursor: "pointer",
-                  font: "inherit",
-                  "& svg": { fontSize: 22 },
-                }}
-              >
-                {item.icon}
-                <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
-                  {item.label}
+            <Box sx={{ display: "flex", width: "100%", justifyContent: "space-around", alignItems: "stretch" }}>
+              {[
+                { label: "検索", icon: <SearchOutlinedIcon />, onClick: () => setOpenSearchDialog(true) },
+                { label: "復習", icon: <MenuBookOutlinedIcon />, onClick: handleReview },
+              ].map((item) => (
+                <Box
+                  key={item.label}
+                  component="button"
+                  onClick={item.onClick}
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.25,
+                    border: "none",
+                    background: "none",
+                    color: "text.secondary",
+                    cursor: "pointer",
+                    font: "inherit",
+                    "& svg": { fontSize: 22 },
+                  }}
+                >
+                  {item.icon}
+                  <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
+                    {item.label}
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              ))}
+
+              {/* 中央の丸ボタン用スペース */}
+              <Box sx={{ flex: 1 }} />
+
+              {[
+                { label: "一覧", icon: <TableRowsIcon />, onClick: () => setListDialogOpen(true) },
+                { label: "メニュー", icon: <MenuIcon />, onClick: () => setMobileNavOpen(true) },
+              ].map((item) => (
+                <Box
+                  key={item.label}
+                  component="button"
+                  onClick={item.onClick}
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.25,
+                    border: "none",
+                    background: "none",
+                    color: "text.secondary",
+                    cursor: "pointer",
+                    font: "inherit",
+                    "& svg": { fontSize: 22 },
+                  }}
+                >
+                  {item.icon}
+                  <Box component="span" sx={{ fontSize: "0.65rem", lineHeight: 1 }}>
+                    {item.label}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+
+            <Box
+              component="button"
+              onClick={openNewLearningDialog}
+              aria-label="記録する"
+              sx={{
+                position: "absolute",
+                left: "50%",
+                top: -18,
+                transform: "translateX(-50%)",
+                width: 58,
+                height: 58,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                boxShadow: 3,
+                cursor: "pointer",
+                "& svg": { fontSize: 30 },
+              }}
+            >
+              <AddCircleOutlineIcon />
+            </Box>
           </Box>
         </Paper>
       </Box>

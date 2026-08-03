@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography";
 import SendIcon from "@mui/icons-material/Send";
 import TuneIcon from "@mui/icons-material/Tune"; // 詳細検索アイコン
 import BoltIcon from "@mui/icons-material/Bolt"; // クイック登録アイコン
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 // --- TextInput Component ---
 
@@ -20,6 +21,9 @@ type TextInputProps = {
   // （省略時はクイック登録ボタン自体を出さない。上限到達時などは例外を投げてもらう
   // ことで、入力内容を復元できるようにしている）
   onQuickAdd?: (title: string) => void | Promise<void>;
+  // PCで新規記録ダイアログを開く。スマホは下部ナビの中央ボタンから開けるため、
+  // ここでは重複を避けてPC幅でのみ表示する（省略時はボタン自体を出さない）
+  onAddClick?: () => void;
 };
 
 /**
@@ -30,6 +34,7 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
   onSearchMenuClick,
   hideDetailedSearch = false,
   onQuickAdd,
+  onAddClick,
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [quickAdding, setQuickAdding] = useState(false);
@@ -68,6 +73,18 @@ export const TextInputLearning: React.FC<TextInputProps> = ({
           alignItems: "center",
         }}
       >
+        {/* スマホでは下部ナビ中央の大きな丸ボタンから記録できるため、ここでは重複を避けてPCのみ表示する */}
+        {onAddClick && (
+          <Tooltip title="新しい学習記録を追加する">
+            <IconButton
+              color="primary"
+              onClick={onAddClick}
+              sx={{ display: { xs: "none", sm: "inline-flex" } }}
+            >
+              <AddCircleOutlineIcon />
+            </IconButton>
+          </Tooltip>
+        )}
         {/* スマホでは下部ナビの「検索」から同じ詳細検索を開けるため、ここでは重複を避けて非表示にする */}
         {!hideDetailedSearch && (
           <IconButton
