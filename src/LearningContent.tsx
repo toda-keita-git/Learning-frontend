@@ -71,6 +71,8 @@ import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutl
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -2474,7 +2476,7 @@ export default function LearningContent() {
               <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
                 primary="新規学習記録"
-                secondary="学んだことを記録します。タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。"
+                secondary="学んだことを記録します。タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。ファイル添付は、ボタンからの選択のほか、その場にドラッグ&ドロップしても添付できます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
@@ -2527,17 +2529,45 @@ export default function LearningContent() {
               />
             </ListItem>
             <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><TableRowsIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="一覧表示（左メニュー）"
+                secondary="記録をまとめて見比べられます。PCではテーブル表示のほか、カテゴリーごとに列を分けたボード（カンバン）表示にも切り替えられます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><HubOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="学びのつながり（左メニュー）"
+                secondary="タグ・カテゴリー・タイトルの共通点をもとに、記録同士のつながりをネットワーク図として可視化します。丸をクリックするとその記録を開けます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><InsightsOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="学習分析ダッシュボード（左メニュー）"
+                secondary="カテゴリーや理解度の傾向など、記録全体の統計をグラフで振り返れます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><FolderOpenIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="ファイル・フォルダーの管理（左メニュー）"
+                secondary="GitHubリポジトリ内のフォルダー作成や、ファイルのアップロード・新規作成・削除をまとめて行えます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
                 primary="今日の復習（間隔反復）"
-                secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。メモの中で覚えたい語句を[[ ]]で囲むと、復習時にその箇所だけを隠して穴埋めクイズのように確認できます。"
+                secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。メモの中で覚えたい語句を[[ ]]で囲むと、復習時にその箇所だけを隠して穴埋めクイズのように確認できます。カテゴリー・タグで復習内容を絞り込んでから、スキマ時間に合わせた件数で始められます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><LocalFireDepartmentIcon sx={{ color: "#f97316" }} /></ListItemIcon>
               <ListItemText
                 primary="学習の記録（ヘッダーの炎アイコン）"
-                secondary="連続で記録した日数（ストリーク）や合計を、GitHubの「草」のようなグラフで振り返れます。続けるモチベーションに。"
+                secondary="連続で記録した日数（ストリーク）は、ヘッダーの炎アイコンに常にバッジで表示されます。アイコンをタップすると、合計や最長記録をGitHubの「草」のようなグラフで振り返れます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
