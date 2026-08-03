@@ -53,6 +53,7 @@ import { listZipEntries, type ZipEntry } from "./zipPreview";
 import { parseAttachments, serializeAttachments, type Attachment } from "./attachments";
 import { parseReferenceUrls, serializeReferenceUrls } from "./referenceUrls";
 import { useFullScreenDialog } from "./useFullScreenDialog";
+import { dataUrlToBlobUrl } from "./mediaBlobUrl";
 
 // 添付リストに追加済みの1件分（アップロード待ちの内容もここに保持する）
 type PendingAttachment = {
@@ -206,6 +207,7 @@ export default function NewLearningDialog({
   const [pptxSlides, setPptxSlides] = useState<PptxSlide[]>([]); // PPTX各スライドのテキスト（閲覧専用）
   const [activeSlideIndex, setActiveSlideIndex] = useState(0); // 表示中のスライド番号
   const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]); // ZIP内のファイル一覧（閲覧専用）
+  const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
 
   // タッチ操作が主な端末（スマホ等）では、物理キーボードの「Enter」ではなく
   // ソフトキーボードの確定/改行ボタンでの操作になるため、案内文を出し分ける
@@ -756,6 +758,20 @@ export default function NewLearningDialog({
           // エンコード方法を使う
           `data:${getMimeType(github_path)};base64,${btoa(unescape(encodeURIComponent(fileContent)))}`
       : "";
+
+  // 動画はdata:URIのままvideoタグに渡すと大きいファイルで読み込みに失敗しやすいため、
+  // Blobのobject URLに変換してから渡す（サイズが大きくても安定して再生できる）
+  useEffect(() => {
+    if (fileType !== "video" || !mediaSrc) {
+      setVideoBlobUrl(null);
+      return;
+    }
+    const url = dataUrlToBlobUrl(mediaSrc);
+    setVideoBlobUrl(url);
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [fileType, mediaSrc]);
 
   // 最近使ったカテゴリー・タグのワンタップ候補（すでに選択中のものは出さない）
   const recentCategoryChips = recentCategoryIds
@@ -1376,16 +1392,19 @@ export default function NewLearningDialog({
                       borderRadius: "8px",
                     }}
                   />
-                ) : (
+                ) : videoBlobUrl ? (
                   <video
-                    src={mediaSrc}
+                    src={videoBlobUrl}
                     controls
+                    onError={() => setPreviewError("動画の読み込みに失敗しました。時間をおいて、もう一度お試しください。")}
                     style={{
                       maxWidth: "100%",
                       maxHeight: "60vh",
                       borderRadius: "8px",
                     }}
                   />
+                ) : (
+                  <CircularProgress size={28} />
                 )}
               </Box>
             ) : (
@@ -1413,6 +1432,10 @@ export default function NewLearningDialog({
                           },
                         }}
                       />
+                    ) : fileType === "markdown" ? (
+                      <Box sx={{ px: 0.5 }}>
+                        <MarkdownContent text={fileContent} />
+                      </Box>
                     ) : (
                       <SyntaxHighlighter
                         language={fileType === "docx" || fileType === "doc" ? "plaintext" : fileType}

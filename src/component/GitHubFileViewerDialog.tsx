@@ -10,6 +10,7 @@ import {
   Box,
   TextField,
   Typography,
+  CircularProgress,
   Alert as MuiAlert,
 } from "@mui/material";
 import type { AlertProps } from "@mui/material";
@@ -21,7 +22,9 @@ import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType } from "./getFileType";
 import RichFilePreview from "./RichFilePreview";
+import MarkdownContent from "./MarkdownContent";
 import { useFullScreenDialog } from "./useFullScreenDialog";
+import { dataUrlToBlobUrl } from "./mediaBlobUrl";
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -60,6 +63,8 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [imageRevealed, setImageRevealed] = useState(!dataSaverOn);
+  const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
+  const [videoLoadError, setVideoLoadError] = useState(false);
 
   const extension = path.split(".").pop()?.toLowerCase() || "";
   const isImageFile = ["png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp"].includes(extension);
@@ -74,7 +79,22 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
     setEditedContent(content);
     setIsEditing(false);
     setImageRevealed(!dataSaverOn);
+    setVideoLoadError(false);
   }, [content, open, dataSaverOn]);
+
+  // 動画はdata:URIのままvideoタグに渡すと大きいファイルで読み込みに失敗しやすいため、
+  // Blobのobject URLに変換してから渡す（サイズが大きくても安定して再生できる）
+  useEffect(() => {
+    if (!isVideoFile || !content) {
+      setVideoBlobUrl(null);
+      return;
+    }
+    const url = dataUrlToBlobUrl(content);
+    setVideoBlobUrl(url);
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [isVideoFile, content]);
 
   const handleSave = () => {
     onUpdateFile(path, editedContent);
@@ -159,6 +179,38 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
               }
 
               if (isVideoFile) {
+                if (videoLoadError) {
+                  return (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 1,
+                        py: 6,
+                        px: 2,
+                        textAlign: "center",
+                        backgroundColor: "#1e1e1e",
+                        color: "#ccc",
+                      }}
+                    >
+                      <Typography variant="body2">動画の読み込みに失敗しました。</Typography>
+                      <Typography variant="caption">
+                        ファイルサイズが大きい場合や通信状況によって失敗することがあります。時間をおいて、もう一度お試しください。
+                      </Typography>
+                    </Box>
+                  );
+                }
+
+                if (!videoBlobUrl) {
+                  return (
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                      <CircularProgress size={28} />
+                    </Box>
+                  );
+                }
+
                 return (
                   <Box
                     sx={{
@@ -171,8 +223,9 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                     }}
                   >
                     <video
-                      src={content}
+                      src={videoBlobUrl}
                       controls
+                      onError={() => setVideoLoadError(true)}
                       style={{
                         maxWidth: "100%",
                         maxHeight: "70vh",
@@ -271,6 +324,15 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                   onChange={(e) => setEditedContent(e.target.value)}
                   variant="outlined"
                 />
+              );
+            }
+
+            // Markdown（.md/.markdown）は、コードとしてではなく整形して表示する
+            if (fileType === "markdown") {
+              return (
+                <Box sx={{ px: 0.5 }}>
+                  <MarkdownContent text={content} />
+                </Box>
               );
             }
 
