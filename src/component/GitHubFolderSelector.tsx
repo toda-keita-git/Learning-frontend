@@ -18,12 +18,16 @@ import {
   Divider,
   InputAdornment,
 } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import FolderIcon from "@mui/icons-material/Folder";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { Octokit } from "@octokit/rest";
 import { useToast } from "../ToastContext";
 import RepoSelectDialog from "./RepoSelectDialog";
@@ -59,6 +63,7 @@ export default function GitHubFolderSelector({
   const { showToast } = useToast();
   const fullScreenDialog = useFullScreenDialog();
   const [folders, setFolders] = useState<string[]>([]);
+  const [files, setFiles] = useState<{ path: string; sha: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPath, setCurrentPath] = useState(""); // "" はルート
   const [newFolderName, setNewFolderName] = useState("");
@@ -69,6 +74,7 @@ export default function GitHubFolderSelector({
   const [newFileContent, setNewFileContent] = useState("");
   const [creatingFile, setCreatingFile] = useState(false);
   const [repoSelectOpen, setRepoSelectOpen] = useState(false);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const octokit = useMemo(
@@ -100,18 +106,22 @@ export default function GitHubFolderSelector({
         repo: repoName,
         path: path || "",
       });
-      const dirs = Array.isArray(response.data)
-        ? response.data
-            .filter((item: any) => item.type === "dir")
-            .map((d: any) => d.path)
-        : [];
+      const items = Array.isArray(response.data) ? response.data : [];
+      const dirs = items
+        .filter((item: any) => item.type === "dir")
+        .map((d: any) => d.path);
+      const fileItems = items
+        .filter((item: any) => item.type === "file")
+        .map((f: any) => ({ path: f.path, sha: f.sha }));
       setFolders(dirs);
+      setFiles(fileItems);
       setCurrentPath(path || "");
     } catch (err: any) {
       console.error("loadFolders error:", err);
       if (err?.status === 404 && !path) {
         // ルートで404 = まだ空のリポジトリ。エラー扱いにしない
         setFolders([]);
+        setFiles([]);
         setCurrentPath("");
         setError(null);
       } else if (err?.status === 401 || err?.status === 403) {
@@ -119,11 +129,13 @@ export default function GitHubFolderSelector({
           "GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。"
         );
         setFolders([]);
+        setFiles([]);
       } else {
         setError(
           "フォルダーの読み込みに失敗しました。時間をおいて、もう一度お試しください。"
         );
         setFolders([]);
+        setFiles([]);
       }
     } finally {
       setLoading(false);
@@ -283,6 +295,40 @@ export default function GitHubFolderSelector({
     }
   };
 
+  // アップロード済み・作成済みのファイルを削除する
+  const handleDeleteFile = async (path: string, sha: string) => {
+    if (
+      !window.confirm(`「${baseName(path)}」を削除しますか？この操作は元に戻せません。`)
+    )
+      return;
+    setError(null);
+    setDeletingPath(path);
+    try {
+      await octokit.repos.deleteFile({
+        owner: githubLogin,
+        repo: repoName,
+        path,
+        message: `Delete ${path}`,
+        sha,
+      });
+      showToast(`「${baseName(path)}」を削除しました。`, "success");
+      await loadFolders(currentPath);
+    } catch (err: any) {
+      console.error("delete file error:", err);
+      if (err?.status === 401 || err?.status === 403) {
+        setError("GitHubへのアクセス権限がありません。一度ログインし直してからお試しください。");
+      } else if (err?.status === 404) {
+        setError("ファイルが見つかりませんでした。一覧を更新してから、もう一度お試しください。");
+      } else if (err?.status === 409) {
+        setError("ファイルが別の場所で更新されているため削除できませんでした。一覧を更新してから、もう一度お試しください。");
+      } else {
+        setError("ファイルの削除に失敗しました。時間をおいて、もう一度お試しください。");
+      }
+    } finally {
+      setDeletingPath(null);
+    }
+  };
+
   // パンくず（ルート > A > B ...）
   const segments = currentPath ? currentPath.split("/").filter(Boolean) : [];
   const goToSegment = (index: number) => {
@@ -385,7 +431,7 @@ export default function GitHubFolderSelector({
             <Box sx={{ textAlign: "center", p: 3 }}>
               <CircularProgress size={28} />
             </Box>
-          ) : folders.length > 0 ? (
+          ) : folders.length > 0 || (standalone && files.length > 0) ? (
             <List dense disablePadding>
               {folders.map((folder) => (
                 <ListItemButton
@@ -399,11 +445,41 @@ export default function GitHubFolderSelector({
                   <ChevronRightIcon sx={{ color: "text.disabled" }} />
                 </ListItemButton>
               ))}
+              {standalone &&
+                files.map((file) => (
+                  <Box
+                    key={file.path}
+                    sx={{ display: "flex", alignItems: "center", pl: 2, pr: 1 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      <InsertDriveFileOutlinedIcon sx={{ color: "text.disabled" }} />
+                    </ListItemIcon>
+                    <ListItemText primary={baseName(file.path)} sx={{ flex: 1 }} />
+                    <Tooltip title="削除">
+                      <span>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          disabled={deletingPath === file.path}
+                          onClick={() => handleDeleteFile(file.path, file.sha)}
+                        >
+                          {deletingPath === file.path ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <DeleteOutlineIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                ))}
             </List>
           ) : (
             <Box sx={{ textAlign: "center", color: "text.secondary", p: 3 }}>
               <Typography variant="body2">
-                このフォルダーの中に、サブフォルダーはありません。
+                {standalone
+                  ? "このフォルダーの中に、ファイルもサブフォルダーもありません。"
+                  : "このフォルダーの中に、サブフォルダーはありません。"}
               </Typography>
               <Typography variant="caption">
                 下の入力欄から新しいフォルダーを作れます。
