@@ -50,6 +50,7 @@ import { getCard, isDue, reviewCard } from "./component/srs";
 import { isDataSaverEnabled, setDataSaverEnabled, prefersSaveData } from "./settings";
 import { decodeBase64Text } from "./component/decodeBase64";
 import GitHubFolderSelector from "./component/GitHubFolderSelector";
+import { useFullScreenDialog } from "./component/useFullScreenDialog";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -152,6 +153,8 @@ interface LearningRecord {
   tags: string[];
   github_path: string;
   commit_sha: string | null;
+  // このカラムが追加される前に作られた記録はnull
+  repo_name?: string | null;
   user_id: number;
 }
 
@@ -208,6 +211,7 @@ type Message = {
 
 export default function LearningContent() {
   const { octokit,isAuthenticated, login, logout, userId,repoName,setRepoName,githubLogin, isAuthenticating } = useContext(AuthContext);
+  const fullScreenDialog = useFullScreenDialog();
   const { showToast } = useToast();
   // お問い合わせ管理は管理者（id=1）のみ開けるようにする
   const isAdmin = userId === 1;
@@ -2154,7 +2158,7 @@ export default function LearningContent() {
       />
 
       {/* ゲストモードの記録インポート確認 */}
-      <Dialog open={guestImportOpen} onClose={() => !guestImportBusy && setGuestImportOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={guestImportOpen} onClose={() => !guestImportBusy && setGuestImportOpen(false)} maxWidth="xs" fullWidth fullScreen={fullScreenDialog}>
         <DialogTitle>ゲストモードの記録をインポートしますか？</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 1.5 }}>
@@ -2305,7 +2309,7 @@ export default function LearningContent() {
       />
 
       {/* ヘルプ（各機能の説明） */}
-      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <HelpOutlineIcon color="primary" /> 使い方・機能の説明
         </DialogTitle>

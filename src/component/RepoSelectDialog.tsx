@@ -21,6 +21,7 @@ import PublicIcon from "@mui/icons-material/Public";
 import { Octokit } from "@octokit/rest";
 import { selectRepoApi } from "./Api";
 import { useToast } from "../ToastContext";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface RepoOption {
   name: string;
@@ -44,6 +45,7 @@ export default function RepoSelectDialog({
   onSelected,
 }: RepoSelectDialogProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [repos, setRepos] = useState<RepoOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +104,7 @@ export default function RepoSelectDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <FolderSpecialIcon color="primary" /> 使用するリポジトリを選ぶ
       </DialogTitle>

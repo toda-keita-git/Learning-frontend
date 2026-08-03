@@ -33,6 +33,7 @@ import {
   renameGuestTag,
   deleteGuestTag,
 } from "./guestStorage";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 type Kind = "category" | "tag";
 
@@ -54,6 +55,7 @@ export default function GuestManageDialog({
   onChanged,
 }: GuestManageDialogProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -243,7 +245,7 @@ export default function GuestManageDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle>カテゴリー・タグの管理</DialogTitle>
       <DialogContent dividers>
         <Typography variant="caption" sx={{ color: "text.secondary", mb: 1.5, display: "block" }}>

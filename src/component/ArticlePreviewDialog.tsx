@@ -12,6 +12,7 @@ import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import { useToast } from "../ToastContext";
 import { buildArticleMarkdown, slugifyTitle } from "./articleExport";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface ArticleSourceItem {
   id: number;
@@ -42,6 +43,7 @@ export default function ArticlePreviewDialog({
 }: ArticlePreviewDialogProps) {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
+  const fullScreenDialog = useFullScreenDialog();
 
   const markdown = useMemo(() => (item ? buildArticleMarkdown(item) : ""), [item]);
   const path = useMemo(
@@ -68,7 +70,7 @@ export default function ArticlePreviewDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <ArticleOutlinedIcon color="primary" /> 記事化プレビュー
       </DialogTitle>

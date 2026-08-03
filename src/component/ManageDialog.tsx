@@ -29,6 +29,7 @@ import {
   deleteTagApi,
 } from "./Api";
 import { useToast } from "../ToastContext";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 type Entity = { id: number; name: string };
 type Kind = "category" | "tag";
@@ -55,6 +56,7 @@ export default function ManageDialog({
   onChanged,
 }: ManageDialogProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   // 編集中の行（例: "category-3"）と入力値
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -297,7 +299,7 @@ export default function ManageDialog({
   );
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle>カテゴリー・タグの管理</DialogTitle>
       <DialogContent dividers>
         <Typography variant="caption" sx={{ color: "text.secondary", mb: 1.5, display: "block" }}>

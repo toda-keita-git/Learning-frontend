@@ -27,6 +27,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Octokit } from "@octokit/rest";
 import { useToast } from "../ToastContext";
 import RepoSelectDialog from "./RepoSelectDialog";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface GitHubFolderSelectorProps {
   open: boolean;
@@ -56,6 +57,7 @@ export default function GitHubFolderSelector({
   onRepoChanged,
 }: GitHubFolderSelectorProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [folders, setFolders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPath, setCurrentPath] = useState(""); // "" はルート
@@ -284,7 +286,7 @@ export default function GitHubFolderSelector({
     // disableEnforceFocus: このダイアログは他のダイアログ（学習内容の登録・編集）の上に
     // 重ねて開かれることがあり、フォーカストラップ同士が競合すると閉じた後に
     // 元のダイアログ側の操作（プルダウン選択など）が反応しなくなることがあるための対策
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <FolderIcon color="primary" /> {standalone ? "ファイル・フォルダーの管理" : "保存先フォルダーを選ぶ"}
       </DialogTitle>

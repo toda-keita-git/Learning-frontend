@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import MarkdownContent from "./MarkdownContent";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface MarkdownHelpDialogProps {
   open: boolean;
@@ -35,8 +36,9 @@ const EXAMPLES: { syntax: string; sample?: string }[] = [
 ];
 
 const MarkdownHelpDialog: React.FC<MarkdownHelpDialogProps> = ({ open, onClose }) => {
+  const fullScreenDialog = useFullScreenDialog();
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <InfoOutlinedIcon color="primary" />
         内容・メモの書き方

@@ -15,6 +15,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useToast } from "../ToastContext";
 import { listInquiriesApi, updateInquiryStatusApi } from "./Api";
 import type { Inquiry } from "./Api";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface InquiryManageDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ const STATUS_COLOR: Record<Inquiry["status"], "warning" | "info" | "success"> = 
 // お問い合わせの確認・ステータス更新（管理者のみ開く想定のダイアログ）
 export default function InquiryManageDialog({ open, onClose }: InquiryManageDialogProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -74,7 +76,7 @@ export default function InquiryManageDialog({ open, onClose }: InquiryManageDial
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle>お問い合わせ管理</DialogTitle>
       <DialogContent dividers>
         {loading ? (

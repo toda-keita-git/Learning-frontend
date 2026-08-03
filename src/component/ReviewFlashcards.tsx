@@ -15,6 +15,7 @@ import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt
 import ReplayIcon from "@mui/icons-material/Replay";
 import MarkdownContent from "./MarkdownContent";
 import { hasCloze } from "./clozeUtils";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 export type FlashItem = {
   id: number;
@@ -44,6 +45,7 @@ const TIME_PRESETS = [
 ] as const;
 
 export default function ReviewFlashcards({ open, onClose, items, onRate }: Props) {
+  const fullScreenDialog = useFullScreenDialog();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -111,7 +113,7 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle
         sx={{ display: "flex", alignItems: "center", gap: 1, pr: 6 }}
       >

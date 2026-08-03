@@ -14,6 +14,7 @@ import {
   type SelectChangeEvent,
 } from "@mui/material";
 import { TagsApi, CategoriesApi } from "./Api";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface CategoriesRecord {
   id: number;
@@ -42,6 +43,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
   onApply,
   currentFilters,
 }) => {
+  const fullScreenDialog = useFullScreenDialog();
   const [hashtags, setHashtags] = useState<string[]>(currentFilters.hashtags);
   const [category, setCategory] = useState<string>(currentFilters.category);
   const [sort, setSort] = useState<string>(currentFilters.sort);
@@ -78,7 +80,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
   );
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
       <DialogTitle>詳細検索</DialogTitle>
       <DialogContent>
         {/* 🔹ハッシュタグ選択 */}

@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import { useTheme } from "@mui/material/styles";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 type Props = {
   open: boolean;
@@ -37,6 +38,7 @@ const MONTH_LABELS = [
  * 連続記録（ストリーク）でモチベーションを保つのが狙い。
  */
 export const StreakDialog: React.FC<Props> = ({ open, onClose, dates }) => {
+  const fullScreenDialog = useFullScreenDialog();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -131,7 +133,7 @@ export const StreakDialog: React.FC<Props> = ({ open, onClose, dates }) => {
   const GAP = 3;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <LocalFireDepartmentIcon sx={{ color: "#f97316" }} /> 学習の記録
       </DialogTitle>

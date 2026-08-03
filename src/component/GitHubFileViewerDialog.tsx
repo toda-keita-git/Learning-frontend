@@ -21,6 +21,7 @@ import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { getFileType } from "./getFileType";
 import RichFilePreview from "./RichFilePreview";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 // Snackbar用のAlert
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
@@ -54,6 +55,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
   onUpdateFile,
   dataSaverOn = false,
 }) => {
+  const fullScreenDialog = useFullScreenDialog();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
@@ -100,7 +102,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreenDialog}>
         {/* Header */}
         <DialogTitle
           sx={{

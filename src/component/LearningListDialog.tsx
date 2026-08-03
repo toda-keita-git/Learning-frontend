@@ -28,6 +28,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import { parseAttachments } from "./attachments";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface LearningListItem {
   id: number;
@@ -40,6 +41,8 @@ interface LearningListItem {
   reference_url: string | null;
   github_path: string;
   commit_sha: string | null;
+  // このカラムが追加される前に作られた記録はnull（フィルターでは「すべて」にのみ含まれる）
+  repo_name?: string | null;
 }
 
 interface Categories {
@@ -85,10 +88,22 @@ export default function LearningListDialog({
   onPublish,
   onAddNew,
 }: LearningListDialogProps) {
+  const fullScreenDialog = useFullScreenDialog();
   const [searchText, setSearchText] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [repoFilter, setRepoFilter] = useState("all");
   const [orderBy, setOrderBy] = useState<OrderBy>("created_at");
   const [order, setOrder] = useState<Order>("desc");
+
+  // 複数のリポジトリを使い分けている場合だけ、リポジトリ絞り込みを表示する
+  // （無料版は常に1つしか使わないため、自然にPro版だけの導線になる）
+  const repoOptions = useMemo(() => {
+    const names = new Set(
+      items.map((item) => item.repo_name).filter((name): name is string => !!name)
+    );
+    return Array.from(names);
+  }, [items]);
+  const showRepoFilter = repoOptions.length >= 2;
 
   const handleSort = (column: OrderBy) => {
     if (orderBy === column) {
@@ -104,12 +119,13 @@ export default function LearningListDialog({
     let rows = items.filter((item) => {
       const matchesCategory =
         categoryFilter === "all" || item.category_name === categoryFilter;
+      const matchesRepo = repoFilter === "all" || item.repo_name === repoFilter;
       const matchesText =
         !lower ||
         item.title.toLowerCase().includes(lower) ||
         item.explanatory_text.toLowerCase().includes(lower) ||
         item.tags.some((tag) => tag.toLowerCase().includes(lower));
-      return matchesCategory && matchesText;
+      return matchesCategory && matchesRepo && matchesText;
     });
 
     rows = [...rows].sort((a, b) => {
@@ -126,10 +142,10 @@ export default function LearningListDialog({
     });
 
     return rows;
-  }, [items, searchText, categoryFilter, orderBy, order]);
+  }, [items, searchText, categoryFilter, repoFilter, orderBy, order]);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreenDialog}>
       <DialogTitle>学習記録の一覧</DialogTitle>
       <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
@@ -157,6 +173,18 @@ export default function LearningListDialog({
             disableClearable
             renderInput={(params) => <TextField {...params} label="カテゴリー" />}
           />
+          {showRepoFilter && (
+            <Autocomplete
+              size="small"
+              sx={{ minWidth: 200 }}
+              options={["all", ...repoOptions]}
+              getOptionLabel={(option) => (option === "all" ? "すべて" : option)}
+              value={repoFilter}
+              onChange={(_event, newValue) => setRepoFilter(newValue || "all")}
+              disableClearable
+              renderInput={(params) => <TextField {...params} label="リポジトリ" />}
+            />
+          )}
           {onAddNew && (
             <Button
               variant="contained"
@@ -175,10 +203,12 @@ export default function LearningListDialog({
           </Typography>
         ) : (
           <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480 }}>
-            <Table stickyHeader size="small">
+            {/* minWidthを指定し、狭い画面では列を潰さず横スクロールさせる
+                （指定なしだと日本語の見出しが1文字ずつ折り返されてしまう） */}
+            <Table stickyHeader size="small" sx={{ minWidth: 640 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sortDirection={orderBy === "title" ? order : false}>
+                  <TableCell sortDirection={orderBy === "title" ? order : false} sx={{ whiteSpace: "nowrap" }}>
                     <TableSortLabel
                       active={orderBy === "title"}
                       direction={orderBy === "title" ? order : "asc"}
@@ -187,7 +217,7 @@ export default function LearningListDialog({
                       タイトル
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sortDirection={orderBy === "category_name" ? order : false}>
+                  <TableCell sortDirection={orderBy === "category_name" ? order : false} sx={{ whiteSpace: "nowrap" }}>
                     <TableSortLabel
                       active={orderBy === "category_name"}
                       direction={orderBy === "category_name" ? order : "asc"}
@@ -196,10 +226,11 @@ export default function LearningListDialog({
                       カテゴリー
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>タグ</TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>タグ</TableCell>
                   <TableCell
                     align="center"
                     sortDirection={orderBy === "understanding_level" ? order : false}
+                    sx={{ whiteSpace: "nowrap" }}
                   >
                     <TableSortLabel
                       active={orderBy === "understanding_level"}
@@ -209,7 +240,7 @@ export default function LearningListDialog({
                       理解度
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sortDirection={orderBy === "created_at" ? order : false}>
+                  <TableCell sortDirection={orderBy === "created_at" ? order : false} sx={{ whiteSpace: "nowrap" }}>
                     <TableSortLabel
                       active={orderBy === "created_at"}
                       direction={orderBy === "created_at" ? order : "asc"}
@@ -218,7 +249,7 @@ export default function LearningListDialog({
                       更新日
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell align="right">操作</TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

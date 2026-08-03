@@ -7,6 +7,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import { submitInquiryApi } from "./Api";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface InquiryDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface InquiryDialogProps {
 
 // 未ログインの訪問者でも送信できる、公開のお問い合わせフォーム
 export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
+  const fullScreenDialog = useFullScreenDialog();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -56,7 +58,7 @@ export default function InquiryDialog({ open, onClose }: InquiryDialogProps) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
       <DialogTitle>お問い合わせ</DialogTitle>
       <DialogContent>
         {submitted ? (

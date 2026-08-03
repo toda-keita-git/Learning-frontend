@@ -52,6 +52,7 @@ import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined
 import { listZipEntries, type ZipEntry } from "./zipPreview";
 import { parseAttachments, serializeAttachments, type Attachment } from "./attachments";
 import { parseReferenceUrls, serializeReferenceUrls } from "./referenceUrls";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 // 添付リストに追加済みの1件分（アップロード待ちの内容もここに保持する）
 type PendingAttachment = {
@@ -209,6 +210,8 @@ export default function NewLearningDialog({
   // タッチ操作が主な端末（スマホ等）では、物理キーボードの「Enter」ではなく
   // ソフトキーボードの確定/改行ボタンでの操作になるため、案内文を出し分ける
   const isTouchDevice = useMediaQuery("(pointer: coarse)");
+  // スマホ幅では画面いっぱいに広げ、入力欄を窮屈にしない
+  const fullScreenDialog = useFullScreenDialog();
 
   // ← AuthContext から値を取得（これらは string | null の可能性がある想定）
   const auth = useContext(AuthContext);
@@ -767,6 +770,7 @@ export default function NewLearningDialog({
         onClose={() => handleClose()}
         fullWidth
         maxWidth="md"
+        fullScreen={fullScreenDialog}
         onKeyDown={(e) => {
           // Cmd/Ctrl+Enterで送信（複数行の入力欄でも改行と競合しないように）
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {

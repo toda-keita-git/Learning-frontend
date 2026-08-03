@@ -19,6 +19,7 @@ import ArticleIcon from "@mui/icons-material/Article";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AuthContext } from "../Context";
 import { Octokit } from "@octokit/rest";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface Props {
   open: boolean;
@@ -34,6 +35,7 @@ interface AuthContextType {
 
 const GitHubFileSelector: React.FC<Props> = ({ open, onClose, onFileSelect }) => {
   const { octokit, githubLogin, repoName } = useContext(AuthContext) as AuthContextType;
+  const fullScreenDialog = useFullScreenDialog();
   const [currentPath, setCurrentPath] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<string[]>([]);
@@ -100,7 +102,7 @@ const GitHubFileSelector: React.FC<Props> = ({ open, onClose, onFileSelect }) =>
   return (
     // disableEnforceFocus: 学習内容の登録・編集ダイアログの上に重ねて開かれるため、
     // フォーカストラップの競合で閉じた後に元のダイアログが操作不能になるのを防ぐ
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" disableEnforceFocus>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" disableEnforceFocus fullScreen={fullScreenDialog}>
       <DialogTitle>
         <Box sx={{ display: "flex", alignItems: "center" }}>
           {history.length > 0 && (

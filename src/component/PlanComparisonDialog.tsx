@@ -14,6 +14,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import { useToast } from "../ToastContext";
 import { registerPlanInterestApi, checkPlanInterestApi } from "./Api";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface PlanUsage {
   records: number;
@@ -84,6 +85,7 @@ export default function PlanComparisonDialog({
   usage,
 }: PlanComparisonDialogProps) {
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [requested, setRequested] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -119,7 +121,7 @@ export default function PlanComparisonDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <WorkspacePremiumOutlinedIcon color="primary" /> プラン
       </DialogTitle>

@@ -10,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface LearningAnalyticsItem {
   understanding_level: number | null;
@@ -115,6 +116,7 @@ export default function LearningAnalyticsDialog({
   onClose,
   items,
 }: LearningAnalyticsDialogProps) {
+  const fullScreenDialog = useFullScreenDialog();
   const weekly = useMemo(() => buildWeeklyBuckets(items), [items]);
   const weeklyMax = Math.max(1, ...weekly.map((w) => w.count));
 
@@ -156,7 +158,7 @@ export default function LearningAnalyticsDialog({
       : "-";
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <InsightsOutlinedIcon color="primary" /> 学習分析ダッシュボード
       </DialogTitle>
