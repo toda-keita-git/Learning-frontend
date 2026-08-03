@@ -17,6 +17,8 @@ import {
   Link,
   Divider,
   InputAdornment,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -28,6 +30,8 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import AddIcon from "@mui/icons-material/Add";
 import { Octokit } from "@octokit/rest";
 import { useToast } from "../ToastContext";
 import RepoSelectDialog from "./RepoSelectDialog";
@@ -75,7 +79,12 @@ export default function GitHubFolderSelector({
   const [creatingFile, setCreatingFile] = useState(false);
   const [repoSelectOpen, setRepoSelectOpen] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderSectionRef = useRef<HTMLDivElement>(null);
+  const newFolderNameInputRef = useRef<HTMLInputElement>(null);
+  const fileCreateSectionRef = useRef<HTMLDivElement>(null);
+  const newFileNameInputRef = useRef<HTMLInputElement>(null);
 
   const octokit = useMemo(
     () => new Octokit({ auth: accessToken }),
@@ -339,6 +348,23 @@ export default function GitHubFolderSelector({
     }
   };
 
+  // 「追加」メニューから各作成フォームまでスクロールし、入力欄にフォーカスする。
+  // メニューを閉じた直後は、MUIのMenu自身のフォーカストラップ解除処理と
+  // 競合してfocus()が効かないことがあるため、閉じるアニメーションの完了を
+  // 待ってから実行する
+  const scrollToFolderCreate = () => {
+    setTimeout(() => {
+      folderSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      newFolderNameInputRef.current?.focus();
+    }, 250);
+  };
+  const scrollToFileCreate = () => {
+    setTimeout(() => {
+      fileCreateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      newFileNameInputRef.current?.focus();
+    }, 250);
+  };
+
   const handleUseThisFolder = () => {
     // いま開いているフォルダーを保存先に決定
     setSelectedPath(currentPath);
@@ -417,6 +443,73 @@ export default function GitHubFolderSelector({
           </Typography>
         )}
 
+        {/* 更新・追加ボタン（押しやすいよう一覧のすぐ上に配置） */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, mb: 1 }}>
+          <Tooltip title="一覧を更新">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => loadFolders(currentPath)}
+                disabled={loading}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={(e) => setAddMenuAnchor(e.currentTarget)}
+          >
+            追加
+          </Button>
+          <Menu
+            anchorEl={addMenuAnchor}
+            open={!!addMenuAnchor}
+            onClose={() => setAddMenuAnchor(null)}
+            disableRestoreFocus
+          >
+            <MenuItem
+              onClick={() => {
+                setAddMenuAnchor(null);
+                scrollToFolderCreate();
+              }}
+            >
+              <ListItemIcon>
+                <CreateNewFolderIcon fontSize="small" />
+              </ListItemIcon>
+              新しいフォルダーを作る
+            </MenuItem>
+            {standalone && (
+              <MenuItem
+                onClick={() => {
+                  setAddMenuAnchor(null);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <ListItemIcon>
+                  <UploadFileIcon fontSize="small" />
+                </ListItemIcon>
+                ファイルをアップロード
+              </MenuItem>
+            )}
+            {standalone && (
+              <MenuItem
+                onClick={() => {
+                  setAddMenuAnchor(null);
+                  scrollToFileCreate();
+                }}
+              >
+                <ListItemIcon>
+                  <NoteAddOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                新しいファイルを作る
+              </MenuItem>
+            )}
+          </Menu>
+        </Box>
+
         {/* フォルダ一覧 */}
         <Box
           sx={{
@@ -491,6 +584,7 @@ export default function GitHubFolderSelector({
         <Divider sx={{ my: 2 }} />
 
         {/* 新規作成（今いる場所に作る） */}
+        <Box ref={folderSectionRef}>
         <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
           「{segments.length === 0 ? "ルート" : baseName(currentPath)}」の中に新しいフォルダーを作る
         </Typography>
@@ -504,6 +598,7 @@ export default function GitHubFolderSelector({
             onKeyDown={(e) => {
               if (e.key === "Enter") handleCreateFolder();
             }}
+            inputRef={newFolderNameInputRef}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -520,6 +615,7 @@ export default function GitHubFolderSelector({
           >
             {creating ? "作成中…" : "作成"}
           </Button>
+        </Box>
         </Box>
 
         {standalone && (
@@ -547,6 +643,7 @@ export default function GitHubFolderSelector({
             </Button>
 
             {/* ファイルの新規作成（今いる場所に作る） */}
+            <Box ref={fileCreateSectionRef}>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
               「{segments.length === 0 ? "ルート" : baseName(currentPath)}」に新しいファイルを作る
             </Typography>
@@ -557,6 +654,7 @@ export default function GitHubFolderSelector({
                 placeholder="新しいファイル名（例: memo.md）"
                 value={newFileName}
                 onChange={(e) => setNewFileName(e.target.value)}
+                inputRef={newFileNameInputRef}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -584,6 +682,7 @@ export default function GitHubFolderSelector({
             >
               {creatingFile ? "作成中…" : "ファイルを作成"}
             </Button>
+            </Box>
           </>
         )}
       </DialogContent>
