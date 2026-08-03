@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import UpdateIcon from "@mui/icons-material/Update";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import ArticleIcon from "@mui/icons-material/Article";
 import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -367,6 +368,23 @@ export default function LeftToolBar({
             <UpdateIcon />
           </ListItemIcon>
           <ListItemText primary="最新データ編集" />
+          {onRequestFiles && (
+            <Tooltip title="ファイル一覧を更新">
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={loading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRequestFiles();
+                  }}
+                  sx={{ mr: 0.5 }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
           {open2 ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
 

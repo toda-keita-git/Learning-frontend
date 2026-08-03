@@ -30,7 +30,6 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
 import { Octokit } from "@octokit/rest";
 import { useToast } from "../ToastContext";
@@ -443,19 +442,8 @@ export default function GitHubFolderSelector({
           </Typography>
         )}
 
-        {/* 更新・追加ボタン（押しやすいよう一覧のすぐ上に配置） */}
+        {/* 追加ボタン（押しやすいよう一覧のすぐ上に配置） */}
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, mb: 1 }}>
-          <Tooltip title="一覧を更新">
-            <span>
-              <IconButton
-                size="small"
-                onClick={() => loadFolders(currentPath)}
-                disabled={loading}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
           <Button
             size="small"
             variant="contained"
