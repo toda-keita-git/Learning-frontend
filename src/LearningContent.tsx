@@ -222,6 +222,12 @@ export default function LearningContent() {
   const [learningData, setLearningData] = useState<LearningRecord[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true); // 学習記録の初回取得中フラグ
   const emptyGuideShownRef = useRef(false); // 「まだ記録がありません」案内の二重表示防止
+  // handleSubmitLearning内ではsubmissionDataのlearningDataに同名シャドーイングされるため、
+  // 保存前の件数を別途refで保持し、「これが最初の1件か」の判定に使う
+  const learningRecordCountRef = useRef(0);
+  useEffect(() => {
+    learningRecordCountRef.current = learningData.length;
+  }, [learningData]);
   const planLimitNoticeShownRef = useRef(false); // フリープラン上限の案内の二重表示防止
   // ゲストモードで貯めた記録を、実際のログイン後にインポートするかどうかの確認
   const guestImportPromptShownRef = useRef(false);
@@ -1150,9 +1156,13 @@ export default function LearningContent() {
         await updateLearningApi(finalLearningData.id, finalLearningData);
         systemMessageText = `「${finalLearningData.title}」を更新しました。`;
       } else {
-        // IDがなければ新規作成
+        // IDがなければ新規作成。保存前の件数が0件なら、初めての記録として
+        // 少し特別なメッセージにし、継続（連続記録）への動機づけにする
+        const isFirstEverRecord = learningRecordCountRef.current === 0;
         await createLearningApi(finalLearningData);
-        systemMessageText = `「${finalLearningData.title}」を登録しました。`;
+        systemMessageText = isFirstEverRecord
+          ? `🎉「${finalLearningData.title}」を最初の記録として登録しました！これで連続記録がスタートです。明日も記録して続けてみましょう。`
+          : `「${finalLearningData.title}」を登録しました。`;
       }
 
       // 2. データを再読み込みして最新の状態を反映する
