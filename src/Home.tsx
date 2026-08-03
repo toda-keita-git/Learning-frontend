@@ -37,6 +37,7 @@ import recordDialogEditShot from "./assets/screenshots/record-dialog-edit.webp";
 import recordDialogPreviewShot from "./assets/screenshots/record-dialog-preview.webp";
 import searchResultsShot from "./assets/screenshots/search-results.webp";
 import { isStorageAvailable, detectPlatformHint } from "./component/guestStorage";
+import { loadPersistedSession } from "./component/authStorage";
 
 const features = [
   {
@@ -116,6 +117,9 @@ export default function Home() {
     }
   };
 
+  // 既にGitHubでログイン済みの人には、アカウント登録不要のゲストモード導線は不要
+  const isAlreadyLoggedIn = !!loadPersistedSession();
+
   const platformHint = detectPlatformHint();
   const storageWarningDetail =
     platformHint === "ios"
@@ -161,9 +165,11 @@ export default function Home() {
             >
               使ってみる（GitHubログイン）
             </Button>
-            <Button variant="outlined" size="large" onClick={handleTryGuestMode}>
-              アカウント登録なしで試す
-            </Button>
+            {!isAlreadyLoggedIn && (
+              <Button variant="outlined" size="large" onClick={handleTryGuestMode}>
+                アカウント登録なしで試す
+              </Button>
+            )}
           </Stack>
           <Typography sx={{ mt: 2 }}>
             <Box
