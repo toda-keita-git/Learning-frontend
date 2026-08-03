@@ -66,8 +66,9 @@ import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
-import CreateNewFolderOutlinedIcon from "@mui/icons-material/CreateNewFolderOutlined";
+import TuneIcon from "@mui/icons-material/Tune";
+import UpdateIcon from "@mui/icons-material/Update";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import FilterListOutlinedIcon from "@mui/icons-material/FilterListOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
@@ -2473,44 +2474,23 @@ export default function LearningContent() {
           </Typography>
           <List>
             <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 40 }}><AddCircleOutlineIcon color="primary" /></ListItemIcon>
               <ListItemText
-                primary="新規学習記録"
-                secondary="学んだことを記録します。タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。ファイル添付は、ボタンからの選択のほか、その場にドラッグ&ドロップしても添付できます。"
-              />
-            </ListItem>
-            <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><CategoryOutlinedIcon color="primary" /></ListItemIcon>
-              <ListItemText
-                primary="新規カテゴリー"
-                secondary="学習内容を分類するためのカテゴリを追加します（例：Java、AI、ネットワークなど）。"
-              />
-            </ListItem>
-            <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><CreateNewFolderOutlinedIcon color="primary" /></ListItemIcon>
-              <ListItemText
-                primary="新規フォルダー"
-                secondary="学習ファイルの保存先フォルダーを、あなたのGitHubリポジトリ内に作成・選択します。"
-              />
-            </ListItem>
-            <ListItem alignItems="flex-start">
-              <ListItemIcon sx={{ minWidth: 40 }}><SearchOutlinedIcon color="primary" /></ListItemIcon>
-              <ListItemText
-                primary="ファイル名で検索（左メニュー）"
-                secondary="保存済みのGitHubファイルを、ファイル名で探します。"
+                primary="学んだことを記録する（ヘッダーの「記録する」／スマホ下部ナビ中央の丸ボタン）"
+                secondary="タイトル・カテゴリ・タグ・理解度・参考リンク・GitHub上のコードを紐づけて保存できます。ファイル添付は、ボタンからの選択のほか、その場にドラッグ&ドロップしても添付できます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><SmartToyIcon color="primary" /></ListItemIcon>
               <ListItemText
                 primary="学習内容の検索（下の入力欄）"
-                secondary="タイトルやキーワードを入力して送信すると、記録した学びをチャット形式で検索できます。結果は「詳細を見る」で1件ずつ開けます。"
+                secondary="タイトルやキーワードを入力して送信すると、記録した学びをチャット形式で検索できます。結果は「詳細を見る」で1件ずつ開けます。0件のときは、その場で新しく記録するボタンが出ます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><FilterListOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
-                primary="絞り込み検索（入力欄の左のアイコン）"
+                primary="詳細検索（入力欄左のつまみアイコン／スマホ下部ナビ「検索」）"
                 secondary="カテゴリ・ハッシュタグ・並び順を指定して、条件で絞り込んで検索できます。"
               />
             </ListItem>
@@ -2531,7 +2511,7 @@ export default function LearningContent() {
             <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><TableRowsIcon color="primary" /></ListItemIcon>
               <ListItemText
-                primary="一覧表示（左メニュー）"
+                primary="一覧表示（左メニュー／スマホ下部ナビ「一覧」）"
                 secondary="記録をまとめて見比べられます。PCではテーブル表示のほか、カテゴリーごとに列を分けたボード（カンバン）表示にも切り替えられます。"
               />
             </ListItem>
@@ -2557,9 +2537,30 @@ export default function LearningContent() {
               />
             </ListItem>
             <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><TuneIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="カテゴリー・タグの管理（左メニュー）"
+                secondary="学習内容を分類するカテゴリーやタグを追加・編集・削除します。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><UpdateIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="最新データ編集（左メニュー）"
+                secondary="GitHubリポジトリ内のファイルを、ファイル名で検索して開けます。左側のアイコンをタップすると一覧を最新の状態に更新します。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
+              <ListItemIcon sx={{ minWidth: 40 }}><WorkspacePremiumOutlinedIcon color="primary" /></ListItemIcon>
+              <ListItemText
+                primary="プラン（左メニュー）"
+                secondary="フリープランとProプランの違いを確認できます。"
+              />
+            </ListItem>
+            <ListItem alignItems="flex-start">
               <ListItemIcon sx={{ minWidth: 40 }}><MenuBookOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
-                primary="今日の復習（間隔反復）"
+                primary="今日の復習（ヘッダーの「今日の復習」／スマホ下部ナビ「復習」）"
                 secondary="「わかった/まだ」の回答に応じて、次に復習すべき日を自動計算します（Ankiなどと同じ考え方）。わかった内容は次回までの間隔が伸び、まだの内容は翌日にまた出てきます。メモの中で覚えたい語句を[[ ]]で囲むと、復習時にその箇所だけを隠して穴埋めクイズのように確認できます。カテゴリー・タグで復習内容を絞り込んでから、スキマ時間に合わせた件数で始められます。"
               />
             </ListItem>
