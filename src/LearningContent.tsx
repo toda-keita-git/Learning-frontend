@@ -2519,7 +2519,7 @@ export default function LearningContent() {
               <ListItemIcon sx={{ minWidth: 40 }}><HubOutlinedIcon color="primary" /></ListItemIcon>
               <ListItemText
                 primary="学びのつながり（左メニュー）"
-                secondary="タグ・カテゴリー・タイトルの共通点をもとに、記録同士のつながりをネットワーク図として可視化します。丸をクリックするとその記録を開けます。"
+                secondary="タグ・カテゴリー・タイトルの共通点をもとに、記録同士のつながりをネットワーク図として可視化します。丸をクリックするとその記録を開けます。「今日やること」に、他の記録とつながりの無い記録が一覧表示され、そこからタグを追加してつなげられます。"
               />
             </ListItem>
             <ListItem alignItems="flex-start">
