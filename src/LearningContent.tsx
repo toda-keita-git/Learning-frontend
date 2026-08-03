@@ -1399,7 +1399,8 @@ export default function LearningContent() {
     const dueItems = reviewableItems.filter((item) => isDue(userId, item.id));
     const pool = dueItems.length > 0 ? dueItems : reviewableItems;
 
-    // 件数は絞らず並べ替えだけ行い、実際に何件やるかはスキマ時間の選択(ReviewFlashcards側)に委ねる
+    // 件数は絞らず並べ替えだけ行い、実際に何件・どのカテゴリー/タグをやるかは
+    // ReviewFlashcards側の絞り込み・スキマ時間の選択に委ねる
     const candidates = pool
       .map((item) => ({ item, card: getCard(userId, item.id) }))
       .sort((a, b) => {
@@ -1408,8 +1409,7 @@ export default function LearningContent() {
         if (dateCompare !== 0) return dateCompare;
         return (a.item.understanding_level ?? 3) - (b.item.understanding_level ?? 3);
       })
-      .map((x) => x.item)
-      .slice(0, 20);
+      .map((x) => x.item);
     setReviewItems(candidates);
     setReviewOpen(true);
   };

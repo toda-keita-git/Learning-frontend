@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -9,6 +9,8 @@ import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import LinearProgress from "@mui/material/LinearProgress";
 import IconButton from "@mui/material/IconButton";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import CloseIcon from "@mui/icons-material/Close";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
@@ -53,6 +55,9 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
   const startX = useRef<number | null>(null);
   // スキマ時間モード: 何件やるかをまだ選んでいなければnull（選択画面を出す）
   const [sessionSize, setSessionSize] = useState<number | null>(null);
+  // 復習する内容の絞り込み（カテゴリー・タグ）
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
 
   // 開くたびに最初のカードから
   useEffect(() => {
@@ -61,11 +66,33 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
       setRevealed(false);
       setDragX(0);
       setSessionSize(null);
+      setFilterCategory(null);
+      setFilterTags([]);
     }
   }, [open]);
 
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.category_name).filter(Boolean))).sort(),
+    [items]
+  );
+  const tagOptions = useMemo(
+    () => Array.from(new Set(items.flatMap((i) => i.tags))).sort(),
+    [items]
+  );
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          (!filterCategory || i.category_name === filterCategory) &&
+          (filterTags.length === 0 || filterTags.every((t) => i.tags.includes(t)))
+      ),
+    [items, filterCategory, filterTags]
+  );
+
   const sessionItems =
-    sessionSize === null ? [] : items.slice(0, sessionSize);
+    sessionSize === null ? [] : filteredItems.slice(0, sessionSize);
   const total = sessionItems.length;
   const current = sessionItems[index];
   const done = index >= total;
@@ -144,29 +171,78 @@ export default function ReviewFlashcards({ open, onClose, items, onRate }: Props
             <Typography variant="caption" sx={{ color: "text.secondary", mb: 3, display: "block" }}>
               スキマ時間に合わせて件数を調整します（理解度が低いものから優先）
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 260, mx: "auto" }}>
-              {TIME_PRESETS.map((preset) => {
-                const count = Math.min(preset.count, items.length);
-                return (
-                  <Button
-                    key={preset.label}
-                    variant="outlined"
-                    onClick={() => setSessionSize(count)}
-                    sx={{ justifyContent: "space-between" }}
-                    endIcon={
-                      <Chip
-                        component="span"
-                        size="small"
-                        label={`${count}件`}
-                        sx={{ ml: 1 }}
-                      />
-                    }
-                  >
-                    {preset.label}
-                  </Button>
-                );
-              })}
-            </Box>
+
+            {/* 復習する内容の絞り込み */}
+            {(categoryOptions.length > 0 || tagOptions.length > 0) && (
+              <Box sx={{ maxWidth: 340, mx: "auto", mb: 3, textAlign: "left" }}>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, display: "block", mb: 1 }}>
+                  復習する内容を絞り込む（任意）
+                </Typography>
+                {categoryOptions.length > 0 && (
+                  <Autocomplete
+                    size="small"
+                    options={categoryOptions}
+                    value={filterCategory}
+                    onChange={(_, v) => setFilterCategory(v)}
+                    renderInput={(params) => (
+                      <TextField {...params} label="カテゴリー" placeholder="すべて" />
+                    )}
+                    sx={{ mb: 1.5 }}
+                  />
+                )}
+                {tagOptions.length > 0 && (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                    {tagOptions.map((tag) => {
+                      const selected = filterTags.includes(tag);
+                      return (
+                        <Chip
+                          key={tag}
+                          label={`#${tag}`}
+                          size="small"
+                          color={selected ? "primary" : "default"}
+                          variant={selected ? "filled" : "outlined"}
+                          onClick={() =>
+                            setFilterTags((prev) =>
+                              selected ? prev.filter((t) => t !== tag) : [...prev, tag]
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {filteredItems.length === 0 ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                この条件に一致する復習対象はありません。絞り込みを変えてお試しください。
+              </Typography>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 260, mx: "auto" }}>
+                {TIME_PRESETS.map((preset) => {
+                  const count = Math.min(preset.count, filteredItems.length);
+                  return (
+                    <Button
+                      key={preset.label}
+                      variant="outlined"
+                      onClick={() => setSessionSize(count)}
+                      sx={{ justifyContent: "space-between" }}
+                      endIcon={
+                        <Chip
+                          component="span"
+                          size="small"
+                          label={`${count}件`}
+                          sx={{ ml: 1 }}
+                        />
+                      }
+                    >
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </Box>
+            )}
           </Box>
         ) : done ? (
           <Box sx={{ textAlign: "center", py: 6 }}>
