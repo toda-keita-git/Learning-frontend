@@ -21,6 +21,9 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import InputAdornment from "@mui/material/InputAdornment";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import Divider from "@mui/material/Divider";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -66,6 +69,18 @@ interface LearningListDialogProps {
 type OrderBy = "title" | "category_name" | "understanding_level" | "created_at";
 type Order = "asc" | "desc";
 
+// スマホ表示（メール風の一覧）では列見出しでのソートができないため、
+// 代わりに選べる並び替えメニューを用意する
+const SORT_OPTIONS: { value: string; orderBy: OrderBy; order: Order; label: string }[] = [
+  { value: "created_desc", orderBy: "created_at", order: "desc", label: "更新日が新しい順" },
+  { value: "created_asc", orderBy: "created_at", order: "asc", label: "更新日が古い順" },
+  { value: "title_asc", orderBy: "title", order: "asc", label: "タイトル（昇順）" },
+  { value: "title_desc", orderBy: "title", order: "desc", label: "タイトル（降順）" },
+  { value: "level_desc", orderBy: "understanding_level", order: "desc", label: "理解度が高い順" },
+  { value: "level_asc", orderBy: "understanding_level", order: "asc", label: "理解度が低い順" },
+  { value: "category_asc", orderBy: "category_name", order: "asc", label: "カテゴリー順" },
+];
+
 const formatDate = (value: string) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
@@ -104,6 +119,9 @@ export default function LearningListDialog({
     return Array.from(names);
   }, [items]);
   const showRepoFilter = repoOptions.length >= 2;
+
+  const currentSortValue =
+    SORT_OPTIONS.find((o) => o.orderBy === orderBy && o.order === order)?.value ?? "created_desc";
 
   const handleSort = (column: OrderBy) => {
     if (orderBy === column) {
@@ -185,6 +203,24 @@ export default function LearningListDialog({
               renderInput={(params) => <TextField {...params} label="リポジトリ" />}
             />
           )}
+          {fullScreenDialog && (
+            <Autocomplete
+              size="small"
+              sx={{ minWidth: 200 }}
+              options={SORT_OPTIONS.map((o) => o.value)}
+              getOptionLabel={(value) => SORT_OPTIONS.find((o) => o.value === value)?.label ?? value}
+              value={currentSortValue}
+              onChange={(_event, newValue) => {
+                const option = SORT_OPTIONS.find((o) => o.value === newValue);
+                if (option) {
+                  setOrderBy(option.orderBy);
+                  setOrder(option.order);
+                }
+              }}
+              disableClearable
+              renderInput={(params) => <TextField {...params} label="並び替え" />}
+            />
+          )}
           {onAddNew && (
             <Button
               variant="contained"
@@ -201,6 +237,115 @@ export default function LearningListDialog({
           <Typography sx={{ color: "text.secondary", textAlign: "center", py: 4 }}>
             条件に一致する学習記録がありません。
           </Typography>
+        ) : fullScreenDialog ? (
+          // スマホ幅: 表ではなく、メールアプリの受信トレイのような1件1行のリストにする
+          // （件名＝タイトル、プレビュー＝本文の先頭、右上に日時）。行をタップすると編集画面が開く
+          <List disablePadding>
+            {filteredSorted.map((item, index) => (
+              <Box key={item.id}>
+                <ListItemButton
+                  onClick={() => onEdit(item.id)}
+                  sx={{ alignItems: "flex-start", py: 1.5, flexDirection: "column" }}
+                >
+                  <Box sx={{ display: "flex", width: "100%", gap: 1 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 700,
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary", whiteSpace: "nowrap", flexShrink: 0, mt: 0.25 }}
+                    >
+                      {formatDate(item.created_at)}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
+                    {item.category_name && (
+                      <Chip label={item.category_name} size="small" color="primary" />
+                    )}
+                    {item.understanding_level != null && (
+                      <Rating value={item.understanding_level} readOnly size="small" />
+                    )}
+                  </Box>
+
+                  {item.explanatory_text && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        mt: 0.5,
+                        width: "100%",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {item.explanatory_text}
+                    </Typography>
+                  )}
+
+                  {item.tags.length > 0 && (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
+                      {item.tags.map((tag) => (
+                        <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+                      ))}
+                    </Box>
+                  )}
+
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5, mt: 0.75, width: "100%" }}>
+                    {parseAttachments(item.github_path, item.commit_sha).map((att, attIndex) => (
+                      <Tooltip key={`${att.path}-${attIndex}`} title={`ファイルを見る（${att.path.split("/").pop()}）`}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewFile(att.path, att.sha);
+                          }}
+                        >
+                          <DescriptionOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    ))}
+                    {onPublish && (
+                      <Tooltip title="記事化">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPublish(item);
+                          }}
+                        >
+                          <ArticleOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="削除">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(item.id);
+                        }}
+                      >
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </ListItemButton>
+                {index < filteredSorted.length - 1 && <Divider />}
+              </Box>
+            ))}
+          </List>
         ) : (
           <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480 }}>
             {/* minWidthを指定し、狭い画面では列を潰さず横スクロールさせる
