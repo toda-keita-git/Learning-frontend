@@ -24,12 +24,16 @@ import InputAdornment from "@mui/material/InputAdornment";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import Divider from "@mui/material/Divider";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import ToggleButton from "@mui/material/ToggleButton";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import TableRowsIcon from "@mui/icons-material/TableRows";
+import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
 import { parseAttachments } from "./attachments";
 import { useFullScreenDialog } from "./useFullScreenDialog";
 
@@ -109,6 +113,8 @@ export default function LearningListDialog({
   const [repoFilter, setRepoFilter] = useState("all");
   const [orderBy, setOrderBy] = useState<OrderBy>("created_at");
   const [order, setOrder] = useState<Order>("desc");
+  // 表示モード（PCのみ切り替え可能。スマホは常にメール風リスト）
+  const [viewMode, setViewMode] = useState<"table" | "board">("table");
 
   // 複数のリポジトリを使い分けている場合だけ、リポジトリ絞り込みを表示する
   // （無料版は常に1つしか使わないため、自然にPro版だけの導線になる）
@@ -161,6 +167,19 @@ export default function LearningListDialog({
 
     return rows;
   }, [items, searchText, categoryFilter, repoFilter, orderBy, order]);
+
+  // ボード表示用：カテゴリーごとに列を作る（列自体は定義済みカテゴリーを基準にし、
+  // 絞り込みで一時的に0件になっても列が消えたり並びが変わったりしないようにする）
+  const UNCATEGORIZED = "未分類";
+  const boardColumns = useMemo(() => {
+    const columnNames = [...categories.map((c) => c.name), UNCATEGORIZED];
+    return columnNames.map((name) => ({
+      name,
+      items: filteredSorted.filter((item) =>
+        name === UNCATEGORIZED ? !item.category_name : item.category_name === name
+      ),
+    }));
+  }, [categories, filteredSorted]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreenDialog}>
@@ -220,6 +239,28 @@ export default function LearningListDialog({
               disableClearable
               renderInput={(params) => <TextField {...params} label="並び替え" />}
             />
+          )}
+          {!fullScreenDialog && (
+            <ToggleButtonGroup
+              size="small"
+              value={viewMode}
+              exclusive
+              onChange={(_event, newValue) => {
+                if (newValue) setViewMode(newValue);
+              }}
+              sx={{ flexShrink: 0 }}
+            >
+              <ToggleButton value="table" aria-label="テーブル表示">
+                <Tooltip title="テーブル表示">
+                  <TableRowsIcon fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="board" aria-label="ボード表示">
+                <Tooltip title="ボード表示（カテゴリー別）">
+                  <ViewKanbanOutlinedIcon fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+            </ToggleButtonGroup>
           )}
           {onAddNew && (
             <Button
@@ -346,6 +387,88 @@ export default function LearningListDialog({
               </Box>
             ))}
           </List>
+        ) : viewMode === "board" ? (
+          // ボード表示：カテゴリーごとに列を分けて、記録をカードとして並べる
+          // （Notionのボードビューのように、偏りや進捗を一目で把握できるようにする）
+          <Box sx={{ display: "flex", gap: 1.5, overflowX: "auto", pb: 1 }}>
+            {boardColumns.map((col) => (
+              <Box
+                key={col.name}
+                sx={{
+                  flex: "0 0 260px",
+                  width: 260,
+                  display: "flex",
+                  flexDirection: "column",
+                  bgcolor: "action.hover",
+                  borderRadius: 2,
+                  maxHeight: 480,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    px: 1.5,
+                    py: 1,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                    {col.name}
+                  </Typography>
+                  <Chip label={col.items.length} size="small" />
+                </Box>
+                <Box sx={{ p: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+                  {col.items.length === 0 ? (
+                    <Typography variant="caption" sx={{ color: "text.disabled", textAlign: "center", py: 2 }}>
+                      記録なし
+                    </Typography>
+                  ) : (
+                    col.items.map((item) => (
+                      <Paper
+                        key={item.id}
+                        variant="outlined"
+                        onClick={() => onEdit(item.id)}
+                        sx={{
+                          p: 1.25,
+                          cursor: "pointer",
+                          "&:hover": { borderColor: "primary.main" },
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
+                        {item.understanding_level != null && (
+                          <Rating value={item.understanding_level} readOnly size="small" sx={{ mt: 0.5 }} />
+                        )}
+                        {item.tags.length > 0 && (
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                            {item.tags.slice(0, 3).map((tag) => (
+                              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+                            ))}
+                          </Box>
+                        )}
+                        <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5 }}>
+                          {formatDate(item.created_at)}
+                        </Typography>
+                      </Paper>
+                    ))
+                  )}
+                </Box>
+              </Box>
+            ))}
+          </Box>
         ) : (
           <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480 }}>
             {/* minWidthを指定し、狭い画面では列を潰さず横スクロールさせる
