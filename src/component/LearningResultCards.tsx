@@ -52,6 +52,9 @@ interface LearningResultCardsProps {
   onOpenRelated?: (id: number) => void;
   // 記事化プレビューを開く（省略時は「記事化」ボタン自体を出さない）
   onPublish?: (item: LearningResultItem) => void;
+  // 0件だったときに、行き止まりにせず次の行動へ誘導するボタン（省略時は出さない）
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
 }
 
 /** 検索・タグ絞り込み結果を、システムメッセージの一部としてカード一覧で表示する */
@@ -67,6 +70,8 @@ export default function LearningResultCards({
   onRateChange,
   onOpenRelated,
   onPublish,
+  emptyActionLabel,
+  onEmptyAction,
 }: LearningResultCardsProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   // itemsは検索実行時点のスナップショットで、親側で理解度が更新されても再取得するまで
@@ -107,9 +112,16 @@ export default function LearningResultCards({
         </Typography>
 
         {items.length === 0 ? (
-          <Typography variant="body2" sx={{ color: "text.secondary", ml: 0.5 }}>
-            {emptyText}
-          </Typography>
+          <Box sx={{ ml: 0.5 }}>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: onEmptyAction ? 1 : 0 }}>
+              {emptyText}
+            </Typography>
+            {onEmptyAction && emptyActionLabel && (
+              <Button size="small" variant="outlined" onClick={onEmptyAction}>
+                {emptyActionLabel}
+              </Button>
+            )}
+          </Box>
         ) : (
           <Stack spacing={1.25}>
             {items.map((item) => {

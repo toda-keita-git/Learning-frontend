@@ -208,6 +208,9 @@ type Message = {
   cards?: LearningRecord[];
   // 案内メッセージから直接次の行動に進めるための、任意のアクションボタン
   action?: { label: string; onClick: () => void };
+  // 検索結果が0件だったときに表示する行動導線（cardsメッセージ専用）
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
 };
 
 
@@ -1346,12 +1349,27 @@ export default function LearningContent() {
     // 4. 結果をソート
     results = sortLearningRecords(results, searchFilters.sort);
 
-    // 5. 結果メッセージを生成（カード描画は共通関数へ）
-    postResultCards(results, `🔎 検索結果: ${results.length}件`);
+    // 5. 結果メッセージを生成（カード描画は共通関数へ）。
+    // フリーワード検索で0件だった場合は、そのキーワードをタイトルにして
+    // その場で新しく記録できる導線を出す（行き止まりにしない）
+    postResultCards(
+      results,
+      `🔎 検索結果: ${results.length}件`,
+      trimmedQuery
+        ? {
+            emptyActionLabel: `「${trimmedQuery}」で新しく記録する`,
+            onEmptyAction: () => openNewLearningDialogWithTitle(trimmedQuery),
+          }
+        : undefined
+    );
   };
 
   // 学習記録の配列を、検索結果カードとしてチャットに投稿する共通処理
-  const postResultCards = (results: LearningRecord[], header: string) => {
+  const postResultCards = (
+    results: LearningRecord[],
+    header: string,
+    emptyAction?: { emptyActionLabel: string; onEmptyAction: () => void }
+  ) => {
     setTimeout(() => {
       const searchResultMessage: Message = {
         id: Date.now() + 1,
@@ -1363,6 +1381,8 @@ export default function LearningContent() {
         type: "left",
         displayName: "システム",
         cards: results,
+        emptyActionLabel: emptyAction?.emptyActionLabel,
+        onEmptyAction: emptyAction?.onEmptyAction,
       };
       setMessages((prev) => [...prev, searchResultMessage]);
     }, 500);
@@ -1532,6 +1552,15 @@ export default function LearningContent() {
   const openNewLearningDialog = () => {
     setEditingItem(null);
     setSharePrefill(null); // 共有の初期値が残らないようにする
+    localStorage.removeItem("sharePrefillPending");
+    setOpenNewDialog(true);
+  };
+
+  // 検索結果が0件だったときの「この内容で新しく記録する」導線用に、
+  // タイトルだけ入力済みの状態でダイアログを開く
+  const openNewLearningDialogWithTitle = (title: string) => {
+    setEditingItem(null);
+    setSharePrefill({ title });
     localStorage.removeItem("sharePrefillPending");
     setOpenNewDialog(true);
   };
@@ -2011,6 +2040,8 @@ export default function LearningContent() {
                     onRateChange={handleRateChange}
                     onOpenRelated={openEditDialog}
                     onPublish={setPublishingItem}
+                    emptyActionLabel={msg.emptyActionLabel}
+                    onEmptyAction={msg.onEmptyAction}
                   />
                 ) : (
                   <MessageLeft
