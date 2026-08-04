@@ -30,7 +30,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import ChecklistIcon from "@mui/icons-material/Checklist";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -192,7 +192,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   }, [notes, selectedPlanId, plans]);
   const currentStreak = useMemo(() => calculateStreakStats(streakDates), [streakDates]);
 
-  // ---- 今日の復習（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
+  // ---- ToDoリスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
   const dueRoutineNotes = useMemo(
     () => routineNotes.filter((n) => isRoutineDue(userId, n.id, n.review_interval_days)),
@@ -477,7 +477,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         ) : bottomTab === "review" ? (
           <Stack spacing={3}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              今日の復習
+              ToDoリスト
             </Typography>
 
             {routineTodoNotes.length === 0 ? (
@@ -808,11 +808,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <BottomNavigationAction label="プラン" value="plans" icon={<FlagOutlinedIcon />} />
           <BottomNavigationAction label="メモ" value="library" icon={<DescriptionOutlinedIcon />} />
           <BottomNavigationAction
-            label="復習"
+            label="ToDo"
             value="review"
             icon={
               <Badge badgeContent={dueRoutineNotes.length} color="error">
-                <MenuBookOutlinedIcon />
+                <ChecklistIcon />
               </Badge>
             }
           />

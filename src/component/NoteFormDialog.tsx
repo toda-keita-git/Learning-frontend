@@ -376,7 +376,7 @@ export default function NoteFormDialog({
 
           <div>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              繰り返し（「今日の復習」タブにやることとして表示）
+              繰り返し（「ToDoリスト」タブにやることとして表示）
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" alignItems="center" sx={{ rowGap: 0.75 }}>
               <Chip
