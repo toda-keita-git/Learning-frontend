@@ -243,7 +243,9 @@ export const guestPlanDataSource: PlanDataSource = {
       throw new Error(`ゲストモードではプランは${GUEST_PLAN_LIMIT}件までです。GitHubでログインすると無制限に作成できます。`);
     }
     const nextSortOrder = Math.max(-1, ...plans.filter((p) => p.parent_id === data.parent_id).map((p) => p.sort_order)) + 1;
-    save(PLANS_KEY, [...plans, toPlan(nextId(), nextSortOrder, data)]);
+    const id = nextId();
+    save(PLANS_KEY, [...plans, toPlan(id, nextSortOrder, data)]);
+    return id;
   },
 
   async updatePlan(id, data) {

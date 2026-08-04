@@ -267,9 +267,10 @@ export const plansApi = async (): Promise<Plan[]> => {
   return response.data;
 };
 
-export const createPlanApi = async (data: PlanInput) => {
-  const response = await axios.post("/plan_insert", data);
-  return response.data;
+// 戻り値は新規作成したプランのid（ドラッグでメモから新規プランを作った直後、続けてlinkNoteApiを呼ぶために使う）
+export const createPlanApi = async (data: PlanInput): Promise<number> => {
+  const response = await axios.post<{ id: number }>("/plan_insert", data);
+  return response.data.id;
 };
 
 export const updatePlanApi = async (id: number, data: PlanInput) => {

@@ -31,7 +31,8 @@ export interface PlanDataBundle {
 
 export interface PlanDataSource {
   fetchAll(): Promise<PlanDataBundle>;
-  createPlan(data: PlanInput): Promise<void>;
+  // 戻り値は新規作成したプランのid（ドラッグでメモから新規プランを作った直後の自動リンクに使う）
+  createPlan(data: PlanInput): Promise<number>;
   updatePlan(id: number, data: PlanInput): Promise<void>;
   reparentPlan(id: number, parentId: number | null): Promise<void>;
   reorderPlans(items: { id: number; sort_order: number }[]): Promise<void>;
@@ -63,7 +64,7 @@ export const apiPlanDataSource: PlanDataSource = {
     };
   },
   async createPlan(data) {
-    await createPlanApi(data);
+    return createPlanApi(data);
   },
   async updatePlan(id, data) {
     await updatePlanApi(id, data);

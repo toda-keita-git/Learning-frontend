@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
+import type { ReactNode, HTMLAttributes, PointerEvent as ReactPointerEvent } from "react";
 import axios from "axios";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -34,6 +34,7 @@ import ChecklistIcon from "@mui/icons-material/Checklist";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import Badge from "@mui/material/Badge";
 import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
@@ -49,7 +50,10 @@ import type { Plan, Note, NoteInput, PlanInput, CategoryOption, NoteAttachment }
 import { PLAN_STATUS_LABEL } from "./component/PlanTypes";
 import ProgressBadge from "./component/ProgressBadge";
 import PlanFormDialog from "./component/PlanFormDialog";
-import PlanList from "./component/PlanList";
+import PlanTree from "./component/PlanTree";
+import NoteTray from "./component/NoteTray";
+import DragHintTooltip from "./component/DragHintTooltip";
+import { maybeAutoScrollWindow } from "./component/dragAutoScroll";
 import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
@@ -92,6 +96,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [createParentId, setCreateParentId] = useState<number | null>(null);
+  // メモをドラッグして「新しいプランとして保存」した場合、作成成功後にこのメモをリンクする
+  const [pendingLinkNoteId, setPendingLinkNoteId] = useState<number | null>(null);
 
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -104,13 +110,26 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [graphOpen, setGraphOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
 
-  // メモトレイ⇄タイムライン間のドラッグ（Pointer Events）
+  // 統合ボード（プランツリー）の展開状態。既定はすべて展開＝ドリルダウンせずに全体が見える
+  const [collapsedPlanIds, setCollapsedPlanIds] = useState<Set<number>>(new Set());
+  const isExpanded = (id: number) => !collapsedPlanIds.has(id);
+  const toggleExpand = (id: number) =>
+    setCollapsedPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // メモトレイからプラン行（またはプラン新規作成ゾーン）へのドラッグ（Pointer Events）
   const [draggingNoteId, setDraggingNoteId] = useState<number | null>(null);
-  const longPressTimer = useRef<number | null>(null);
-  const startPos = useRef<{ x: number; y: number } | null>(null);
-  const timelineRef = useRef<HTMLDivElement | null>(null);
-  const trayRef = useRef<HTMLDivElement | null>(null);
-  const [dropZone, setDropZone] = useState<"timeline" | "tray" | null>(null);
+  const [noteDragPointer, setNoteDragPointer] = useState<{ x: number; y: number } | null>(null);
+  const [noteHoverPlanId, setNoteHoverPlanId] = useState<number | null>(null);
+  const [noteHoverCreateZone, setNoteHoverCreateZone] = useState(false);
+  const noteLongPressTimer = useRef<number | null>(null);
+  const noteStartPos = useRef<{ x: number; y: number } | null>(null);
+  const noteRafId = useRef<number | null>(null);
+  const notePendingPoint = useRef<{ x: number; y: number } | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -175,13 +194,6 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
   const notesLinkedTo = (planId: number) =>
     notes.filter((n) => n.links.includes(planId)).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  const trayNotes = useMemo(() => {
-    if (selectedPlanId === null) return [];
-    return notes
-      .filter((n) => !n.links.includes(selectedPlanId))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [notes, selectedPlanId]);
 
   // ストリークは、このプラン＋子孫プランにリンクされたメモも含めて集計する
   const streakDates = useMemo(() => {
@@ -256,9 +268,15 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         await dataSource.updatePlan(editingPlan.id, data);
         showToast("プランを更新しました。", "success");
       } else {
-        await dataSource.createPlan(data);
-        showToast("プランを作成しました。", "success");
+        const newId = await dataSource.createPlan(data);
+        if (pendingLinkNoteId !== null) {
+          await dataSource.linkNote(pendingLinkNoteId, newId);
+          showToast("プランを作成し、メモをリンクしました。", "success");
+        } else {
+          showToast("プランを作成しました。", "success");
+        }
       }
+      setPendingLinkNoteId(null);
       await fetchAll();
     } catch (err) {
       showToast(errorMessage(err, "プランの保存に失敗しました。"), "error");
@@ -266,22 +284,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     }
   };
 
-  const handleReorderPlans = async (orderedIds: number[]) => {
-    setPlans((prev) => {
-      const orderById = new Map(orderedIds.map((id, index) => [id, index]));
-      return prev.map((p) => (orderById.has(p.id) ? { ...p, sort_order: orderById.get(p.id)! } : p));
-    });
-    try {
-      await dataSource.reorderPlans(orderedIds.map((id, index) => ({ id, sort_order: index })));
-      await fetchAll();
-    } catch (err) {
-      console.error(err);
-      showToast(errorMessage(err, "並べ替えの保存に失敗しました。"), "error");
-      fetchAll();
-    }
-  };
-
-  const handleReparentPlan = async (id: number, newParentId: number) => {
+  const handleReparentPlan = async (id: number, newParentId: number | null) => {
     try {
       await dataSource.reparentPlan(id, newParentId);
       showToast("プランを移動しました。", "success");
@@ -292,17 +295,40 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     }
   };
 
-  const handlePromotePlan = async (id: number) => {
-    const targetParentId = selectedPlan ? selectedPlan.parent_id : null;
+  // 統合ボードはどのプランでも同じ行として並べて表示するため、ドロップ先が別の親の兄弟内でも
+  // 「そこへ移動しつつ順番も合わせる」を1操作でできるようにする（自由に動かせる、が今回の要件）
+  const handlePlanDrop = async (draggedId: number, targetId: number, mode: "before" | "after" | "nest") => {
+    if (mode === "nest") {
+      await handleReparentPlan(draggedId, targetId);
+      return;
+    }
+    const dragged = planById.get(draggedId);
+    const target = planById.get(targetId);
+    if (!dragged || !target) return;
+    const newParentId = target.parent_id;
+    const reparenting = newParentId !== dragged.parent_id;
+    const siblings = plans
+      .filter((p) => p.parent_id === newParentId && p.id !== draggedId)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const targetIndex = siblings.findIndex((p) => p.id === targetId);
+    const orderedIds = siblings.map((p) => p.id);
+    orderedIds.splice(mode === "before" ? targetIndex : targetIndex + 1, 0, draggedId);
+
     try {
-      await dataSource.reparentPlan(id, targetParentId);
-      showToast("プランを移動しました。", "success");
+      if (reparenting) {
+        await dataSource.reparentPlan(draggedId, newParentId);
+      }
+      await dataSource.reorderPlans(orderedIds.map((id, index) => ({ id, sort_order: index })));
       await fetchAll();
     } catch (err) {
       console.error(err);
-      showToast(errorMessage(err, "プランの移動に失敗しました。"), "error");
+      showToast(errorMessage(err, "並べ替えに失敗しました。"), "error");
+      fetchAll();
     }
   };
+
+  // どの画面から操作しても「ルート＝独立した目標」に戻す、という意味は変わらない
+  const handlePromotePlan = (id: number) => handleReparentPlan(id, null);
 
   // ---- メモ ----
   const handleSaveNote = async (data: NoteInput) => {
@@ -378,60 +404,98 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     }
   };
 
-  // ---- メモトレイ⇄タイムラインのドラッグ ----
-  const clearLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  // ---- メモをドラッグして「プランへリンク」または「新しいプランとして保存」 ----
+  const clearNoteLongPress = () => {
+    if (noteLongPressTimer.current !== null) {
+      window.clearTimeout(noteLongPressTimer.current);
+      noteLongPressTimer.current = null;
     }
   };
 
-  const noteDragProps = (note: Note) => ({
-    style: { cursor: "grab", touchAction: draggingNoteId !== null ? ("none" as const) : ("auto" as const) },
+  const handleCreatePlanFromNote = (note: Note) => {
+    setPendingLinkNoteId(note.id);
+    setEditingPlan(null);
+    setCreateParentId(null);
+    setPlanDialogOpen(true);
+  };
+
+  const processNoteMove = () => {
+    noteRafId.current = null;
+    const point = notePendingPoint.current;
+    if (!point) return;
+    maybeAutoScrollWindow(point.y);
+    const hitEl = document.elementFromPoint(point.x, point.y);
+    if (hitEl?.closest('[data-drop-create-plan="true"]')) {
+      setNoteHoverCreateZone(true);
+      setNoteHoverPlanId(null);
+      return;
+    }
+    setNoteHoverCreateZone(false);
+    const row = hitEl?.closest("[data-plan-id]") as HTMLElement | null;
+    setNoteHoverPlanId(row ? Number(row.dataset.planId) : null);
+  };
+
+  const noteDragPropsFor = (note: Note): HTMLAttributes<HTMLDivElement> => ({
+    style: { touchAction: draggingNoteId !== null ? ("none" as const) : ("auto" as const) },
     onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
-      startPos.current = { x: e.clientX, y: e.clientY };
-      clearLongPress();
+      noteStartPos.current = { x: e.clientX, y: e.clientY };
+      clearNoteLongPress();
       const pointerId = e.pointerId;
       const target = e.currentTarget;
-      longPressTimer.current = window.setTimeout(() => {
+      const point = { x: e.clientX, y: e.clientY };
+      noteLongPressTimer.current = window.setTimeout(() => {
         setDraggingNoteId(note.id);
+        setNoteDragPointer(point);
         target.setPointerCapture(pointerId);
       }, LONG_PRESS_MS);
     },
     onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (startPos.current && draggingNoteId === null) {
-        const dx = Math.abs(e.clientX - startPos.current.x);
-        const dy = Math.abs(e.clientY - startPos.current.y);
-        if (dx > 8 || dy > 8) clearLongPress();
+      if (noteStartPos.current && draggingNoteId === null) {
+        const dx = Math.abs(e.clientX - noteStartPos.current.x);
+        const dy = Math.abs(e.clientY - noteStartPos.current.y);
+        if (dx > 8 || dy > 8) clearNoteLongPress();
         return;
       }
       if (draggingNoteId === null) return;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const zone = el?.closest("[data-drop-zone]") as HTMLElement | null;
-      setDropZone((zone?.dataset.dropZone as "timeline" | "tray" | undefined) ?? null);
+      notePendingPoint.current = { x: e.clientX, y: e.clientY };
+      setNoteDragPointer({ x: e.clientX, y: e.clientY });
+      if (noteRafId.current === null) {
+        noteRafId.current = requestAnimationFrame(processNoteMove);
+      }
     },
     onPointerUp: () => {
-      clearLongPress();
-      if (draggingNoteId !== null && dropZone && selectedPlanId !== null) {
+      clearNoteLongPress();
+      if (noteRafId.current !== null) {
+        cancelAnimationFrame(noteRafId.current);
+        noteRafId.current = null;
+      }
+      if (draggingNoteId !== null) {
         const draggedNote = notes.find((n) => n.id === draggingNoteId);
         if (draggedNote) {
-          const alreadyLinked = draggedNote.links.includes(selectedPlanId);
-          if (dropZone === "timeline" && !alreadyLinked) {
-            handleLinkNote(draggedNote, selectedPlanId);
-          } else if (dropZone === "tray" && alreadyLinked) {
-            handleUnlinkNote(draggedNote, selectedPlanId);
+          if (noteHoverCreateZone) {
+            handleCreatePlanFromNote(draggedNote);
+          } else if (noteHoverPlanId !== null && !draggedNote.links.includes(noteHoverPlanId)) {
+            handleLinkNote(draggedNote, noteHoverPlanId);
           }
         }
       }
       setDraggingNoteId(null);
-      setDropZone(null);
-      startPos.current = null;
+      setNoteDragPointer(null);
+      setNoteHoverPlanId(null);
+      setNoteHoverCreateZone(false);
+      noteStartPos.current = null;
     },
     onPointerCancel: () => {
-      clearLongPress();
+      clearNoteLongPress();
+      if (noteRafId.current !== null) {
+        cancelAnimationFrame(noteRafId.current);
+        noteRafId.current = null;
+      }
       setDraggingNoteId(null);
-      setDropZone(null);
-      startPos.current = null;
+      setNoteDragPointer(null);
+      setNoteHoverPlanId(null);
+      setNoteHoverCreateZone(false);
+      noteStartPos.current = null;
     },
   });
 
@@ -439,6 +503,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     if (libraryTypeFilter === "all") return notes;
     return notes.filter((n) => n.type === libraryTypeFilter);
   }, [notes, libraryTypeFilter]);
+
+  const pendingLinkNote = pendingLinkNoteId !== null ? notes.find((n) => n.id === pendingLinkNoteId) ?? null : null;
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 8 }}>
@@ -587,7 +653,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                目標一覧
+                プランボード
               </Typography>
               <Button
                 startIcon={<AddIcon />}
@@ -601,23 +667,60 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 新しい目標
               </Button>
             </Stack>
-            <PlanList
-              plans={childrenOf(null)}
+            <Typography variant="caption" color="text.secondary">
+              目標・アクションプランを1つのツリーにまとめて表示しています。つまみをドラッグすれば、どの行の上にも自由に並べ替え・入れ子にできます。
+            </Typography>
+
+            {draggingNoteId !== null && (
+              // position:fixedのオーバーレイにして通常のレイアウトフローに参加させない
+              // （挿入時に下のプランツリーがずれてヒットテストが不安定になるのを防ぐ）
+              <Paper
+                data-drop-create-plan="true"
+                variant="outlined"
+                sx={{
+                  position: "fixed",
+                  top: 72,
+                  left: 16,
+                  right: 16,
+                  maxWidth: 600,
+                  mx: "auto",
+                  zIndex: (t) => t.zIndex.appBar + 1,
+                  p: 1.5,
+                  borderRadius: 2,
+                  borderStyle: "dashed",
+                  textAlign: "center",
+                  color: "text.secondary",
+                  borderColor: noteHoverCreateZone ? "success.main" : "divider",
+                  bgcolor: noteHoverCreateZone ? "action.hover" : "background.paper",
+                  boxShadow: 3,
+                }}
+              >
+                <NoteAddOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+                ここにメモをドロップで新しい目標を作成
+              </Paper>
+            )}
+
+            <PlanTree
+              plans={plans}
+              rootParentId={null}
+              isExpanded={isExpanded}
+              onToggleExpand={toggleExpand}
               onSelect={(plan) => setSelectedPlanId(plan.id)}
               onEdit={(plan) => {
                 setEditingPlan(plan);
                 setPlanDialogOpen(true);
               }}
               onDelete={(plan) => setDeleteTarget({ kind: "plan", plan })}
-              onReorder={handleReorderPlans}
-              onReparent={handleReparentPlan}
+              onDrop={handlePlanDrop}
+              onPromoteToRoot={handlePromotePlan}
+              noteDropHighlightId={noteHoverPlanId}
             />
           </Stack>
         ) : (
           <Stack spacing={2}>
             <Breadcrumbs>
               <Link component="button" underline="hover" onClick={() => setSelectedPlanId(null)}>
-                目標一覧
+                プランボード
               </Link>
               {breadcrumbChain(selectedPlan.id).map((p, i, arr) =>
                 i === arr.length - 1 ? (
@@ -632,36 +735,53 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               )}
             </Breadcrumbs>
 
-            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {selectedPlan.title}
+            <Box
+              data-plan-id={selectedPlan.id}
+              sx={{
+                borderRadius: 2,
+                p: noteHoverPlanId === selectedPlan.id ? 1.5 : 0,
+                outline: noteHoverPlanId === selectedPlan.id ? "2px solid" : "none",
+                outlineColor: "success.main",
+                bgcolor: noteHoverPlanId === selectedPlan.id ? "action.hover" : "transparent",
+                transition: "padding .1s",
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {selectedPlan.title}
+                  </Typography>
+                  <Chip label={PLAN_STATUS_LABEL[selectedPlan.status]} size="small" />
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  {streakDates.length > 0 && (
+                    <Button
+                      startIcon={<LocalFireDepartmentIcon sx={{ color: "#f97316" }} />}
+                      variant="outlined"
+                      onClick={() => setStreakDialogOpen(true)}
+                    >
+                      継続 {currentStreak.current}日
+                    </Button>
+                  )}
+                  <IconButton onClick={() => { setEditingPlan(selectedPlan); setPlanDialogOpen(true); }} aria-label="編集">
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton onClick={() => setDeleteTarget({ kind: "plan", plan: selectedPlan })} aria-label="削除">
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Stack>
+              {selectedPlan.description && (
+                <Typography color="text.secondary">{selectedPlan.description}</Typography>
+              )}
+              <Box sx={{ maxWidth: 320, mt: 1 }}>
+                <ProgressBadge value={selectedPlan.progress} />
+              </Box>
+              {draggingNoteId !== null && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  （メモをここにドロップでもリンクできます）
                 </Typography>
-                <Chip label={PLAN_STATUS_LABEL[selectedPlan.status]} size="small" />
-              </Stack>
-              <Stack direction="row" spacing={1}>
-                {streakDates.length > 0 && (
-                  <Button
-                    startIcon={<LocalFireDepartmentIcon sx={{ color: "#f97316" }} />}
-                    variant="outlined"
-                    onClick={() => setStreakDialogOpen(true)}
-                  >
-                    継続 {currentStreak.current}日
-                  </Button>
-                )}
-                <IconButton onClick={() => { setEditingPlan(selectedPlan); setPlanDialogOpen(true); }} aria-label="編集">
-                  <EditOutlinedIcon fontSize="small" />
-                </IconButton>
-                <IconButton onClick={() => setDeleteTarget({ kind: "plan", plan: selectedPlan })} aria-label="削除">
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Stack>
-            {selectedPlan.description && (
-              <Typography color="text.secondary">{selectedPlan.description}</Typography>
-            )}
-            <Box sx={{ maxWidth: 320 }}>
-              <ProgressBadge value={selectedPlan.progress} />
+              )}
             </Box>
 
             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -680,22 +800,25 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 追加
               </Button>
             </Stack>
-            <PlanList
-              plans={childrenOf(selectedPlan.id)}
+            <PlanTree
+              plans={plans}
+              rootParentId={selectedPlan.id}
+              isExpanded={isExpanded}
+              onToggleExpand={toggleExpand}
               onSelect={(plan) => setSelectedPlanId(plan.id)}
               onEdit={(plan) => {
                 setEditingPlan(plan);
                 setPlanDialogOpen(true);
               }}
               onDelete={(plan) => setDeleteTarget({ kind: "plan", plan })}
-              onReorder={handleReorderPlans}
-              onReparent={handleReparentPlan}
+              onDrop={handlePlanDrop}
               onPromoteToRoot={handlePromotePlan}
+              noteDropHighlightId={noteHoverPlanId}
             />
 
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">
-                リンク済みメモ（タイムライン）
+                リンク済みメモ
               </Typography>
               <Button
                 size="small"
@@ -709,33 +832,17 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 新しいメモ
               </Button>
             </Stack>
-            <Box
-              ref={timelineRef}
-              data-drop-zone="timeline"
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.5,
-                minHeight: 80,
-                p: 1,
-                borderRadius: 2,
-                border: draggingNoteId !== null ? "2px dashed" : "none",
-                borderColor: dropZone === "timeline" ? "primary.main" : "divider",
-                bgcolor: dropZone === "timeline" ? "action.hover" : "transparent",
-              }}
-            >
-              {notesLinkedTo(selectedPlan.id).length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-                  まだリンクされたメモがありません。下のトレイからドラッグ、または「+」から新規作成できます。
-                </Typography>
-              ) : (
-                notesLinkedTo(selectedPlan.id).map((note) => (
+            {notesLinkedTo(selectedPlan.id).length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
+                まだリンクされたメモがありません。下のメモトレイからドラッグ、または「+」から新規作成できます。
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {notesLinkedTo(selectedPlan.id).map((note) => (
                   <NoteCard
                     key={note.id}
                     note={note}
                     planOptions={planOptions}
-                    dragProps={noteDragProps(note)}
-                    dragging={draggingNoteId === note.id}
                     onEdit={() => {
                       setEditingNote(note);
                       setNoteFixedPlanId(undefined);
@@ -746,56 +853,24 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                     onLink={(planId) => handleLinkNote(note, planId)}
                     onUnlink={(planId) => handleUnlinkNote(note, planId)}
                   />
-                ))
-              )}
-            </Box>
-
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
-              メモトレイ（すべてのメモ・指で持ち上げてタイムラインへ）
-            </Typography>
-            <Box
-              ref={trayRef}
-              data-drop-zone="tray"
-              sx={{
-                display: "flex",
-                gap: 1.5,
-                overflowX: "auto",
-                p: 1,
-                borderRadius: 2,
-                border: draggingNoteId !== null ? "2px dashed" : "1px solid",
-                borderColor: dropZone === "tray" ? "primary.main" : "divider",
-                bgcolor: dropZone === "tray" ? "action.hover" : "transparent",
-              }}
-            >
-              {trayNotes.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                  他に紐付けられるメモはありません。
-                </Typography>
-              ) : (
-                trayNotes.map((note) => (
-                  <Box key={note.id} sx={{ minWidth: 220, maxWidth: 220 }}>
-                    <Paper
-                      variant="outlined"
-                      {...noteDragProps(note)}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        opacity: draggingNoteId === note.id ? 0.4 : 1,
-                        cursor: "grab",
-                      }}
-                    >
-                      <Chip label={note.type === "learning" ? "学習用" : note.type === "task" ? "タスク用" : "通常"} size="small" sx={{ mb: 0.5 }} />
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-                        {note.title}
-                      </Typography>
-                    </Paper>
-                  </Box>
-                ))
-              )}
-            </Box>
+                ))}
+              </Stack>
+            )}
           </Stack>
         )}
       </Container>
+
+      {!loading && bottomTab === "plans" && (
+        <NoteTray notes={notes} draggingNoteId={draggingNoteId} dragPropsFor={noteDragPropsFor} />
+      )}
+
+      {noteDragPointer && (
+        <DragHintTooltip
+          kind={noteHoverCreateZone ? "nest" : noteHoverPlanId !== null ? "link" : null}
+          x={noteDragPointer.x}
+          y={noteDragPointer.y}
+        />
+      )}
 
       <Paper elevation={3} sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: (t) => t.zIndex.appBar }}>
         <BottomNavigation
@@ -821,11 +896,15 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
       <PlanFormDialog
         open={planDialogOpen}
-        onClose={() => setPlanDialogOpen(false)}
+        onClose={() => {
+          setPlanDialogOpen(false);
+          setPendingLinkNoteId(null);
+        }}
         onSubmit={handleSavePlan}
         parentId={createParentId}
         parentTitle={selectedPlan?.title}
         initialPlan={editingPlan}
+        linkingNoteTitle={pendingLinkNote?.title ?? null}
       />
 
       <NoteFormDialog

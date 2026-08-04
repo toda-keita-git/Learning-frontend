@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -10,21 +10,32 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import VerticalAlignTopIcon from "@mui/icons-material/VerticalAlignTop";
 import type { Plan } from "./PlanTypes";
 import { PLAN_STATUS_LABEL } from "./PlanTypes";
 import ProgressBadge from "./ProgressBadge";
+import DragHintTooltip from "./DragHintTooltip";
+import { DRAG_COLOR } from "./dragVisuals";
+import type { DragHintKind } from "./dragVisuals";
+import { maybeAutoScrollWindow } from "./dragAutoScroll";
 
-interface PlanListProps {
-  plans: Plan[]; // 呼び出し側でsort_order昇順に並べ済みの、同じ親を持つ兄弟プラン
+interface PlanTreeProps {
+  plans: Plan[]; // 全プラン（達成率算出済み）。深さに関わらず、再帰表示に必要な全レベルを渡す
+  // このidを親に持つプランたちを深さ0として表示する（メイン画面ではnull＝ルート、プラン詳細ではそのプランのid）
+  rootParentId: number | null;
+  isExpanded: (id: number) => boolean;
+  onToggleExpand: (id: number) => void;
   onSelect: (plan: Plan) => void;
   onEdit: (plan: Plan) => void;
   onDelete: (plan: Plan) => void;
-  onReorder: (orderedIds: number[]) => void;
-  // 兄弟の1つの上にドロップ＝そのプランの子として再配置（目標⇄アクションプランの入れ替え）
-  onReparent: (id: number, newParentId: number) => void;
-  // 指定時、リスト先頭に「ルートへ戻す」ドロップゾーンを表示する（親を外して独立した目標にする）
+  // 兄弟をまたいだドロップも含め、判断は呼び出し側（全プランを知っている）に任せる
+  onDrop: (draggedId: number, targetId: number, mode: "before" | "after" | "nest") => void;
   onPromoteToRoot?: (id: number) => void;
+  // メモトレイからのドラッグ中、どの行の上にいるかを外から伝えてハイライトさせる
+  noteDropHighlightId?: number | null;
 }
 
 type DropHint = { kind: "row"; targetId: number; mode: "before" | "after" | "nest" } | { kind: "root" } | null;
@@ -36,17 +47,47 @@ const sameHint = (a: DropHint, b: DropHint) => {
   return true;
 };
 
-// ハンドル（つまみアイコン）をつかんだ瞬間に即ドラッグ開始する。長押し待ちは行わず、
-// 指の動きにdata-plan-idの行をtransformで直接追従させることで「ぬるぬる」動く体感にする
-export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder, onReparent, onPromoteToRoot }: PlanListProps) {
+const hintKind = (hint: DropHint): DragHintKind => {
+  if (!hint) return null;
+  if (hint.kind === "root") return "promote";
+  return hint.mode === "nest" ? "nest" : "reorder";
+};
+
+// アプリ全体の「統合ボード」を構成する再帰ツリー。目標・アクションプランを1画面に並べ、
+// つまみを掴んだ瞬間に即ドラッグ開始→transform追従（ぬるぬる動く）→どの行にドロップしても
+// 兄弟をまたいで再配置できる。プラン詳細画面の「子プラン」表示にもrootParentIdを変えて再利用する
+export default function PlanTree({
+  plans,
+  rootParentId,
+  isExpanded,
+  onToggleExpand,
+  onSelect,
+  onEdit,
+  onDelete,
+  onDrop,
+  onPromoteToRoot,
+  noteDropHighlightId,
+}: PlanTreeProps) {
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropHint, setDropHint] = useState<DropHint>(null);
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
   const rafId = useRef<number | null>(null);
   const pendingPoint = useRef<{ x: number; y: number } | null>(null);
   const draggingIdRef = useRef<number | null>(null);
   const dropHintRef = useRef<DropHint>(null);
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map<number | null, Plan[]>();
+    for (const plan of plans) {
+      const list = map.get(plan.parent_id) ?? [];
+      list.push(plan);
+      map.set(plan.parent_id, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.sort_order - b.sort_order);
+    return map;
+  }, [plans]);
 
   const setRowRef = (id: number) => (el: HTMLDivElement | null) => {
     if (el) rowRefs.current.set(id, el);
@@ -85,6 +126,7 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
     if (!point || !origin || id === null) return;
 
     applyDragVisual(id, point.y - origin.y);
+    maybeAutoScrollWindow(point.y);
 
     const hitEl = document.elementFromPoint(point.x, point.y);
     const rootZone = hitEl?.closest('[data-drop-root="true"]');
@@ -116,11 +158,13 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
     dropHintRef.current = null;
     setDraggingId(plan.id);
     setDropHint(null);
+    setPointer({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (draggingIdRef.current === null) return;
     pendingPoint.current = { x: e.clientX, y: e.clientY };
+    setPointer({ x: e.clientX, y: e.clientY });
     if (rafId.current === null) {
       rafId.current = requestAnimationFrame(processMove);
     }
@@ -138,18 +182,8 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
       if (hint) {
         if (hint.kind === "root") {
           onPromoteToRoot?.(id);
-        } else if (hint.mode === "nest") {
-          onReparent(id, hint.targetId);
         } else {
-          const ids = plans.map((p) => p.id);
-          const fromIndex = ids.indexOf(id);
-          if (fromIndex !== -1) {
-            ids.splice(fromIndex, 1);
-            const toIndex = ids.indexOf(hint.targetId);
-            const insertAt = hint.mode === "before" ? toIndex : toIndex + 1;
-            ids.splice(insertAt, 0, id);
-            onReorder(ids);
-          }
+          onDrop(id, hint.targetId, hint.mode);
         }
       }
     }
@@ -159,58 +193,54 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
     dropHintRef.current = null;
     setDraggingId(null);
     setDropHint(null);
+    setPointer(null);
   };
 
-  if (plans.length === 0) {
-    return (
-      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-        まだプランがありません。
-      </Typography>
-    );
-  }
+  const renderNode = (plan: Plan, depth: number) => {
+    const children = childrenByParent.get(plan.id) ?? [];
+    const hasChildren = children.length > 0;
+    const expanded = isExpanded(plan.id);
+    const isGoal = depth === 0;
+    const nestHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "nest";
+    const beforeHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "before";
+    const afterHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "after";
+    const noteHighlight = noteDropHighlightId === plan.id;
 
-  return (
-    <Stack spacing={1}>
-      {onPromoteToRoot && draggingId !== null && (
+    return (
+      <Box key={plan.id} sx={{ ml: depth === 0 ? 0 : 2.5 }}>
         <Paper
-          data-drop-root="true"
-          variant="outlined"
-          sx={{
-            p: 1.5,
-            borderRadius: 2,
-            borderStyle: "dashed",
-            textAlign: "center",
-            color: "text.secondary",
-            borderColor: dropHint?.kind === "root" ? "primary.main" : "divider",
-            bgcolor: dropHint?.kind === "root" ? "action.hover" : "transparent",
-          }}
-        >
-          <VerticalAlignTopIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
-          ここにドロップでルート（独立した目標）に戻す
-        </Paper>
-      )}
-      {plans.map((plan) => (
-        <Paper
-          key={plan.id}
           ref={setRowRef(plan.id)}
           data-plan-id={plan.id}
           variant="outlined"
           sx={{
-            p: 1.5,
+            p: isGoal ? 1.5 : 1,
+            mb: 1,
             borderRadius: 2,
             display: "flex",
             alignItems: "center",
-            gap: 1,
-            transition: draggingId === plan.id ? "none" : "box-shadow .15s",
+            gap: 0.75,
+            borderWidth: isGoal ? 2 : 1,
             willChange: "transform",
-            outline: dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "nest" ? "2px solid" : "none",
-            outlineColor: "primary.main",
-            borderTop: dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "before" ? "3px solid" : undefined,
-            borderTopColor: "primary.main",
-            borderBottom: dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "after" ? "3px solid" : undefined,
-            borderBottomColor: "primary.main",
+            outline: nestHighlight || noteHighlight ? "2px solid" : "none",
+            outlineColor: noteHighlight ? DRAG_COLOR.link : DRAG_COLOR.nest,
+            bgcolor: noteHighlight ? (t) => (t.palette.mode === "dark" ? "rgba(46,125,50,0.25)" : "rgba(46,125,50,0.08)") : undefined,
+            borderTop: beforeHighlight ? "3px solid" : undefined,
+            borderTopColor: DRAG_COLOR.reorder,
+            borderBottom: afterHighlight ? "3px solid" : undefined,
+            borderBottomColor: DRAG_COLOR.reorder,
           }}
         >
+          {hasChildren ? (
+            <IconButton size="small" onClick={() => onToggleExpand(plan.id)} aria-label={expanded ? "折りたたむ" : "展開する"}>
+              <ExpandMoreIcon
+                fontSize="small"
+                sx={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform .15s" }}
+              />
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 32 }} />
+          )}
+
           <Box
             data-drag-handle="true"
             onPointerDown={handleHandlePointerDown(plan)}
@@ -232,9 +262,15 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
             <DragIndicatorIcon fontSize="small" sx={{ color: "text.disabled" }} />
           </Box>
 
+          {isGoal ? (
+            <FlagOutlinedIcon fontSize="small" color="primary" />
+          ) : (
+            <FiberManualRecordIcon sx={{ fontSize: 8, color: "text.disabled" }} />
+          )}
+
           <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => draggingId === null && onSelect(plan)}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography sx={{ fontWeight: 600 }} noWrap>
+              <Typography sx={{ fontWeight: isGoal ? 700 : 600 }} variant={isGoal ? "body1" : "body2"} noWrap>
                 {plan.title}
               </Typography>
               <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" />
@@ -252,7 +288,59 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
             <ChevronRightIcon fontSize="small" />
           </IconButton>
         </Paper>
-      ))}
-    </Stack>
+
+        {hasChildren && expanded && (
+          <Box sx={{ borderLeft: "1px dashed", borderColor: "divider", pl: 0 }}>
+            {children.map((child) => renderNode(child, depth + 1))}
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
+  const roots = childrenByParent.get(rootParentId) ?? [];
+
+  return (
+    <Box>
+      {onPromoteToRoot && draggingId !== null && (
+        // position:fixedのオーバーレイにして通常のレイアウトフローに参加させない。
+        // ドラッグ開始時にここを通常のリストの先頭へ挿入すると、他の行が下にずれて
+        // ドラッグ開始直後のヒットテスト座標がずれてしまう（ドロップ先の誤判定の原因になる）
+        <Paper
+          data-drop-root="true"
+          variant="outlined"
+          sx={{
+            position: "fixed",
+            top: 72,
+            left: 16,
+            right: 16,
+            maxWidth: 600,
+            mx: "auto",
+            zIndex: (t) => t.zIndex.appBar + 1,
+            p: 1.5,
+            borderRadius: 2,
+            borderStyle: "dashed",
+            textAlign: "center",
+            color: "text.secondary",
+            borderColor: dropHint?.kind === "root" ? DRAG_COLOR.promote : "divider",
+            bgcolor: dropHint?.kind === "root" ? "action.hover" : "background.paper",
+            boxShadow: 3,
+          }}
+        >
+          <VerticalAlignTopIcon fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+          ここにドロップでルート（独立した目標）に戻す
+        </Paper>
+      )}
+
+      {roots.length === 0 ? (
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          まだプランがありません。
+        </Typography>
+      ) : (
+        roots.map((plan) => renderNode(plan, 0))
+      )}
+
+      {pointer && <DragHintTooltip kind={hintKind(dropHint)} x={pointer.x} y={pointer.y} />}
+    </Box>
   );
 }

@@ -8,6 +8,7 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
 import type { Plan, PlanInput, PlanStatus } from "./PlanTypes";
 import { PLAN_STATUS_LABEL } from "./PlanTypes";
 
@@ -19,9 +20,19 @@ interface PlanFormDialogProps {
   parentId: number | null;
   parentTitle?: string | null;
   initialPlan?: Plan | null;
+  // メモをドラッグして新規作成した場合に、作成後そのメモをリンクする旨を案内する
+  linkingNoteTitle?: string | null;
 }
 
-export default function PlanFormDialog({ open, onClose, onSubmit, parentId, parentTitle, initialPlan }: PlanFormDialogProps) {
+export default function PlanFormDialog({
+  open,
+  onClose,
+  onSubmit,
+  parentId,
+  parentTitle,
+  initialPlan,
+  linkingNoteTitle,
+}: PlanFormDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<PlanStatus>("not_started");
@@ -29,10 +40,11 @@ export default function PlanFormDialog({ open, onClose, onSubmit, parentId, pare
 
   useEffect(() => {
     if (!open) return;
-    setTitle(initialPlan?.title ?? "");
+    // メモをドラッグして作成する場合は、タイピングを減らせるようメモのタイトルを初期値にしておく
+    setTitle(initialPlan?.title ?? linkingNoteTitle ?? "");
     setDescription(initialPlan?.description ?? "");
     setStatus(initialPlan?.status ?? "not_started");
-  }, [open, initialPlan]);
+  }, [open, initialPlan, linkingNoteTitle]);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -59,6 +71,11 @@ export default function PlanFormDialog({ open, onClose, onSubmit, parentId, pare
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
+          {linkingNoteTitle && (
+            <Alert severity="info" variant="outlined">
+              作成すると、メモ「{linkingNoteTitle}」がこのプランにリンクされます。
+            </Alert>
+          )}
           <TextField
             label={isRoot ? "目標名" : "アクションプラン名"}
             value={title}
