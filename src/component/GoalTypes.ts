@@ -55,6 +55,7 @@ export interface Note {
   created_at: string;
   user_id: number;
   todo_items: NoteTodoItem[];
+  tags: string[];
   // learning=習熟度そのまま / task=todo消化率(あれば)かprogress / normal=null
   effective_progress: number | null;
 }
@@ -71,6 +72,10 @@ export type NoteInput = {
   progress: number | null;
   category_id: number | null;
   todo_items: NoteTodoItem[];
+  tags: string[];
+  github_path: string | null;
+  commit_sha: string | null;
+  repo_name: string | null;
 };
 
 export const GOAL_STATUS_LABEL: Record<GoalStatus, string> = {

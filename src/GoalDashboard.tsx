@@ -27,10 +27,20 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import Badge from "@mui/material/Badge";
 
 import { AuthContext } from "./Context";
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
+import ReviewFlashcards from "./component/ReviewFlashcards";
+import type { FlashItem } from "./component/ReviewFlashcards";
+import { isDue, reviewCard } from "./component/srs";
+import StreakDialog from "./component/StreakDialog";
+import { calculateStreakStats } from "./component/streakStats";
+import RelatedGraphDialog from "./component/RelatedGraphDialog";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import {
   goalsApi,
   createGoalApi,
@@ -48,6 +58,7 @@ import {
   attachNoteApi,
   toggleNoteTodoApi,
   CategoriesApi,
+  TagsApi,
 } from "./component/Api";
 import type { Goal, ActionPlan, Note, NoteInput, GoalInput, ActionPlanInput, CategoryOption } from "./component/GoalTypes";
 import ProgressBadge from "./component/ProgressBadge";
@@ -67,7 +78,7 @@ type DeleteTarget =
   | { kind: "note"; note: Note };
 
 export default function GoalDashboard() {
-  const { isAuthenticated, isAuthenticating, login, logout, githubLogin } = useContext(AuthContext);
+  const { isAuthenticated, isAuthenticating, login, logout, githubLogin, userId } = useContext(AuthContext);
   const { showToast } = useToast();
   const { mode, toggle } = useContext(ColorModeContext);
 
@@ -76,6 +87,7 @@ export default function GoalDashboard() {
   const [actionPlans, setActionPlans] = useState<ActionPlan[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
 
   const [topTab, setTopTab] = useState<TopTab>("goals");
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
@@ -89,20 +101,25 @@ export default function GoalDashboard() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [attachTargetNote, setAttachTargetNote] = useState<Note | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [streakDialogOpen, setStreakDialogOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [goalsData, plansData, notesData, categoriesData] = await Promise.all([
+      const [goalsData, plansData, notesData, categoriesData, tagsData] = await Promise.all([
         goalsApi(),
         actionPlansApi(),
         notesApi(),
         CategoriesApi(),
+        TagsApi(),
       ]);
       setGoals(goalsData ?? []);
       setActionPlans(plansData ?? []);
       setNotes(notesData ?? []);
       setCategories(categoriesData ?? []);
+      setTagOptions(((tagsData ?? []) as { name: string }[]).map((t) => t.name));
     } catch (err) {
       console.error(err);
       showToast("データの取得に失敗しました。時間をおいて再度お試しください。", "error");
@@ -149,7 +166,90 @@ export default function GoalDashboard() {
     [notes, selectedActionPlanId]
   );
 
+  // アクションプラン単位の継続記録（ストリーク）
+  const actionPlanStreak = useMemo(
+    () => calculateStreakStats(notesForSelectedActionPlan.map((n) => n.created_at)),
+    [notesForSelectedActionPlan]
+  );
+
   const unattachedNotes = useMemo(() => notes.filter((n) => n.action_plan_id === null), [notes]);
+
+  // ---- SRS（学習用メモの間隔反復） ----
+  const learningNotes = useMemo(() => notes.filter((n) => n.type === "learning"), [notes]);
+  const dueLearningNotes = useMemo(
+    () => learningNotes.filter((n) => isDue(userId, n.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [learningNotes, userId, reviewOpen]
+  );
+  const flashItems: FlashItem[] = useMemo(
+    () =>
+      dueLearningNotes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        explanatory_text: n.body ?? "",
+        understanding_level: n.mastery,
+        category_name: categories.find((c) => c.id === n.category_id)?.name ?? "",
+        tags: n.tags,
+        reference_url: null,
+      })),
+    [dueLearningNotes, categories]
+  );
+
+  // 関連メモグラフ（タグ・カテゴリー・タイトルの共通語をもとに、メモ同士のつながりを可視化）
+  const graphItems = useMemo(
+    () =>
+      notes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        category_name: categories.find((c) => c.id === n.category_id)?.name ?? "",
+        tags: n.tags,
+        created_at: n.created_at,
+      })),
+    [notes, categories]
+  );
+
+  const handleOpenGraphItem = (id: number) => {
+    const note = notes.find((n) => n.id === id);
+    if (!note) return;
+    setGraphOpen(false);
+    if (note.action_plan_id === null) {
+      setTopTab("unattached");
+      return;
+    }
+    const plan = actionPlans.find((p) => p.id === note.action_plan_id);
+    if (!plan) return;
+    setTopTab("goals");
+    setSelectedGoalId(plan.goal_id);
+    setSelectedActionPlanId(plan.id);
+  };
+
+  const noteToInput = (note: Note): NoteInput => ({
+    action_plan_id: note.action_plan_id,
+    type: note.type,
+    title: note.title,
+    body: note.body,
+    mastery: note.mastery,
+    progress: note.progress,
+    category_id: note.category_id,
+    todo_items: note.todo_items,
+    tags: note.tags,
+    github_path: note.github_path,
+    commit_sha: note.commit_sha,
+    repo_name: note.repo_name,
+  });
+
+  const handleRateNote = async (item: FlashItem, newLevel: number, understood: boolean) => {
+    const note = notes.find((n) => n.id === item.id);
+    if (!note) return;
+    reviewCard(userId, note.id, understood);
+    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, mastery: newLevel } : n)));
+    try {
+      await updateNoteApi(note.id, { ...noteToInput(note), mastery: newLevel });
+    } catch (err) {
+      console.error(err);
+      showToast("理解度の更新に失敗しました。", "error");
+    }
+  };
 
   // ---- 目標 ----
   const handleSaveGoal = async (data: GoalInput) => {
@@ -295,6 +395,18 @@ export default function GoalDashboard() {
             <Typography variant="body2" sx={{ color: "text.secondary", mr: 2, display: { xs: "none", sm: "block" } }}>
               {githubLogin}
             </Typography>
+          )}
+          {learningNotes.length > 0 && (
+            <IconButton onClick={() => setReviewOpen(true)} aria-label="今日の復習" sx={{ mr: 1 }}>
+              <Badge badgeContent={dueLearningNotes.length} color="error">
+                <MenuBookOutlinedIcon />
+              </Badge>
+            </IconButton>
+          )}
+          {notes.length > 1 && (
+            <IconButton onClick={() => setGraphOpen(true)} aria-label="関連メモグラフ" sx={{ mr: 1 }}>
+              <HubOutlinedIcon />
+            </IconButton>
           )}
           <IconButton onClick={toggle} aria-label="テーマ切り替え" sx={{ mr: 1 }}>
             {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
@@ -487,16 +599,27 @@ export default function GoalDashboard() {
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
                 {selectedActionPlan.title}
               </Typography>
-              <Button
-                startIcon={<AddIcon />}
-                variant="contained"
-                onClick={() => {
-                  setEditingNote(null);
-                  setNoteDialogOpen(true);
-                }}
-              >
-                新しいメモ
-              </Button>
+              <Stack direction="row" spacing={1}>
+                {notesForSelectedActionPlan.length > 0 && (
+                  <Button
+                    startIcon={<LocalFireDepartmentIcon sx={{ color: "#f97316" }} />}
+                    variant="outlined"
+                    onClick={() => setStreakDialogOpen(true)}
+                  >
+                    継続 {actionPlanStreak.current}日
+                  </Button>
+                )}
+                <Button
+                  startIcon={<AddIcon />}
+                  variant="contained"
+                  onClick={() => {
+                    setEditingNote(null);
+                    setNoteDialogOpen(true);
+                  }}
+                >
+                  新しいメモ
+                </Button>
+              </Stack>
             </Stack>
             <Box sx={{ maxWidth: 320 }}>
               <ProgressBadge value={selectedActionPlan.progress} />
@@ -549,6 +672,7 @@ export default function GoalDashboard() {
         fixedActionPlanId={topTab === "goals" && selectedActionPlan ? selectedActionPlan.id : undefined}
         actionPlanOptions={actionPlanOptions}
         categories={categories}
+        tagOptions={tagOptions}
       />
 
       <AttachNoteDialog
@@ -556,6 +680,26 @@ export default function GoalDashboard() {
         onClose={() => setAttachTargetNote(null)}
         onConfirm={handleAttachNote}
         actionPlanOptions={actionPlanOptions}
+      />
+
+      <ReviewFlashcards
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        items={flashItems}
+        onRate={handleRateNote}
+      />
+
+      <StreakDialog
+        open={streakDialogOpen}
+        onClose={() => setStreakDialogOpen(false)}
+        dates={notesForSelectedActionPlan.map((n) => n.created_at)}
+      />
+
+      <RelatedGraphDialog
+        open={graphOpen}
+        onClose={() => setGraphOpen(false)}
+        items={graphItems}
+        onOpenItem={handleOpenGraphItem}
       />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>

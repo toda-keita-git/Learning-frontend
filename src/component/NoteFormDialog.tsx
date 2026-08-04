@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -13,9 +13,14 @@ import Typography from "@mui/material/Typography";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Checkbox from "@mui/material/Checkbox";
+import Autocomplete from "@mui/material/Autocomplete";
+import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import GitHubIcon from "@mui/icons-material/GitHub";
 import CircularProgress from "@mui/material/CircularProgress";
+import { AuthContext } from "../Context";
+import GitHubFileSelector from "./GitHubFileSelector";
 import type { Note, NoteInput, NoteType, NoteTodoItem, CategoryOption } from "./GoalTypes";
 
 export interface ActionPlanOption {
@@ -32,6 +37,7 @@ interface NoteFormDialogProps {
   fixedActionPlanId?: number | null;
   actionPlanOptions: ActionPlanOption[];
   categories: CategoryOption[];
+  tagOptions: string[];
 }
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
@@ -44,6 +50,7 @@ export default function NoteFormDialog({
   fixedActionPlanId,
   actionPlanOptions,
   categories,
+  tagOptions,
 }: NoteFormDialogProps) {
   const [type, setType] = useState<NoteType>("normal");
   const [title, setTitle] = useState("");
@@ -53,7 +60,15 @@ export default function NoteFormDialog({
   const [progress, setProgress] = useState(0);
   const [todoItems, setTodoItems] = useState<NoteTodoItem[]>([]);
   const [categoryId, setCategoryId] = useState<number | "">("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [githubPath, setGithubPath] = useState<string | null>(null);
+  const [commitSha, setCommitSha] = useState<string | null>(null);
+  const [repoNameField, setRepoNameField] = useState<string | null>(null);
+  const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
+  const [resolvingSha, setResolvingSha] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const { octokit, githubLogin, repoName } = useContext(AuthContext);
 
   useEffect(() => {
     if (!open) return;
@@ -66,6 +81,10 @@ export default function NoteFormDialog({
       setProgress(initialNote.progress ?? 0);
       setTodoItems(initialNote.todo_items?.length ? initialNote.todo_items : []);
       setCategoryId(initialNote.category_id ?? "");
+      setTags(initialNote.tags ?? []);
+      setGithubPath(initialNote.github_path ?? null);
+      setCommitSha(initialNote.commit_sha ?? null);
+      setRepoNameField(initialNote.repo_name ?? null);
     } else {
       setType("normal");
       setTitle("");
@@ -75,8 +94,29 @@ export default function NoteFormDialog({
       setProgress(0);
       setTodoItems([]);
       setCategoryId("");
+      setTags([]);
+      setGithubPath(null);
+      setCommitSha(null);
+      setRepoNameField(null);
     }
   }, [open, initialNote, fixedActionPlanId]);
+
+  const handleGithubFileSelect = async (path: string) => {
+    setGithubSelectorOpen(false);
+    setGithubPath(path);
+    setRepoNameField(repoName);
+    setResolvingSha(true);
+    try {
+      if (octokit && githubLogin && repoName) {
+        const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
+        setCommitSha(!Array.isArray(data) && "sha" in data ? data.sha : null);
+      }
+    } catch {
+      setCommitSha(null);
+    } finally {
+      setResolvingSha(false);
+    }
+  };
 
   const handleAddTodo = () => setTodoItems((prev) => [...prev, emptyTodo()]);
   const handleTodoLabelChange = (index: number, label: string) =>
@@ -102,6 +142,10 @@ export default function NoteFormDialog({
           type === "task"
             ? todoItems.filter((t) => t.label.trim()).map((t) => ({ ...t, label: t.label.trim() }))
             : [],
+        tags: tags.map((t) => t.trim()).filter(Boolean),
+        github_path: type === "learning" ? githubPath : null,
+        commit_sha: type === "learning" ? commitSha : null,
+        repo_name: type === "learning" ? repoNameField : null,
       };
       await onSubmit(data);
       onClose();
@@ -149,19 +193,54 @@ export default function NoteFormDialog({
           )}
 
           {type === "learning" && (
-            <div>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                習熟度: {mastery}%
-              </Typography>
-              <Slider
-                value={mastery}
-                onChange={(_, v) => setMastery(v as number)}
-                valueLabelDisplay="auto"
-                step={5}
-                min={0}
-                max={100}
-              />
-            </div>
+            <Stack spacing={1.5}>
+              <div>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  習熟度: {mastery}%
+                </Typography>
+                <Slider
+                  value={mastery}
+                  onChange={(_, v) => setMastery(v as number)}
+                  valueLabelDisplay="auto"
+                  step={5}
+                  min={0}
+                  max={100}
+                />
+              </div>
+
+              <div>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  GitHubのコードを添付（任意）
+                </Typography>
+                {githubPath ? (
+                  <Chip
+                    icon={<GitHubIcon />}
+                    label={resolvingSha ? `${githubPath}（確認中…）` : githubPath}
+                    onDelete={() => {
+                      setGithubPath(null);
+                      setCommitSha(null);
+                      setRepoNameField(null);
+                    }}
+                    sx={{ maxWidth: "100%" }}
+                  />
+                ) : (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<GitHubIcon />}
+                    disabled={!octokit || !repoName}
+                    onClick={() => setGithubSelectorOpen(true)}
+                  >
+                    リポジトリからファイルを選ぶ
+                  </Button>
+                )}
+                {!octokit && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                    GitHub連携の準備ができていません。
+                  </Typography>
+                )}
+              </div>
+            </Stack>
           )}
 
           {type === "task" && (
@@ -231,6 +310,15 @@ export default function NoteFormDialog({
               ))}
             </TextField>
           )}
+
+          <Autocomplete
+            multiple
+            freeSolo
+            options={tagOptions}
+            value={tags}
+            onChange={(_, value) => setTags(value)}
+            renderInput={(params) => <TextField {...params} label="タグ" placeholder="Enterで追加" />}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -241,6 +329,12 @@ export default function NoteFormDialog({
           {saving ? <CircularProgress size={20} /> : "保存"}
         </Button>
       </DialogActions>
+
+      <GitHubFileSelector
+        open={githubSelectorOpen}
+        onClose={() => setGithubSelectorOpen(false)}
+        onFileSelect={handleGithubFileSelect}
+      />
     </Dialog>
   );
 }

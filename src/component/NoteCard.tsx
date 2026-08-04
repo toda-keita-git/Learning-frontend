@@ -1,3 +1,4 @@
+import { useContext, useState } from "react";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -5,8 +6,16 @@ import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import GitHubIcon from "@mui/icons-material/GitHub";
+import { AuthContext } from "../Context";
+import { useToast } from "../ToastContext";
+import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
+import { getFileType } from "./getFileType";
+import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
 import type { Note } from "./GoalTypes";
 import { NOTE_TYPE_LABEL } from "./GoalTypes";
 import ProgressBadge from "./ProgressBadge";
@@ -23,6 +32,8 @@ const TYPE_BORDER_COLOR: Record<Note["type"], string> = {
   normal: "divider",
 };
 
+const PREVIEW_UNSUPPORTED = ["excel", "pdf", "docx", "doc", "pptx", "zip-archive", "binary"];
+
 interface NoteCardProps {
   note: Note;
   onEdit: () => void;
@@ -31,6 +42,37 @@ interface NoteCardProps {
 }
 
 export default function NoteCard({ note, onEdit, onDelete, onToggleTodo }: NoteCardProps) {
+  const { octokit, githubLogin } = useContext(AuthContext);
+  const { showToast } = useToast();
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerContent, setViewerContent] = useState("");
+  const [loadingCode, setLoadingCode] = useState(false);
+
+  const handleViewCode = async () => {
+    if (!note.github_path || !octokit || !githubLogin) return;
+    const owner = githubLogin;
+    const repo = note.repo_name ?? "";
+    if (!repo) return;
+    setLoadingCode(true);
+    try {
+      const { data } = await octokit.repos.getContent({ owner, repo, path: note.github_path });
+      if (Array.isArray(data) || !("content" in data)) {
+        throw new Error("フォルダーは表示できません。");
+      }
+      const raw = data.content.replace(/\n/g, "");
+      const fileType = getFileType(note.github_path);
+      const ext = note.github_path.split(".").pop() ?? "";
+      const content = fileType === "image" ? getImageDataUrl(raw, ext) : decodeBase64Text(raw);
+      setViewerContent(content);
+      setViewerOpen(true);
+    } catch (err) {
+      console.error(err);
+      showToast("コードの取得に失敗しました。ファイルが移動・削除された可能性があります。", "error");
+    } finally {
+      setLoadingCode(false);
+    }
+  };
+
   return (
     <Paper
       variant="outlined"
@@ -99,6 +141,37 @@ export default function NoteCard({ note, onEdit, onDelete, onToggleTodo }: NoteC
         <Typography variant="body2" sx={{ mt: 1.5, whiteSpace: "pre-wrap", color: "text.secondary" }}>
           {note.body}
         </Typography>
+      )}
+
+      {note.github_path && (
+        <Button
+          size="small"
+          startIcon={loadingCode ? <CircularProgress size={14} /> : <GitHubIcon fontSize="small" />}
+          onClick={handleViewCode}
+          disabled={loadingCode}
+          sx={{ mt: 1.5 }}
+        >
+          {note.github_path}
+        </Button>
+      )}
+
+      {note.tags.length > 0 && (
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.5 }}>
+          {note.tags.map((tag) => (
+            <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+          ))}
+        </Stack>
+      )}
+
+      {note.github_path && (
+        <GitHubFileViewerDialog
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          path={note.github_path}
+          content={PREVIEW_UNSUPPORTED.includes(getFileType(note.github_path)) ? "" : viewerContent}
+          isEditable={false}
+          onUpdateFile={async () => {}}
+        />
       )}
     </Paper>
   );
