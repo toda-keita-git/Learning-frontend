@@ -6,6 +6,10 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -14,6 +18,10 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import VerticalAlignTopIcon from "@mui/icons-material/VerticalAlignTop";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
 import type { Plan } from "./PlanTypes";
 import { PLAN_STATUS_LABEL } from "./PlanTypes";
 import ProgressBadge from "./ProgressBadge";
@@ -36,6 +44,9 @@ interface PlanTreeProps {
   onPromoteToRoot?: (id: number) => void;
   // メモトレイからのドラッグ中、どの行の上にいるかを外から伝えてハイライトさせる
   noteDropHighlightId?: number | null;
+  // ドラッグができない・やりにくい環境向けの代替操作（「⋮」メニュー）
+  onMoveSibling?: (plan: Plan, direction: "up" | "down") => void;
+  onOpenReparentPicker?: (plan: Plan) => void;
 }
 
 type DropHint = { kind: "row"; targetId: number; mode: "before" | "after" | "nest" } | { kind: "root" } | null;
@@ -67,10 +78,13 @@ export default function PlanTree({
   onDrop,
   onPromoteToRoot,
   noteDropHighlightId,
+  onMoveSibling,
+  onOpenReparentPicker,
 }: PlanTreeProps) {
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropHint, setDropHint] = useState<DropHint>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+  const [menuState, setMenuState] = useState<{ plan: Plan; anchorEl: HTMLElement } | null>(null);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
   const rafId = useRef<number | null>(null);
@@ -88,6 +102,12 @@ export default function PlanTree({
     for (const list of map.values()) list.sort((a, b) => a.sort_order - b.sort_order);
     return map;
   }, [plans]);
+
+  const menuSiblingIndex = (plan: Plan): [number, boolean, boolean] => {
+    const siblings = childrenByParent.get(plan.parent_id) ?? [];
+    const idx = siblings.findIndex((p) => p.id === plan.id);
+    return [idx, idx > 0, idx !== -1 && idx < siblings.length - 1];
+  };
 
   const setRowRef = (id: number) => (el: HTMLDivElement | null) => {
     if (el) rowRefs.current.set(id, el);
@@ -284,8 +304,12 @@ export default function PlanTree({
           <IconButton size="small" onClick={() => onDelete(plan)} aria-label="削除">
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" onClick={() => onSelect(plan)} aria-label="開く">
-            <ChevronRightIcon fontSize="small" />
+          <IconButton
+            size="small"
+            onClick={(e) => setMenuState({ plan, anchorEl: e.currentTarget })}
+            aria-label="その他の操作"
+          >
+            <MoreVertIcon fontSize="small" />
           </IconButton>
         </Paper>
 
@@ -341,6 +365,77 @@ export default function PlanTree({
       )}
 
       {pointer && <DragHintTooltip kind={hintKind(dropHint)} x={pointer.x} y={pointer.y} />}
+
+      <Menu anchorEl={menuState?.anchorEl} open={!!menuState} onClose={() => setMenuState(null)}>
+        {menuState && [
+          <MenuItem
+            key="open"
+            onClick={() => {
+              onSelect(menuState.plan);
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <ChevronRightIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>開く</ListItemText>
+          </MenuItem>,
+          <MenuItem
+            key="up"
+            disabled={!menuSiblingIndex(menuState.plan)[1]}
+            onClick={() => {
+              onMoveSibling?.(menuState.plan, "up");
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <ArrowUpwardIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>上へ移動</ListItemText>
+          </MenuItem>,
+          <MenuItem
+            key="down"
+            disabled={!menuSiblingIndex(menuState.plan)[2]}
+            onClick={() => {
+              onMoveSibling?.(menuState.plan, "down");
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <ArrowDownwardIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>下へ移動</ListItemText>
+          </MenuItem>,
+          <MenuItem
+            key="reparent"
+            onClick={() => {
+              onOpenReparentPicker?.(menuState.plan);
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <DriveFileMoveOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>別のプランへ移動…</ListItemText>
+          </MenuItem>,
+          ...(menuState.plan.parent_id !== null
+            ? [
+                <MenuItem
+                  key="promote"
+                  onClick={() => {
+                    onPromoteToRoot?.(menuState.plan.id);
+                    setMenuState(null);
+                  }}
+                >
+                  <ListItemIcon>
+                    <VerticalAlignTopIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>ルート（独立した目標）にする</ListItemText>
+                </MenuItem>,
+              ]
+            : []),
+        ]}
+      </Menu>
     </Box>
   );
 }

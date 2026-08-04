@@ -11,6 +11,8 @@ import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
@@ -36,6 +38,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SearchIcon from "@mui/icons-material/Search";
 import Badge from "@mui/material/Badge";
 import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
@@ -46,11 +49,15 @@ import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/rou
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
+import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
+import Alert from "@mui/material/Alert";
 import type { PlanDataSource } from "./component/planDataSource";
 import type { Plan, Note, NoteInput, PlanInput, CategoryOption, NoteAttachment } from "./component/PlanTypes";
 import { PLAN_STATUS_LABEL } from "./component/PlanTypes";
 import ProgressBadge from "./component/ProgressBadge";
 import PlanFormDialog from "./component/PlanFormDialog";
+import PlanSelectDialog from "./component/PlanSelectDialog";
 import PlanTree from "./component/PlanTree";
 import NoteTray from "./component/NoteTray";
 import NoteFormDialog from "./component/NoteFormDialog";
@@ -70,8 +77,14 @@ interface PlanDashboardProps {
 }
 
 const errorMessage = (err: unknown, fallback: string): string => {
-  if (axios.isAxiosError(err) && typeof err.response?.data === "string" && err.response.data) {
-    return err.response.data;
+  if (axios.isAxiosError(err)) {
+    // response が無い＝サーバーまで届かなかった（オフライン・タイムアウトなど）
+    if (!err.response) {
+      return "オフライン、または通信が不安定なため実行できませんでした。オンラインに戻ってからもう一度お試しください。";
+    }
+    if (typeof err.response.data === "string" && err.response.data) {
+      return err.response.data;
+    }
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
@@ -95,6 +108,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [createParentId, setCreateParentId] = useState<number | null>(null);
   // メモをドラッグして「新しいプランとして保存」した場合、作成成功後にこのメモをリンクする
   const [pendingLinkNoteId, setPendingLinkNoteId] = useState<number | null>(null);
+  // ドラッグの代わりに検索して移動先を選ぶダイアログ（「⋮」メニューの「別のプランへ移動」）
+  const [reparentPickerPlan, setReparentPickerPlan] = useState<Plan | null>(null);
 
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -107,6 +122,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
+  const [noteSearchQuery, setNoteSearchQuery] = useState("");
+  const [planSearchQuery, setPlanSearchQuery] = useState("");
 
   // 統合ボード（プランツリー）の展開状態。既定はすべて展開＝ドリルダウンせずに全体が見える
   const [collapsedPlanIds, setCollapsedPlanIds] = useState<Set<number>>(new Set());
@@ -124,6 +141,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [draggingNoteId, setDraggingNoteId] = useState<number | null>(null);
   const [noteHoverPlanId, setNoteHoverPlanId] = useState<number | null>(null);
   const [noteHoverCreateZone, setNoteHoverCreateZone] = useState(false);
+  // 取得に失敗し、前回のキャッシュ表示にフォールバックした場合の状態
+  const [offline, setOffline] = useState(false);
+  const [offlineCacheTs, setOfflineCacheTs] = useState<number | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -133,9 +153,22 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       setNotes(bundle.notes);
       setCategories(bundle.categories);
       setTagOptions(bundle.tagOptions);
+      setOffline(false);
+      savePlanCache(userId, bundle);
     } catch (err) {
       console.error(err);
-      showToast(errorMessage(err, "データの取得に失敗しました。時間をおいて再度お試しください。"), "error");
+      const cached = loadPlanCache(userId);
+      if (cached) {
+        setPlans(cached.plans);
+        setNotes(cached.notes);
+        setCategories(cached.categories);
+        setTagOptions(cached.tagOptions);
+        setOffline(true);
+        setOfflineCacheTs(cached.ts);
+        showToast("オフラインのため、前回取得した内容を表示しています。", "warning");
+      } else {
+        showToast(errorMessage(err, "データの取得に失敗しました。時間をおいて再度お試しください。"), "error");
+      }
     } finally {
       setLoading(false);
     }
@@ -183,6 +216,14 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     }
     return result;
   };
+
+  // 「別のプランへ移動」ダイアログの候補。自分自身・自分の子孫は循環になるため除外する
+  const reparentOptions: PlanOption[] = useMemo(() => {
+    if (!reparentPickerPlan) return [];
+    const excluded = new Set([reparentPickerPlan.id, ...descendantIds(reparentPickerPlan.id)]);
+    return planOptions.filter((o) => !excluded.has(o.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reparentPickerPlan, planOptions, plans]);
 
   const selectedPlan = selectedPlanId !== null ? planById.get(selectedPlanId) ?? null : null;
 
@@ -358,6 +399,24 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // どの画面から操作しても「ルート＝独立した目標」に戻す、という意味は変わらない
   const handlePromotePlan = (id: number) => handleReparentPlan(id, null);
 
+  // ドラッグができない・やりにくい環境向けの代替操作。「⋮」メニューの上へ/下へ移動から呼ばれる
+  const handleMoveSibling = async (plan: Plan, direction: "up" | "down") => {
+    const siblings = plans.filter((p) => p.parent_id === plan.parent_id).sort((a, b) => a.sort_order - b.sort_order);
+    const idx = siblings.findIndex((p) => p.id === plan.id);
+    const swapWith = direction === "up" ? idx - 1 : idx + 1;
+    if (idx === -1 || swapWith < 0 || swapWith >= siblings.length) return;
+    const ids = siblings.map((p) => p.id);
+    [ids[idx], ids[swapWith]] = [ids[swapWith], ids[idx]];
+    try {
+      await dataSource.reorderPlans(ids.map((id, index) => ({ id, sort_order: index })));
+      await fetchAll();
+    } catch (err) {
+      console.error(err);
+      showToast(errorMessage(err, "並べ替えに失敗しました。"), "error");
+      fetchAll();
+    }
+  };
+
   // ---- メモ ----
   const handleSaveNote = async (data: NoteInput) => {
     try {
@@ -441,9 +500,45 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   };
 
   const libraryNotes = useMemo(() => {
-    if (libraryTypeFilter === "all") return notes;
-    return notes.filter((n) => n.type === libraryTypeFilter);
-  }, [notes, libraryTypeFilter]);
+    let list = libraryTypeFilter === "all" ? notes : notes.filter((n) => n.type === libraryTypeFilter);
+    const q = noteSearchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (n) =>
+          n.title.toLowerCase().includes(q) ||
+          (n.body ?? "").toLowerCase().includes(q) ||
+          n.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [notes, libraryTypeFilter, noteSearchQuery]);
+
+  // プランボードの検索。マッチしたプランに加え、階層が分かるよう祖先・子孫も表示する
+  const filteredPlans = useMemo(() => {
+    const q = planSearchQuery.trim().toLowerCase();
+    if (!q) return plans;
+    const matchIds = plans.filter((p) => p.title.toLowerCase().includes(q)).map((p) => p.id);
+    if (matchIds.length === 0) return [];
+    const included = new Set(matchIds);
+    for (const id of matchIds) {
+      let cursor = planById.get(id)?.parent_id ?? null;
+      while (cursor !== null && !included.has(cursor)) {
+        included.add(cursor);
+        cursor = planById.get(cursor)?.parent_id ?? null;
+      }
+    }
+    const stack = [...matchIds];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      for (const p of plans) {
+        if (p.parent_id === id && !included.has(p.id)) {
+          included.add(p.id);
+          stack.push(p.id);
+        }
+      }
+    }
+    return plans.filter((p) => included.has(p.id));
+  }, [plans, planSearchQuery, planById]);
 
   const pendingLinkNote = pendingLinkNoteId !== null ? notes.find((n) => n.id === pendingLinkNoteId) ?? null : null;
 
@@ -475,6 +570,22 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       </AppBar>
 
       {topBanner}
+
+      {offline && (
+        <Alert
+          severity="warning"
+          icon={<WifiOffIcon fontSize="small" />}
+          sx={{ borderRadius: 0 }}
+          action={
+            <Button color="inherit" size="small" onClick={fetchAll}>
+              再読み込み
+            </Button>
+          }
+        >
+          オフライン表示中です{offlineCacheTs ? `（${new Date(offlineCacheTs).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" })}時点）` : ""}。
+          変更の保存にはオンラインへの復帰が必要です。
+        </Alert>
+      )}
 
       <Container maxWidth="md" sx={{ py: 4 }}>
         {loading ? (
@@ -553,6 +664,14 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 新しいメモ
               </Button>
             </Stack>
+            <TextField
+              size="small"
+              placeholder="タイトル・本文・タグで検索"
+              value={noteSearchQuery}
+              onChange={(e) => setNoteSearchQuery(e.target.value)}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+              fullWidth
+            />
             <ToggleButtonGroup
               value={libraryTypeFilter}
               exclusive
@@ -568,7 +687,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
             {libraryNotes.length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                まだメモがありません。「新しいメモ」から作成しましょう。プランに紐付けなくても保存できます。
+                {noteSearchQuery.trim()
+                  ? "検索条件に一致するメモがありません。"
+                  : "まだメモがありません。「新しいメモ」から作成しましょう。プランに紐付けなくても保存できます。"}
               </Typography>
             ) : (
               libraryNotes.map((note) => (
@@ -611,6 +732,15 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               目標・アクションプランを1つのツリーにまとめて表示しています。つまみをドラッグすれば、どの行の上にも自由に並べ替え・入れ子にできます。
             </Typography>
 
+            <TextField
+              size="small"
+              placeholder="プランをタイトルで検索"
+              value={planSearchQuery}
+              onChange={(e) => setPlanSearchQuery(e.target.value)}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+              fullWidth
+            />
+
             {draggingNoteId !== null && (
               // position:fixedのオーバーレイにして通常のレイアウトフローに参加させない
               // （挿入時に下のプランツリーがずれてヒットテストが不安定になるのを防ぐ）
@@ -640,21 +770,29 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               </Paper>
             )}
 
-            <PlanTree
-              plans={plans}
-              rootParentId={null}
-              isExpanded={isExpanded}
-              onToggleExpand={toggleExpand}
-              onSelect={(plan) => setSelectedPlanId(plan.id)}
-              onEdit={(plan) => {
-                setEditingPlan(plan);
-                setPlanDialogOpen(true);
-              }}
-              onDelete={(plan) => setDeleteTarget({ kind: "plan", plan })}
-              onDrop={handlePlanDrop}
-              onPromoteToRoot={handlePromotePlan}
-              noteDropHighlightId={noteHoverPlanId}
-            />
+            {planSearchQuery.trim() && filteredPlans.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+                検索条件に一致するプランがありません。
+              </Typography>
+            ) : (
+              <PlanTree
+                plans={filteredPlans}
+                rootParentId={null}
+                isExpanded={isExpanded}
+                onToggleExpand={toggleExpand}
+                onSelect={(plan) => setSelectedPlanId(plan.id)}
+                onEdit={(plan) => {
+                  setEditingPlan(plan);
+                  setPlanDialogOpen(true);
+                }}
+                onDelete={(plan) => setDeleteTarget({ kind: "plan", plan })}
+                onDrop={handlePlanDrop}
+                onPromoteToRoot={handlePromotePlan}
+                noteDropHighlightId={noteHoverPlanId}
+                onMoveSibling={handleMoveSibling}
+                onOpenReparentPicker={setReparentPickerPlan}
+              />
+            )}
           </Stack>
         ) : (
           <Stack spacing={2}>
@@ -754,6 +892,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               onDrop={handlePlanDrop}
               onPromoteToRoot={handlePromotePlan}
               noteDropHighlightId={noteHoverPlanId}
+              onMoveSibling={handleMoveSibling}
+              onOpenReparentPicker={setReparentPickerPlan}
             />
 
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2 }}>
@@ -844,6 +984,16 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         parentTitle={selectedPlan?.title}
         initialPlan={editingPlan}
         linkingNoteTitle={pendingLinkNote?.title ?? null}
+      />
+
+      <PlanSelectDialog
+        open={!!reparentPickerPlan}
+        onClose={() => setReparentPickerPlan(null)}
+        title={reparentPickerPlan ? `「${reparentPickerPlan.title}」の移動先を選ぶ` : ""}
+        options={reparentOptions}
+        onSelect={(planId) => {
+          if (reparentPickerPlan) handleReparentPlan(reparentPickerPlan.id, planId);
+        }}
       />
 
       <NoteFormDialog

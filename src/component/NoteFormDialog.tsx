@@ -39,8 +39,13 @@ const normalizeDigits = (raw: string): string =>
   raw.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[^0-9]/g, "");
 
 const errorMessage = (err: unknown, fallback: string): string => {
-  if (axios.isAxiosError(err) && typeof err.response?.data === "string" && err.response.data) {
-    return err.response.data;
+  if (axios.isAxiosError(err)) {
+    if (!err.response) {
+      return "オフライン、または通信が不安定なため実行できませんでした。オンラインに戻ってからもう一度お試しください。";
+    }
+    if (typeof err.response.data === "string" && err.response.data) {
+      return err.response.data;
+    }
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
