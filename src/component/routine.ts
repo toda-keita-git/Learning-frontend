@@ -1,4 +1,4 @@
-// 「今日の復習」を、固定ペースの繰り返しやること（毎日・週1・月1、日数は自由設定）として管理する。
+// 「今日の復習」を、メモごとに自由な日数で設定した固定ペースの繰り返しやることとして管理する。
 // メモに設定したreview_interval_days（何日おきか）はバックエンド側で保存されるが、
 // 「いつ最後にやったか」は端末ローカルの体験で十分なため、SRSと同じくlocalStorageに持つ
 // （既知の制約: 複数端末間では同期されない）。
@@ -48,23 +48,6 @@ export const markRoutineDone = (userId: number | null | undefined, noteId: numbe
   all[noteId] = todayStr();
   saveAll(userId, all);
 };
-
-export type RoutineBucket = "daily" | "weekly" | "monthly";
-
-// 自由な日数設定を、表示用に一番近いグループへ振り分ける（見出しはあくまで目安）
-export const routineBucketOf = (intervalDays: number): RoutineBucket => {
-  if (intervalDays <= 2) return "daily";
-  if (intervalDays <= 15) return "weekly";
-  return "monthly";
-};
-
-export const ROUTINE_BUCKET_LABEL: Record<RoutineBucket, string> = {
-  daily: "今日やること",
-  weekly: "1週間に1回くらいやること",
-  monthly: "1ヶ月に1回くらいやること",
-};
-
-export const ROUTINE_BUCKET_ORDER: RoutineBucket[] = ["daily", "weekly", "monthly"];
 
 // 作成・編集ダイアログのプリセット
 export const ROUTINE_PRESETS: { label: string; days: number }[] = [

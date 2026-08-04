@@ -40,8 +40,7 @@ import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt
 
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
-import { isRoutineDue, markRoutineDone, routineBucketOf, ROUTINE_BUCKET_LABEL, ROUTINE_BUCKET_ORDER } from "./component/routine";
-import type { RoutineBucket } from "./component/routine";
+import { isRoutineDue, markRoutineDone } from "./component/routine";
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
@@ -193,7 +192,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   }, [notes, selectedPlanId, plans]);
   const currentStreak = useMemo(() => calculateStreakStats(streakDates), [streakDates]);
 
-  // ---- 今日の復習（固定ペースの繰り返しやること：毎日・週1・月1、頻度はメモごとに自由設定） ----
+  // ---- 今日の復習（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
   const dueRoutineNotes = useMemo(
     () => routineNotes.filter((n) => isRoutineDue(userId, n.id, n.review_interval_days)),
@@ -206,12 +205,16 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     return routineNotes.filter((n) => dueIds.has(n.id) || justChecked.has(n.id));
   }, [routineNotes, dueRoutineNotes, justChecked]);
 
+  // 設定した日数そのものをグループの見出しにする（昇順）
   const routineGroups = useMemo(() => {
-    const groups: Record<RoutineBucket, Note[]> = { daily: [], weekly: [], monthly: [] };
+    const byDays = new Map<number, Note[]>();
     for (const note of routineTodoNotes) {
-      groups[routineBucketOf(note.review_interval_days!)].push(note);
+      const days = note.review_interval_days!;
+      const list = byDays.get(days) ?? [];
+      list.push(note);
+      byDays.set(days, list);
     }
-    return groups;
+    return Array.from(byDays.entries()).sort(([a], [b]) => a - b);
   }, [routineTodoNotes]);
 
   // やることチェック操作。チェックを見せてから一覧を更新する（連打防止でjustCheckedは合成のまま）
@@ -486,12 +489,12 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 </Typography>
               </Stack>
             ) : (
-              ROUTINE_BUCKET_ORDER.filter((bucket) => routineGroups[bucket].length > 0).map((bucket) => (
-                <Stack key={bucket} spacing={1}>
+              routineGroups.map(([days, groupNotes]) => (
+                <Stack key={days} spacing={1}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    {ROUTINE_BUCKET_LABEL[bucket]}
+                    {days}日ごと
                   </Typography>
-                  {routineGroups[bucket].map((note) => {
+                  {groupNotes.map((note) => {
                     const checked = justChecked.has(note.id);
                     return (
                       <Paper
@@ -511,12 +514,13 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                           >
                             {note.title}
                           </Typography>
-                          <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center" sx={{ rowGap: 0.5 }}>
-                            <Chip label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" />
-                            {note.tags.map((tag) => (
-                              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
-                            ))}
-                          </Stack>
+                          {note.tags.length > 0 && (
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
+                              {note.tags.map((tag) => (
+                                <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+                              ))}
+                            </Stack>
+                          )}
                         </Stack>
                       </Paper>
                     );
