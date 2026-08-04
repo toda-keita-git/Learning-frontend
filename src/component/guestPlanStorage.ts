@@ -1,33 +1,29 @@
 // ゲストモード（GitHubログイン不要のお試しモード）用のローカル保存。
 // バックエンドには一切書き込まず、この端末のlocalStorageだけで完結させる。
-// GoalTypes.tsと同じ形にしておくことで、GoalDashboard・各ダイアログ・
+// PlanTypes.tsと同じ形にしておくことで、PlanDashboard・各ダイアログ・
 // カードコンポーネントを実アカウントと共通のまま再利用できるようにしている。
 import type {
-  Goal,
-  ActionPlan,
+  Plan,
   Note,
   NoteTodoItem,
+  NoteAttachment,
   CategoryOption,
-  GoalInput,
-  ActionPlanInput,
+  PlanInput,
   NoteInput,
-} from "./GoalTypes";
-import type { GoalDataSource, GoalDataBundle } from "./goalDataSource";
+} from "./PlanTypes";
+import type { PlanDataSource, PlanDataBundle } from "./planDataSource";
 
 // ゲストモードは体験版という位置づけのため件数に上限を設ける
-// （フリープラン: 目標は無制限・アクションプラン無制限・メモ100件 よりも少なめ）
-export const GUEST_GOAL_LIMIT = 5;
-export const GUEST_ACTION_PLAN_LIMIT = 20;
+export const GUEST_PLAN_LIMIT = 25;
 export const GUEST_NOTE_LIMIT = 30;
 export const GUEST_CATEGORY_LIMIT = 10;
 export const GUEST_TAG_LIMIT = 20;
 
-const GOALS_KEY = "guestGoals";
-const ACTION_PLANS_KEY = "guestActionPlans";
+const PLANS_KEY = "guestPlans";
 const NOTES_KEY = "guestNotes";
-const CATEGORIES_KEY = "guestGoalCategories";
-const TAGS_KEY = "guestGoalTags";
-const SEEDED_KEY = "guestGoalCategoriesSeeded";
+const CATEGORIES_KEY = "guestPlanCategories";
+const TAGS_KEY = "guestPlanTags";
+const SEEDED_KEY = "guestPlanCategoriesSeeded";
 
 const DEFAULT_CATEGORIES = ["仕事", "学業", "プログラミング", "語学", "趣味", "健康・生活"];
 const DEFAULT_TAGS = ["メモ", "復習", "重要", "あとで", "JavaScript", "React", "Git"];
@@ -77,7 +73,6 @@ function save<T>(key: string, items: T[]): void {
   }
 }
 
-// 初回だけ、最初から選べるカテゴリー・タグを用意する
 function ensureDefaultCategoriesAndTags(): void {
   try {
     if (window.localStorage.getItem(SEEDED_KEY)) return;
@@ -93,7 +88,7 @@ function ensureDefaultCategoriesAndTags(): void {
   }
 }
 
-// ---- 進捗集計（バックエンドのProgressCalculatorと同じルール） ----
+// ---- 進捗集計（バックエンドのProgressServiceと同じ再帰ルール） ----
 
 function effectiveProgress(note: Note): number | null {
   if (note.type === "learning") return note.mastery;
@@ -113,16 +108,36 @@ function average(values: (number | null)[]): number | null {
   return nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
 }
 
-function withProgress(goals: Goal[], actionPlans: ActionPlan[], notes: Note[]): { goals: Goal[]; actionPlans: ActionPlan[] } {
-  const plansWithProgress = actionPlans.map((plan) => ({
-    ...plan,
-    progress: average(notes.filter((n) => n.action_plan_id === plan.id).map(effectiveProgress)),
-  }));
-  const goalsWithProgress = goals.map((goal) => ({
-    ...goal,
-    progress: average(plansWithProgress.filter((p) => p.goal_id === goal.id).map((p) => p.progress)),
-  }));
-  return { goals: goalsWithProgress, actionPlans: plansWithProgress };
+// 末端（葉）から根に向かって再帰的に計算し、各プランにprogressを詰め直す
+function withProgress(plans: Plan[], notes: Note[]): Plan[] {
+  const notesByPlan = new Map<number, number[]>();
+  for (const note of notes) {
+    const ep = effectiveProgress(note);
+    if (ep === null) continue;
+    for (const planId of note.links) {
+      const list = notesByPlan.get(planId) ?? [];
+      list.push(ep);
+      notesByPlan.set(planId, list);
+    }
+  }
+  const childrenByParent = new Map<number | null, Plan[]>();
+  for (const plan of plans) {
+    const list = childrenByParent.get(plan.parent_id) ?? [];
+    list.push(plan);
+    childrenByParent.set(plan.parent_id, list);
+  }
+  const cache = new Map<number, number | null>();
+  const compute = (plan: Plan): number | null => {
+    if (cache.has(plan.id)) return cache.get(plan.id)!;
+    const values: (number | null)[] = [...(notesByPlan.get(plan.id) ?? [])];
+    for (const child of childrenByParent.get(plan.id) ?? []) {
+      values.push(compute(child));
+    }
+    const result = average(values);
+    cache.set(plan.id, result);
+    return result;
+  };
+  return plans.map((plan) => ({ ...plan, progress: compute(plan) }));
 }
 
 // ---- カテゴリー・タグ ----
@@ -132,20 +147,6 @@ export function listGuestCategories(): CategoryOption[] {
   return load<CategoryOption>(CATEGORIES_KEY).sort((a, b) => a.name.localeCompare(b.name, "ja"));
 }
 
-export function createGuestCategory(name: string): CategoryOption {
-  const trimmed = name.trim();
-  const categories = load<CategoryOption>(CATEGORIES_KEY);
-  if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-    return categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase())!;
-  }
-  if (categories.length >= GUEST_CATEGORY_LIMIT) {
-    throw new Error(`ゲストモードのカテゴリー上限（${GUEST_CATEGORY_LIMIT}件）に達しています。`);
-  }
-  const category: CategoryOption = { id: nextId(), name: trimmed };
-  save(CATEGORIES_KEY, [...categories, category]);
-  return category;
-}
-
 export function listGuestTags(): string[] {
   ensureDefaultCategoriesAndTags();
   return load<{ id: number; name: string }>(TAGS_KEY)
@@ -153,8 +154,6 @@ export function listGuestTags(): string[] {
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
-// メモ保存時、まだ登録されていないタグ名があれば上限内で自動登録する
-// （実アプリのnote_insert/updateが行う自動タグ作成と同じ挙動）
 function ensureGuestTagsRegistered(tagNames: string[]): string[] {
   const existing = load<{ id: number; name: string }>(TAGS_KEY);
   const existingNames = new Set(existing.map((t) => t.name));
@@ -167,7 +166,7 @@ function ensureGuestTagsRegistered(tagNames: string[]): string[] {
       if (!accepted.includes(name)) accepted.push(name);
       continue;
     }
-    if (current.length >= GUEST_TAG_LIMIT) continue; // 上限超過分はスキップ（メモ自体の保存は続行）
+    if (current.length >= GUEST_TAG_LIMIT) continue;
     current = [...current, { id: nextId(), name }];
     existingNames.add(name);
     accepted.push(name);
@@ -178,25 +177,14 @@ function ensureGuestTagsRegistered(tagNames: string[]): string[] {
 
 // ---- データ本体 ----
 
-function toGoal(id: number, data: GoalInput): Goal {
+function toPlan(id: number, sortOrder: number, data: PlanInput): Plan {
   return {
     id,
+    parent_id: data.parent_id,
     title: data.title,
     description: data.description,
     status: data.status,
-    created_at: new Date().toISOString(),
-    user_id: 0,
-    progress: null,
-  };
-}
-
-function toActionPlan(id: number, priority: number, data: ActionPlanInput): ActionPlan {
-  return {
-    id,
-    goal_id: data.goal_id,
-    title: data.title,
-    priority,
-    status: data.status,
+    sort_order: sortOrder,
     created_at: new Date().toISOString(),
     user_id: 0,
     progress: null,
@@ -211,92 +199,95 @@ function toNote(id: number, data: NoteInput, tags: string[]): Note {
     checked: t.checked,
     sort_order: i,
   }));
+  const attachments: NoteAttachment[] = (data.attachments ?? []).map((a, i) => ({
+    ...a,
+    id: nextId(),
+    note_id: id,
+    sort_order: i,
+  }));
   return {
     id,
-    action_plan_id: data.action_plan_id,
     type: data.type,
     title: data.title,
     body: data.body,
     mastery: data.mastery,
     progress: data.progress,
     category_id: data.category_id,
-    github_path: data.github_path,
-    commit_sha: data.commit_sha,
-    repo_name: data.repo_name,
     created_at: new Date().toISOString(),
     user_id: 0,
     todo_items: todoItems,
     tags,
+    links: data.links ?? [],
+    attachments,
     effective_progress: null, // fetchAll側で計算し直す
   };
 }
 
-export const guestGoalDataSource: GoalDataSource = {
-  async fetchAll(): Promise<GoalDataBundle> {
-    const rawGoals = load<Goal>(GOALS_KEY);
-    const rawPlans = load<ActionPlan>(ACTION_PLANS_KEY);
+export const guestPlanDataSource: PlanDataSource = {
+  async fetchAll(): Promise<PlanDataBundle> {
+    const rawPlans = load<Plan>(PLANS_KEY);
     const notes = load<Note>(NOTES_KEY).map((n) => ({ ...n, effective_progress: effectiveProgress(n) }));
-    const { goals, actionPlans } = withProgress(rawGoals, rawPlans, notes);
+    const plans = withProgress(rawPlans, notes).sort((a, b) => a.sort_order - b.sort_order);
     return {
-      goals: goals.sort((a, b) => a.id - b.id),
-      actionPlans: actionPlans.sort((a, b) => a.priority - b.priority),
+      plans,
       notes: notes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
       categories: listGuestCategories(),
       tagOptions: listGuestTags(),
     };
   },
 
-  async createGoal(data) {
-    const goals = load<Goal>(GOALS_KEY);
-    if (goals.length >= GUEST_GOAL_LIMIT) {
-      throw new Error(`ゲストモードでは目標は${GUEST_GOAL_LIMIT}件までです。GitHubでログインすると無制限に作成できます。`);
+  async createPlan(data) {
+    const plans = load<Plan>(PLANS_KEY);
+    if (plans.length >= GUEST_PLAN_LIMIT) {
+      throw new Error(`ゲストモードではプランは${GUEST_PLAN_LIMIT}件までです。GitHubでログインすると無制限に作成できます。`);
     }
-    save(GOALS_KEY, [...goals, toGoal(nextId(), data)]);
+    const nextSortOrder = Math.max(-1, ...plans.filter((p) => p.parent_id === data.parent_id).map((p) => p.sort_order)) + 1;
+    save(PLANS_KEY, [...plans, toPlan(nextId(), nextSortOrder, data)]);
   },
 
-  async updateGoal(id, data) {
-    const goals = load<Goal>(GOALS_KEY);
-    const index = goals.findIndex((g) => g.id === id);
-    if (index === -1) return;
-    goals[index] = { ...goals[index], title: data.title, description: data.description, status: data.status };
-    save(GOALS_KEY, goals);
-  },
-
-  async deleteGoal(id) {
-    save(GOALS_KEY, load<Goal>(GOALS_KEY).filter((g) => g.id !== id));
-  },
-
-  async createActionPlan(data) {
-    const plans = load<ActionPlan>(ACTION_PLANS_KEY);
-    if (plans.length >= GUEST_ACTION_PLAN_LIMIT) {
-      throw new Error(`ゲストモードではアクションプランは${GUEST_ACTION_PLAN_LIMIT}件までです。GitHubでログインすると無制限に作成できます。`);
-    }
-    const nextPriority = Math.max(-1, ...plans.filter((p) => p.goal_id === data.goal_id).map((p) => p.priority)) + 1;
-    save(ACTION_PLANS_KEY, [...plans, toActionPlan(nextId(), nextPriority, data)]);
-  },
-
-  async updateActionPlan(id, data) {
-    const plans = load<ActionPlan>(ACTION_PLANS_KEY);
+  async updatePlan(id, data) {
+    const plans = load<Plan>(PLANS_KEY);
     const index = plans.findIndex((p) => p.id === id);
     if (index === -1) return;
-    plans[index] = { ...plans[index], title: data.title, status: data.status };
-    save(ACTION_PLANS_KEY, plans);
+    plans[index] = { ...plans[index], title: data.title, description: data.description, status: data.status };
+    save(PLANS_KEY, plans);
   },
 
-  async deleteActionPlan(id) {
-    save(ACTION_PLANS_KEY, load<ActionPlan>(ACTION_PLANS_KEY).filter((p) => p.id !== id));
-    // 紐づくメモは削除せず未紐付けに戻す（バックエンドのActionPlanServiceと同じ方針）
-    const notes = load<Note>(NOTES_KEY).map((n) => (n.action_plan_id === id ? { ...n, action_plan_id: null } : n));
-    save(NOTES_KEY, notes);
+  async reparentPlan(id, parentId) {
+    const plans = load<Plan>(PLANS_KEY);
+    // 循環参照チェック（自分自身・自分の子孫を新しい親にはできない）
+    if (parentId !== null) {
+      if (parentId === id) throw new Error("移動先が不正です。");
+      const parentById = new Map(plans.map((p) => [p.id, p.parent_id]));
+      let cursor: number | null = parentId;
+      while (cursor !== null) {
+        if (cursor === id) throw new Error("移動先が不正です（循環になります）。");
+        cursor = parentById.get(cursor) ?? null;
+      }
+    }
+    const nextSortOrder = Math.max(-1, ...plans.filter((p) => p.parent_id === parentId).map((p) => p.sort_order)) + 1;
+    const index = plans.findIndex((p) => p.id === id);
+    if (index === -1) return;
+    plans[index] = { ...plans[index], parent_id: parentId, sort_order: nextSortOrder };
+    save(PLANS_KEY, plans);
   },
 
-  async reorderActionPlans(items) {
-    const plans = load<ActionPlan>(ACTION_PLANS_KEY);
-    const priorityById = new Map(items.map((i) => [i.id, i.priority]));
+  async reorderPlans(items) {
+    const plans = load<Plan>(PLANS_KEY);
+    const sortOrderById = new Map(items.map((i) => [i.id, i.sort_order]));
     save(
-      ACTION_PLANS_KEY,
-      plans.map((p) => (priorityById.has(p.id) ? { ...p, priority: priorityById.get(p.id)! } : p))
+      PLANS_KEY,
+      plans.map((p) => (sortOrderById.has(p.id) ? { ...p, sort_order: sortOrderById.get(p.id)! } : p))
     );
+  },
+
+  async deletePlan(id) {
+    const plans = load<Plan>(PLANS_KEY);
+    const target = plans.find((p) => p.id === id);
+    if (!target) return;
+    // 子プランは1段繰り上げる（バックエンドのPlanServiceと同じ方針）
+    const promoted = plans.map((p) => (p.parent_id === id ? { ...p, parent_id: target.parent_id } : p));
+    save(PLANS_KEY, promoted.filter((p) => p.id !== id));
   },
 
   async createNote(data) {
@@ -322,16 +313,12 @@ export const guestGoalDataSource: GoalDataSource = {
     }));
     notes[index] = {
       ...notes[index],
-      action_plan_id: data.action_plan_id,
       type: data.type,
       title: data.title,
       body: data.body,
       mastery: data.mastery,
       progress: data.progress,
       category_id: data.category_id,
-      github_path: data.github_path,
-      commit_sha: data.commit_sha,
-      repo_name: data.repo_name,
       todo_items: todoItems,
       tags,
     };
@@ -342,11 +329,21 @@ export const guestGoalDataSource: GoalDataSource = {
     save(NOTES_KEY, load<Note>(NOTES_KEY).filter((n) => n.id !== id));
   },
 
-  async attachNote(id, actionPlanId) {
+  async linkNote(id, planId) {
     const notes = load<Note>(NOTES_KEY);
     const index = notes.findIndex((n) => n.id === id);
     if (index === -1) return;
-    notes[index] = { ...notes[index], action_plan_id: actionPlanId };
+    if (!notes[index].links.includes(planId)) {
+      notes[index] = { ...notes[index], links: [...notes[index].links, planId] };
+      save(NOTES_KEY, notes);
+    }
+  },
+
+  async unlinkNote(id, planId) {
+    const notes = load<Note>(NOTES_KEY);
+    const index = notes.findIndex((n) => n.id === id);
+    if (index === -1) return;
+    notes[index] = { ...notes[index], links: notes[index].links.filter((p) => p !== planId) };
     save(NOTES_KEY, notes);
   },
 
@@ -360,19 +357,32 @@ export const guestGoalDataSource: GoalDataSource = {
       }))
     );
   },
+
+  async addNoteAttachment(noteId, attachment) {
+    const notes = load<Note>(NOTES_KEY);
+    const index = notes.findIndex((n) => n.id === noteId);
+    if (index === -1) return;
+    const newAttachment: NoteAttachment = { ...attachment, id: nextId(), note_id: noteId };
+    notes[index] = { ...notes[index], attachments: [...notes[index].attachments, newAttachment] };
+    save(NOTES_KEY, notes);
+  },
+
+  async deleteNoteAttachment(attachmentId) {
+    const notes = load<Note>(NOTES_KEY);
+    save(
+      NOTES_KEY,
+      notes.map((n) => ({ ...n, attachments: n.attachments.filter((a) => a.id !== attachmentId) }))
+    );
+  },
 };
 
-// 「GitHubでログインする」への案内前などに、この端末にゲストデータが
-// 残っているかどうかを判定する
 export function hasGuestData(): boolean {
-  return load<Goal>(GOALS_KEY).length > 0 || load<Note>(NOTES_KEY).length > 0;
+  return load<Plan>(PLANS_KEY).length > 0 || load<Note>(NOTES_KEY).length > 0;
 }
 
-// ゲストモードのローカルデータをまるごと消す
-export function clearGuestGoalData(): void {
+export function clearGuestPlanData(): void {
   try {
-    window.localStorage.removeItem(GOALS_KEY);
-    window.localStorage.removeItem(ACTION_PLANS_KEY);
+    window.localStorage.removeItem(PLANS_KEY);
     window.localStorage.removeItem(NOTES_KEY);
     window.localStorage.removeItem(CATEGORIES_KEY);
     window.localStorage.removeItem(TAGS_KEY);

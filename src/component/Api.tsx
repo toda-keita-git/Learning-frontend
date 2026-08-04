@@ -1,6 +1,6 @@
 import axiosBase from "axios";
 import { clearPersistedSession } from "./authStorage";
-import type { Goal, GoalInput, ActionPlan, ActionPlanInput, Note, NoteInput } from "./GoalTypes";
+import type { Plan, PlanInput, Note, NoteInput, NoteAttachment } from "./PlanTypes";
 
 // 開発時は vite.config.ts の server.proxy 経由で "/api" をバックエンドへ転送しているが、
 // 本番のStatic Siteはサーバー側プロキシを持てないため、そのままだと
@@ -258,52 +258,39 @@ export const updateInquiryStatusApi = async (id: number, status: string) => {
 };
 
 // ------------------------------------------------------------------
-// 目標 / アクションプラン / メモ（user_idはいずれもJWTから特定される）
+// プラン / メモ（user_idはいずれもJWTから特定される）
+// プランは目標/アクションプランを統合した再帰構造。parent_id=nullがルート（目標として表示）
 // ------------------------------------------------------------------
 
-export const goalsApi = async (): Promise<Goal[]> => {
-  const response = await axios.get("/goals");
+export const plansApi = async (): Promise<Plan[]> => {
+  const response = await axios.get("/plans");
   return response.data;
 };
 
-export const createGoalApi = async (data: GoalInput) => {
-  const response = await axios.post("/goal_insert", data);
+export const createPlanApi = async (data: PlanInput) => {
+  const response = await axios.post("/plan_insert", data);
   return response.data;
 };
 
-export const updateGoalApi = async (id: number, data: GoalInput) => {
-  const response = await axios.post(`/goal_update/${id}`, data);
+export const updatePlanApi = async (id: number, data: PlanInput) => {
+  const response = await axios.post(`/plan_update/${id}`, data);
   return response.data;
 };
 
-export const deleteGoalApi = async (id: number) => {
-  const response = await axios.post(`/goal_delete/${id}`);
+// 親を変更＝再配置。parent_id=nullでルート化（目標にする）、他プランのidを指定するとその子（アクションプラン）になる
+export const reparentPlanApi = async (id: number, parentId: number | null) => {
+  const response = await axios.post(`/plan_reparent/${id}`, { parent_id: parentId });
   return response.data;
 };
 
-export const actionPlansApi = async (): Promise<ActionPlan[]> => {
-  const response = await axios.get("/action_plans");
+// 同じ親を持つプラン同士の並べ替え確定後、まとめて送る
+export const reorderPlansApi = async (items: { id: number; sort_order: number }[]) => {
+  const response = await axios.post("/plan_reorder", items);
   return response.data;
 };
 
-export const createActionPlanApi = async (data: ActionPlanInput) => {
-  const response = await axios.post("/action_plan_insert", data);
-  return response.data;
-};
-
-export const updateActionPlanApi = async (id: number, data: ActionPlanInput) => {
-  const response = await axios.post(`/action_plan_update/${id}`, data);
-  return response.data;
-};
-
-// ドラッグ&ドロップ確定後、並び順をまとめて送る
-export const reorderActionPlansApi = async (items: { id: number; priority: number }[]) => {
-  const response = await axios.post("/action_plan_reorder", items);
-  return response.data;
-};
-
-export const deleteActionPlanApi = async (id: number) => {
-  const response = await axios.post(`/action_plan_delete/${id}`);
+export const deletePlanApi = async (id: number) => {
+  const response = await axios.post(`/plan_delete/${id}`);
   return response.data;
 };
 
@@ -327,14 +314,30 @@ export const deleteNoteApi = async (id: number) => {
   return response.data;
 };
 
-// 未紐付けメモを後からアクションプランに紐付ける
-export const attachNoteApi = async (id: number, actionPlanId: number) => {
-  const response = await axios.post(`/note_attach/${id}`, { action_plan_id: actionPlanId });
+// メモをプランへリンク／リンク解除（ドラッグ・タップどちらの操作からも呼ぶ）
+export const linkNoteApi = async (id: number, planId: number) => {
+  const response = await axios.post(`/note_link/${id}`, { plan_id: planId });
+  return response.data;
+};
+
+export const unlinkNoteApi = async (id: number, planId: number) => {
+  const response = await axios.post(`/note_unlink/${id}`, { plan_id: planId });
   return response.data;
 };
 
 // タスク用メモのtodo1件のチェック切替
 export const toggleNoteTodoApi = async (todoItemId: number, checked: boolean) => {
   const response = await axios.post(`/note_todo_toggle/${todoItemId}`, { checked });
+  return response.data;
+};
+
+// 画像／コードの添付を1件追加・削除
+export const addNoteAttachmentApi = async (noteId: number, attachment: Omit<NoteAttachment, "id" | "note_id">) => {
+  const response = await axios.post(`/note_attachment_insert/${noteId}`, attachment);
+  return response.data;
+};
+
+export const deleteNoteAttachmentApi = async (attachmentId: number) => {
+  const response = await axios.post(`/note_attachment_delete/${attachmentId}`);
   return response.data;
 };

@@ -1,4 +1,5 @@
 import { useContext, useState } from "react";
+import type { HTMLAttributes } from "react";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -11,14 +12,18 @@ import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import AddIcon from "@mui/icons-material/Add";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
 import { getFileType } from "./getFileType";
 import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
-import type { Note } from "./GoalTypes";
-import { NOTE_TYPE_LABEL } from "./GoalTypes";
+import type { Note, NoteAttachment } from "./PlanTypes";
+import { NOTE_TYPE_LABEL } from "./PlanTypes";
 import ProgressBadge from "./ProgressBadge";
+import PlanPicker from "./PlanPicker";
+import type { PlanOption } from "./PlanPicker";
 
 const TYPE_COLOR: Record<Note["type"], "warning" | "success" | "default"> = {
   learning: "warning",
@@ -39,49 +44,69 @@ interface NoteCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleTodo: (todoItemId: number, checked: boolean) => void;
+  planOptions: PlanOption[];
+  onLink: (planId: number) => void;
+  onUnlink: (planId: number) => void;
+  // プラン詳細のメモトレイ⇄タイムライン間ドラッグ用。呼び出し側がPointer Eventsハンドラを注入する
+  dragProps?: HTMLAttributes<HTMLDivElement>;
+  dragging?: boolean;
 }
 
-export default function NoteCard({ note, onEdit, onDelete, onToggleTodo }: NoteCardProps) {
+export default function NoteCard({
+  note,
+  onEdit,
+  onDelete,
+  onToggleTodo,
+  planOptions,
+  onLink,
+  onUnlink,
+  dragProps,
+  dragging,
+}: NoteCardProps) {
   const { octokit, githubLogin } = useContext(AuthContext);
   const { showToast } = useToast();
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState<NoteAttachment | null>(null);
   const [viewerContent, setViewerContent] = useState("");
-  const [loadingCode, setLoadingCode] = useState(false);
+  const [loadingAttachmentId, setLoadingAttachmentId] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const handleViewCode = async () => {
-    if (!note.github_path || !octokit || !githubLogin) return;
-    const owner = githubLogin;
-    const repo = note.repo_name ?? "";
-    if (!repo) return;
-    setLoadingCode(true);
+  const linkedOptions = planOptions.filter((opt) => note.links.includes(opt.id));
+
+  const handleViewAttachment = async (attachment: NoteAttachment) => {
+    if (!octokit || !githubLogin) return;
+    setLoadingAttachmentId(attachment.id ?? -1);
     try {
-      const { data } = await octokit.repos.getContent({ owner, repo, path: note.github_path });
+      const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: attachment.repo_name, path: attachment.github_path });
       if (Array.isArray(data) || !("content" in data)) {
         throw new Error("フォルダーは表示できません。");
       }
       const raw = data.content.replace(/\n/g, "");
-      const fileType = getFileType(note.github_path);
-      const ext = note.github_path.split(".").pop() ?? "";
+      const fileType = getFileType(attachment.github_path);
+      const ext = attachment.github_path.split(".").pop() ?? "";
       const content = fileType === "image" ? getImageDataUrl(raw, ext) : decodeBase64Text(raw);
       setViewerContent(content);
-      setViewerOpen(true);
+      setViewerOpen(attachment);
     } catch (err) {
       console.error(err);
-      showToast("コードの取得に失敗しました。ファイルが移動・削除された可能性があります。", "error");
+      showToast("添付の取得に失敗しました。ファイルが移動・削除された可能性があります。", "error");
     } finally {
-      setLoadingCode(false);
+      setLoadingAttachmentId(null);
     }
   };
 
   return (
     <Paper
       variant="outlined"
+      data-note-id={note.id}
+      {...dragProps}
       sx={{
         p: 2.5,
         borderRadius: 2,
         borderLeftWidth: 3,
         borderLeftStyle: "solid",
         borderLeftColor: TYPE_BORDER_COLOR[note.type],
+        opacity: dragging ? 0.4 : 1,
+        ...(dragProps?.style ?? {}),
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -143,16 +168,29 @@ export default function NoteCard({ note, onEdit, onDelete, onToggleTodo }: NoteC
         </Typography>
       )}
 
-      {note.github_path && (
-        <Button
-          size="small"
-          startIcon={loadingCode ? <CircularProgress size={14} /> : <GitHubIcon fontSize="small" />}
-          onClick={handleViewCode}
-          disabled={loadingCode}
-          sx={{ mt: 1.5 }}
-        >
-          {note.github_path}
-        </Button>
+      {note.attachments.length > 0 && (
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.75 }}>
+          {note.attachments.map((attachment) => (
+            <Button
+              key={attachment.id}
+              size="small"
+              variant="outlined"
+              startIcon={
+                loadingAttachmentId === attachment.id ? (
+                  <CircularProgress size={14} />
+                ) : attachment.kind === "image" ? (
+                  <ImageOutlinedIcon fontSize="small" />
+                ) : (
+                  <GitHubIcon fontSize="small" />
+                )
+              }
+              onClick={() => handleViewAttachment(attachment)}
+              disabled={loadingAttachmentId !== null}
+            >
+              {attachment.github_path.split("/").pop()}
+            </Button>
+          ))}
+        </Stack>
       )}
 
       {note.tags.length > 0 && (
@@ -163,12 +201,34 @@ export default function NoteCard({ note, onEdit, onDelete, onToggleTodo }: NoteC
         </Stack>
       )}
 
-      {note.github_path && (
+      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.5 }} alignItems="center">
+        {linkedOptions.map((opt) => (
+          <Chip
+            key={opt.id}
+            label={opt.label}
+            size="small"
+            onDelete={() => onUnlink(opt.id)}
+            sx={{ maxWidth: 220 }}
+          />
+        ))}
+        <Chip
+          icon={<AddIcon fontSize="small" />}
+          label="プラン"
+          size="small"
+          variant={pickerOpen ? "filled" : "outlined"}
+          color={pickerOpen ? "primary" : "default"}
+          onClick={() => setPickerOpen((v) => !v)}
+        />
+      </Stack>
+
+      {pickerOpen && <PlanPicker options={planOptions} linkedIds={note.links} onToggle={(id) => (note.links.includes(id) ? onUnlink(id) : onLink(id))} />}
+
+      {viewerOpen && (
         <GitHubFileViewerDialog
-          open={viewerOpen}
-          onClose={() => setViewerOpen(false)}
-          path={note.github_path}
-          content={PREVIEW_UNSUPPORTED.includes(getFileType(note.github_path)) ? "" : viewerContent}
+          open={!!viewerOpen}
+          onClose={() => setViewerOpen(null)}
+          path={viewerOpen.github_path}
+          content={PREVIEW_UNSUPPORTED.includes(getFileType(viewerOpen.github_path)) ? "" : viewerContent}
           isEditable={false}
           onUpdateFile={async () => {}}
         />

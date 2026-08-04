@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -18,57 +18,65 @@ import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
+import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
-import type { Note, NoteInput, NoteType, NoteTodoItem, CategoryOption } from "./GoalTypes";
+import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
 
-export interface ActionPlanOption {
-  id: number;
-  label: string; // "{目標名} / {アクションプラン名}"
-}
+const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 interface NoteFormDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: NoteInput) => Promise<void>;
   initialNote?: Note | null;
-  // 指定されている場合、アクションプラン選択欄を出さずこの値に固定する（アクションプラン詳細からの新規作成）
-  fixedActionPlanId?: number | null;
-  actionPlanOptions: ActionPlanOption[];
+  // 新規作成時のみ有効。指定するとその場でこのプランへリンクされた状態で作成する
+  fixedPlanId?: number | null;
+  // 既存メモの編集中に添付を増減した場合、その場でAPIを呼んで即時反映する
+  onAddAttachment?: (attachment: Omit<NoteAttachment, "id" | "note_id">) => Promise<void>;
+  onDeleteAttachment?: (attachmentId: number) => Promise<void>;
   categories: CategoryOption[];
   tagOptions: string[];
 }
-
-const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
 
 export default function NoteFormDialog({
   open,
   onClose,
   onSubmit,
   initialNote,
-  fixedActionPlanId,
-  actionPlanOptions,
+  fixedPlanId,
+  onAddAttachment,
+  onDeleteAttachment,
   categories,
   tagOptions,
 }: NoteFormDialogProps) {
   const [type, setType] = useState<NoteType>("normal");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [actionPlanId, setActionPlanId] = useState<number | "">("");
   const [mastery, setMastery] = useState(0);
   const [progress, setProgress] = useState(0);
   const [todoItems, setTodoItems] = useState<NoteTodoItem[]>([]);
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [tags, setTags] = useState<string[]>([]);
-  const [githubPath, setGithubPath] = useState<string | null>(null);
-  const [commitSha, setCommitSha] = useState<string | null>(null);
-  const [repoNameField, setRepoNameField] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
-  const [resolvingSha, setResolvingSha] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { octokit, githubLogin, repoName } = useContext(AuthContext);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!open) return;
@@ -76,47 +84,24 @@ export default function NoteFormDialog({
       setType(initialNote.type);
       setTitle(initialNote.title);
       setBody(initialNote.body ?? "");
-      setActionPlanId(initialNote.action_plan_id ?? "");
       setMastery(initialNote.mastery ?? 0);
       setProgress(initialNote.progress ?? 0);
       setTodoItems(initialNote.todo_items?.length ? initialNote.todo_items : []);
       setCategoryId(initialNote.category_id ?? "");
       setTags(initialNote.tags ?? []);
-      setGithubPath(initialNote.github_path ?? null);
-      setCommitSha(initialNote.commit_sha ?? null);
-      setRepoNameField(initialNote.repo_name ?? null);
+      setAttachments(initialNote.attachments ?? []);
     } else {
       setType("normal");
       setTitle("");
       setBody("");
-      setActionPlanId(fixedActionPlanId ?? "");
       setMastery(0);
       setProgress(0);
       setTodoItems([]);
       setCategoryId("");
       setTags([]);
-      setGithubPath(null);
-      setCommitSha(null);
-      setRepoNameField(null);
+      setAttachments([]);
     }
-  }, [open, initialNote, fixedActionPlanId]);
-
-  const handleGithubFileSelect = async (path: string) => {
-    setGithubSelectorOpen(false);
-    setGithubPath(path);
-    setRepoNameField(repoName);
-    setResolvingSha(true);
-    try {
-      if (octokit && githubLogin && repoName) {
-        const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
-        setCommitSha(!Array.isArray(data) && "sha" in data ? data.sha : null);
-      }
-    } catch {
-      setCommitSha(null);
-    } finally {
-      setResolvingSha(false);
-    }
-  };
+  }, [open, initialNote]);
 
   const handleAddTodo = () => setTodoItems((prev) => [...prev, emptyTodo()]);
   const handleTodoLabelChange = (index: number, label: string) =>
@@ -126,12 +111,71 @@ export default function NoteFormDialog({
   const handleTodoRemove = (index: number) =>
     setTodoItems((prev) => prev.filter((_, i) => i !== index));
 
+  const addAttachmentLocallyOrRemotely = async (attachment: Omit<NoteAttachment, "id" | "note_id">) => {
+    if (initialNote && onAddAttachment) {
+      await onAddAttachment(attachment);
+      // 編集中は呼び出し元がメモ一覧を再取得するので、ここではダイアログ表示用に楽観的に足しておく
+      setAttachments((prev) => [...prev, attachment as NoteAttachment]);
+    } else {
+      setAttachments((prev) => [...prev, attachment as NoteAttachment]);
+    }
+  };
+
+  const handleFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !octokit || !githubLogin || !repoName) return;
+    setUploadingImages(true);
+    try {
+      for (const file of Array.from(files)) {
+        const base64 = await fileToBase64(file);
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `attachments/${Date.now()}-${safeName}`;
+        const { data } = await octokit.repos.createOrUpdateFileContents({
+          owner: githubLogin,
+          repo: repoName,
+          path,
+          message: `add note image ${file.name}`,
+          content: base64,
+        });
+        const sha = data.content && "sha" in data.content ? (data.content.sha as string) : null;
+        await addAttachmentLocallyOrRemotely({ kind: "image", github_path: path, commit_sha: sha, repo_name: repoName });
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("画像のアップロードに失敗しました。", "error");
+    } finally {
+      setUploadingImages(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleGithubFileSelect = async (path: string) => {
+    setGithubSelectorOpen(false);
+    if (!octokit || !githubLogin || !repoName) return;
+    setResolvingCodeSha(true);
+    try {
+      const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
+      const sha = !Array.isArray(data) && "sha" in data ? data.sha : null;
+      await addAttachmentLocallyOrRemotely({ kind: "code", github_path: path, commit_sha: sha, repo_name: repoName });
+    } catch (err) {
+      console.error(err);
+      showToast("コードの添付に失敗しました。", "error");
+    } finally {
+      setResolvingCodeSha(false);
+    }
+  };
+
+  const handleRemoveAttachment = async (attachment: NoteAttachment, index: number) => {
+    if (initialNote && attachment.id !== undefined && onDeleteAttachment) {
+      await onDeleteAttachment(attachment.id);
+    }
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setSaving(true);
     try {
       const data: NoteInput = {
-        action_plan_id: actionPlanId === "" ? null : Number(actionPlanId),
         type,
         title: title.trim(),
         body: body.trim() || null,
@@ -143,9 +187,12 @@ export default function NoteFormDialog({
             ? todoItems.filter((t) => t.label.trim()).map((t) => ({ ...t, label: t.label.trim() }))
             : [],
         tags: tags.map((t) => t.trim()).filter(Boolean),
-        github_path: type === "learning" ? githubPath : null,
-        commit_sha: type === "learning" ? commitSha : null,
-        repo_name: type === "learning" ? repoNameField : null,
+        ...(initialNote
+          ? {}
+          : {
+              links: fixedPlanId !== undefined && fixedPlanId !== null ? [fixedPlanId] : [],
+              attachments,
+            }),
       };
       await onSubmit(data);
       onClose();
@@ -153,6 +200,8 @@ export default function NoteFormDialog({
       setSaving(false);
     }
   };
+
+  const hasGithub = !!octokit && !!repoName;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -174,73 +223,20 @@ export default function NoteFormDialog({
             autoFocus
           />
 
-          {fixedActionPlanId === undefined && (
-            <TextField
-              select
-              label="アクションプラン"
-              value={actionPlanId}
-              onChange={(e) => setActionPlanId(e.target.value === "" ? "" : Number(e.target.value))}
-              helperText="未選択のまま保存すると、後から一覧で紐付けられます"
-              fullWidth
-            >
-              <MenuItem value="">未紐付け</MenuItem>
-              {actionPlanOptions.map((opt) => (
-                <MenuItem key={opt.id} value={opt.id}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-
           {type === "learning" && (
-            <Stack spacing={1.5}>
-              <div>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  習熟度: {mastery}%
-                </Typography>
-                <Slider
-                  value={mastery}
-                  onChange={(_, v) => setMastery(v as number)}
-                  valueLabelDisplay="auto"
-                  step={5}
-                  min={0}
-                  max={100}
-                />
-              </div>
-
-              <div>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  GitHubのコードを添付（任意）
-                </Typography>
-                {githubPath ? (
-                  <Chip
-                    icon={<GitHubIcon />}
-                    label={resolvingSha ? `${githubPath}（確認中…）` : githubPath}
-                    onDelete={() => {
-                      setGithubPath(null);
-                      setCommitSha(null);
-                      setRepoNameField(null);
-                    }}
-                    sx={{ maxWidth: "100%" }}
-                  />
-                ) : (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<GitHubIcon />}
-                    disabled={!octokit || !repoName}
-                    onClick={() => setGithubSelectorOpen(true)}
-                  >
-                    リポジトリからファイルを選ぶ
-                  </Button>
-                )}
-                {!octokit && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                    GitHub連携の準備ができていません。
-                  </Typography>
-                )}
-              </div>
-            </Stack>
+            <div>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                習熟度: {mastery}%
+              </Typography>
+              <Slider
+                value={mastery}
+                onChange={(_, v) => setMastery(v as number)}
+                valueLabelDisplay="auto"
+                step={5}
+                min={0}
+                max={100}
+              />
+            </div>
           )}
 
           {type === "task" && (
@@ -293,6 +289,56 @@ export default function NoteFormDialog({
             minRows={4}
             fullWidth
           />
+
+          <div>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              画像・コードの添付（任意・複数可）
+            </Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mb: 1, rowGap: 0.75 }}>
+              {attachments.map((attachment, index) => (
+                <Chip
+                  key={attachment.id ?? `${attachment.github_path}-${index}`}
+                  icon={attachment.kind === "image" ? <ImageOutlinedIcon /> : <GitHubIcon />}
+                  label={attachment.github_path.split("/").pop()}
+                  onDelete={() => handleRemoveAttachment(attachment, index)}
+                  sx={{ maxWidth: 220 }}
+                />
+              ))}
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => handleFilesSelected(e.target.files)}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={uploadingImages ? <CircularProgress size={14} /> : <ImageOutlinedIcon fontSize="small" />}
+                disabled={!hasGithub || uploadingImages}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                画像を選ぶ
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={resolvingCodeSha ? <CircularProgress size={14} /> : <GitHubIcon fontSize="small" />}
+                disabled={!hasGithub || resolvingCodeSha}
+                onClick={() => setGithubSelectorOpen(true)}
+              >
+                コードを選ぶ
+              </Button>
+            </Stack>
+            {!hasGithub && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                GitHub連携の準備ができていないため、添付は使えません。
+              </Typography>
+            )}
+          </div>
 
           {categories.length > 0 && (
             <TextField

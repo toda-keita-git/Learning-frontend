@@ -8,73 +8,85 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
-import type { Goal, GoalInput, GoalStatus } from "./GoalTypes";
-import { GOAL_STATUS_LABEL } from "./GoalTypes";
+import type { Plan, PlanInput, PlanStatus } from "./PlanTypes";
+import { PLAN_STATUS_LABEL } from "./PlanTypes";
 
-interface GoalFormDialogProps {
+interface PlanFormDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: GoalInput) => Promise<void>;
-  initialGoal?: Goal | null;
+  onSubmit: (data: PlanInput) => Promise<void>;
+  // 新規作成時の親（nullならルート＝目標として作成）。編集時は既存のparent_idを維持する
+  parentId: number | null;
+  parentTitle?: string | null;
+  initialPlan?: Plan | null;
 }
 
-export default function GoalFormDialog({ open, onClose, onSubmit, initialGoal }: GoalFormDialogProps) {
+export default function PlanFormDialog({ open, onClose, onSubmit, parentId, parentTitle, initialPlan }: PlanFormDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<GoalStatus>("in_progress");
+  const [status, setStatus] = useState<PlanStatus>("not_started");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setTitle(initialGoal?.title ?? "");
-    setDescription(initialGoal?.description ?? "");
-    setStatus(initialGoal?.status ?? "in_progress");
-  }, [open, initialGoal]);
+    setTitle(initialPlan?.title ?? "");
+    setDescription(initialPlan?.description ?? "");
+    setStatus(initialPlan?.status ?? "not_started");
+  }, [open, initialPlan]);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSubmit({ title: title.trim(), description: description.trim() || null, status });
+      await onSubmit({
+        parent_id: initialPlan ? initialPlan.parent_id : parentId,
+        title: title.trim(),
+        description: description.trim() || null,
+        status,
+      });
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
+  const isRoot = initialPlan ? initialPlan.parent_id === null : parentId === null;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{initialGoal ? "目標を編集" : "新しい目標"}</DialogTitle>
+      <DialogTitle>
+        {initialPlan ? "プランを編集" : isRoot ? "新しい目標" : `「${parentTitle ?? ""}」の下にアクションプランを追加`}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
           <TextField
-            label="目標名"
+            label={isRoot ? "目標名" : "アクションプラン名"}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
             fullWidth
             autoFocus
-            placeholder="例: React の状態管理を体系的に理解する"
+            placeholder={isRoot ? "例: React の状態管理を体系的に理解する" : "例: 公式ドキュメントを読む"}
           />
           <TextField
-            label="なぜこの目標なのか（任意）"
+            label="説明（任意）"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             multiline
             minRows={3}
             fullWidth
           />
-          {initialGoal && (
+          {initialPlan && (
             <TextField
               select
               label="状態"
               value={status}
-              onChange={(e) => setStatus(e.target.value as GoalStatus)}
+              onChange={(e) => setStatus(e.target.value as PlanStatus)}
               fullWidth
             >
-              {(Object.keys(GOAL_STATUS_LABEL) as GoalStatus[]).map((s) => (
+              {(Object.keys(PLAN_STATUS_LABEL) as PlanStatus[]).map((s) => (
                 <MenuItem key={s} value={s}>
-                  {GOAL_STATUS_LABEL[s]}
+                  {PLAN_STATUS_LABEL[s]}
                 </MenuItem>
               ))}
             </TextField>

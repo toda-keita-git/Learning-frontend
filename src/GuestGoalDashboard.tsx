@@ -11,18 +11,18 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import CloseIcon from "@mui/icons-material/Close";
 import GitHubIcon from "@mui/icons-material/GitHub";
-import GoalDashboard from "./GoalDashboard";
-import { guestGoalDataSource, clearGuestGoalData } from "./component/guestGoalStorage";
+import PlanDashboard from "./PlanDashboard";
+import { guestPlanDataSource, clearGuestPlanData } from "./component/guestPlanStorage";
 
 // GitHubログイン不要のお試しモード。バックエンドへは一切書き込まず、
-// この端末のlocalStorageだけで目標・アクションプラン・メモを完結させる
+// この端末のlocalStorageだけでプラン・メモを完結させる
 export default function GuestGoalDashboard() {
   const navigate = useNavigate();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const handleReset = () => {
-    clearGuestGoalData();
+    clearGuestPlanData();
     setResetConfirmOpen(false);
     window.location.reload();
   };
@@ -54,8 +54,8 @@ export default function GuestGoalDashboard() {
 
   return (
     <>
-      <GoalDashboard
-        dataSource={guestGoalDataSource}
+      <PlanDashboard
+        dataSource={guestPlanDataSource}
         userId={null}
         accountLabel="ゲスト"
         onLogout={() => setResetConfirmOpen(true)}
@@ -66,7 +66,7 @@ export default function GuestGoalDashboard() {
         <DialogTitle>ゲストデータを消去しますか？</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            この端末に保存されている目標・アクションプラン・メモがすべて削除されます。この操作は取り消せません。
+            この端末に保存されているプラン・メモがすべて削除されます。この操作は取り消せません。
           </DialogContentText>
         </DialogContent>
         <DialogActions>

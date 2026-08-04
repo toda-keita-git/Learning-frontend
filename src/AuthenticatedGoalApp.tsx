@@ -7,11 +7,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import { AuthContext } from "./Context";
-import GoalDashboard from "./GoalDashboard";
-import { apiGoalDataSource } from "./component/goalDataSource";
+import PlanDashboard from "./PlanDashboard";
+import { apiPlanDataSource } from "./component/planDataSource";
 
 // GitHubログインを要求するゲート。ログイン済みならバックエンドAPIを使う
-// GoalDashboardを、未ログインならログイン画面を表示する
+// PlanDashboardを、未ログインならログイン画面を表示する
 export default function AuthenticatedGoalApp() {
   const { isAuthenticated, isAuthenticating, login, logout, githubLogin, userId } = useContext(AuthContext);
 
@@ -47,5 +47,5 @@ export default function AuthenticatedGoalApp() {
     );
   }
 
-  return <GoalDashboard dataSource={apiGoalDataSource} userId={userId} accountLabel={githubLogin} onLogout={logout} />;
+  return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} accountLabel={githubLogin} onLogout={logout} />;
 }

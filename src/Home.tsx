@@ -28,7 +28,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { isStorageAvailable, detectPlatformHint } from "./component/guestGoalStorage";
+import { isStorageAvailable, detectPlatformHint } from "./component/guestPlanStorage";
 import { loadPersistedSession } from "./component/authStorage";
 
 const features = [
