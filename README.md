@@ -22,6 +22,7 @@
 - 学習用メモへの**GitHubコード添付**（既存リポジトリのファイルを紐付け、閲覧可能）
 - 学習用メモの**間隔反復（SRS）「今日の復習」**
 - メモ同士のつながりを可視化する**関連メモグラフ**
+- **ゲストモード**（GitHubログイン不要のお試し。localStorageのみで完結し、バックエンドには一切書き込まない）
 
 ## 🛠 使用技術
 
@@ -72,10 +73,14 @@ src/
 ├── App.tsx                     … ルーティング定義
 ├── Context.tsx                 … 認証状態の管理（Context API）
 ├── Home.tsx                    … トップ画面
-├── GoalDashboard.tsx           … 目標一覧・アクションプラン・振り返りタイムラインの本体画面
+├── GoalDashboard.tsx           … 目標一覧・アクションプラン・振り返りタイムラインの本体画面（データ取得元を抽象化しており、実アカウント・ゲストモード共通で使う）
+├── AuthenticatedGoalApp.tsx    … GitHubログインを要求するゲート。ログイン済みならGoalDashboardへバックエンドAPIを渡す
+├── GuestGoalDashboard.tsx      … ゲストモードのラッパー。GoalDashboardへlocalStorage版のデータソースを渡す
 ├── FileSearch.tsx              … GitHub ファイル検索・閲覧
 └── component/
     ├── GoalTypes.ts             … 目標/アクションプラン/メモの型定義
+    ├── goalDataSource.ts        … GoalDashboardが使うデータ操作のインターフェースと、実アカウント用（バックエンドAPI）の実装
+    ├── guestGoalStorage.ts      … ゲストモード用（localStorage）のデータソース実装。進捗集計もバックエンドと同じルールで再現
     ├── GoalFormDialog.tsx       … 目標の作成・編集
     ├── ActionPlanFormDialog.tsx … アクションプランの作成・編集
     ├── ActionPlanList.tsx       … アクションプラン一覧（D&D並べ替え）
@@ -90,9 +95,8 @@ old/                             … 元の「学習ログ」アプリ時代の�
 
 ## ⚠️ 既知の未対応（今後のフォローアップ）
 
-- ゲストモード（`/guest`）は、まだ旧「学習ログ」デモのままです（仕様書に記載のない範囲のためスコープ外としています）
 - GitHub添付は「既存ファイルを選んで紐付け・閲覧」のみです。学習ログ時代にあった、新規ファイルのアップロード／その場編集の機能は移植していません
-- 旧`learning_tags`から新`note_tags`への自動移行はできません（idの対応表が無いため。詳細は[`db/goal_schema.sql`](../learning-backend/src/main/resources/db/goal_schema.sql)のコメント参照）
+- ゲストモードのデータは実アカウントへ自動移行されません（この端末だけのローカルデータのままです）
 
 ## 💡 制作の背景
 

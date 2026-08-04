@@ -8,14 +8,14 @@ import { AuthProvider } from "./Context";
 // xlsx/react-syntax-highlighter/@octokit/rest など重い依存を含む画面は、
 // 初回表示（Home）のバンドルから切り離すために遅延読み込みする
 const FileSearch = lazy(() => import("./FileSearch"));
-const GoalDashboard = lazy(() => import("./GoalDashboard"));
-const GuestLearningContent = lazy(() => import("./GuestLearningContent"));
+const AuthenticatedGoalApp = lazy(() => import("./AuthenticatedGoalApp"));
+const GuestGoalDashboard = lazy(() => import("./GuestGoalDashboard"));
 const PageNotFound = lazy(() => import("./PageNotFound"));
 
 // ページ遷移のたびに、body/htmlに残った可能性のあるスクロールロック用の
-// インラインスタイルを念のため解除する。LearningContent（チャットUI）は
-// iOS対策でbody position:fixed等を使っており、通常は自分でクリーンアップ
-// するが、スマホのドロワーを開いたまま「ホーム」で離脱した場合など、
+// インラインスタイルを念のため解除する。一部画面はiOS対策でbody
+// position:fixed等を使っており、通常は自分でクリーンアップするが、
+// スマホのドロワーを開いたまま「ホーム」で離脱した場合など、
 // MUIのモーダル管理と競合してロックが残ってしまうケースへの保険
 function ScrollUnlockOnNavigate() {
   const location = useLocation();
@@ -57,7 +57,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/FileSearch" element={<FileSearch />} />
-          <Route path="/guest" element={<GuestLearningContent />} />
+          <Route path="/guest" element={<GuestGoalDashboard />} />
           {/*
             ルート名は /LearningContent のままにしている。GitHub OAuth Appの
             コールバックURL（VITE_CALLBACK_URL）に焼き込まれているため、
@@ -67,7 +67,7 @@ export default function App() {
             path="/LearningContent"
             element={
               <AuthProvider>
-                <GoalDashboard />
+                <AuthenticatedGoalApp />
               </AuthProvider>
             }
           />

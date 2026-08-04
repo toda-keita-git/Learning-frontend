@@ -1,4 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import axios from "axios";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -20,7 +22,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import AddIcon from "@mui/icons-material/Add";
-import GitHubIcon from "@mui/icons-material/GitHub";
 import LogoutIcon from "@mui/icons-material/Logout";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -31,7 +32,6 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import Badge from "@mui/material/Badge";
 
-import { AuthContext } from "./Context";
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
 import ReviewFlashcards from "./component/ReviewFlashcards";
@@ -41,25 +41,7 @@ import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
-import {
-  goalsApi,
-  createGoalApi,
-  updateGoalApi,
-  deleteGoalApi,
-  actionPlansApi,
-  createActionPlanApi,
-  updateActionPlanApi,
-  deleteActionPlanApi,
-  reorderActionPlansApi,
-  notesApi,
-  createNoteApi,
-  updateNoteApi,
-  deleteNoteApi,
-  attachNoteApi,
-  toggleNoteTodoApi,
-  CategoriesApi,
-  TagsApi,
-} from "./component/Api";
+import type { GoalDataSource } from "./component/goalDataSource";
 import type { Goal, ActionPlan, Note, NoteInput, GoalInput, ActionPlanInput, CategoryOption } from "./component/GoalTypes";
 import ProgressBadge from "./component/ProgressBadge";
 import GoalFormDialog from "./component/GoalFormDialog";
@@ -77,8 +59,27 @@ type DeleteTarget =
   | { kind: "actionPlan"; actionPlan: ActionPlan }
   | { kind: "note"; note: Note };
 
-export default function GoalDashboard() {
-  const { isAuthenticated, isAuthenticating, login, logout, githubLogin, userId } = useContext(AuthContext);
+interface GoalDashboardProps {
+  dataSource: GoalDataSource;
+  // SRSの復習スケジュールはこのidをキーにlocalStorageへ保存する（ゲストモードはnull＝共通バケット）
+  userId: number | null;
+  accountLabel: string | null;
+  onLogout: () => void;
+  // ゲストモード等、ヘッダー直下に案内を出したい場合に使う
+  topBanner?: ReactNode;
+}
+
+// axiosのエラーからバックエンドのメッセージ（403のフリープラン上限など）を取り出す。
+// ゲストモードのデータソースが投げるError.messageも同様に拾う
+const errorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err) && typeof err.response?.data === "string" && err.response.data) {
+    return err.response.data;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
+export default function GoalDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: GoalDashboardProps) {
   const { showToast } = useToast();
   const { mode, toggle } = useContext(ColorModeContext);
 
@@ -108,32 +109,24 @@ export default function GoalDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [goalsData, plansData, notesData, categoriesData, tagsData] = await Promise.all([
-        goalsApi(),
-        actionPlansApi(),
-        notesApi(),
-        CategoriesApi(),
-        TagsApi(),
-      ]);
-      setGoals(goalsData ?? []);
-      setActionPlans(plansData ?? []);
-      setNotes(notesData ?? []);
-      setCategories(categoriesData ?? []);
-      setTagOptions(((tagsData ?? []) as { name: string }[]).map((t) => t.name));
+      const bundle = await dataSource.fetchAll();
+      setGoals(bundle.goals);
+      setActionPlans(bundle.actionPlans);
+      setNotes(bundle.notes);
+      setCategories(bundle.categories);
+      setTagOptions(bundle.tagOptions);
     } catch (err) {
       console.error(err);
-      showToast("データの取得に失敗しました。時間をおいて再度お試しください。", "error");
+      showToast(errorMessage(err, "データの取得に失敗しました。時間をおいて再度お試しください。"), "error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAll();
-    }
+    fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [dataSource]);
 
   const goalTitleById = useMemo(() => {
     const map = new Map<number, string>();
@@ -244,39 +237,49 @@ export default function GoalDashboard() {
     reviewCard(userId, note.id, understood);
     setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, mastery: newLevel } : n)));
     try {
-      await updateNoteApi(note.id, { ...noteToInput(note), mastery: newLevel });
+      await dataSource.updateNote(note.id, { ...noteToInput(note), mastery: newLevel });
     } catch (err) {
       console.error(err);
-      showToast("理解度の更新に失敗しました。", "error");
+      showToast(errorMessage(err, "理解度の更新に失敗しました。"), "error");
     }
   };
 
   // ---- 目標 ----
   const handleSaveGoal = async (data: GoalInput) => {
-    if (editingGoal) {
-      await updateGoalApi(editingGoal.id, data);
-      showToast("目標を更新しました。", "success");
-    } else {
-      await createGoalApi(data);
-      showToast("目標を作成しました。", "success");
+    try {
+      if (editingGoal) {
+        await dataSource.updateGoal(editingGoal.id, data);
+        showToast("目標を更新しました。", "success");
+      } else {
+        await dataSource.createGoal(data);
+        showToast("目標を作成しました。", "success");
+      }
+      await fetchAll();
+    } catch (err) {
+      showToast(errorMessage(err, "目標の保存に失敗しました。"), "error");
+      throw err;
     }
-    await fetchAll();
   };
 
   // ---- アクションプラン ----
   const handleSaveActionPlan = async (data: ActionPlanInput) => {
-    if (editingActionPlan) {
-      await updateActionPlanApi(editingActionPlan.id, data);
-      showToast("アクションプランを更新しました。", "success");
-    } else {
-      await createActionPlanApi(data);
-      showToast("アクションプランを作成しました。", "success");
+    try {
+      if (editingActionPlan) {
+        await dataSource.updateActionPlan(editingActionPlan.id, data);
+        showToast("アクションプランを更新しました。", "success");
+      } else {
+        await dataSource.createActionPlan(data);
+        showToast("アクションプランを作成しました。", "success");
+      }
+      await fetchAll();
+    } catch (err) {
+      showToast(errorMessage(err, "アクションプランの保存に失敗しました。"), "error");
+      throw err;
     }
-    await fetchAll();
   };
 
   const handleReorderActionPlans = async (orderedIds: number[]) => {
-    // 即座に画面上の順序を反映してから、確定をバックエンドへ送る（体感の反応速度を優先）
+    // 即座に画面上の順序を反映してから、確定を送信する（体感の反応速度を優先）
     setActionPlans((prev) => {
       const priorityById = new Map(orderedIds.map((id, index) => [id, index]));
       return prev
@@ -284,24 +287,29 @@ export default function GoalDashboard() {
         .sort((a, b) => a.priority - b.priority);
     });
     try {
-      await reorderActionPlansApi(orderedIds.map((id, index) => ({ id, priority: index })));
+      await dataSource.reorderActionPlans(orderedIds.map((id, index) => ({ id, priority: index })));
     } catch (err) {
       console.error(err);
-      showToast("並べ替えの保存に失敗しました。", "error");
+      showToast(errorMessage(err, "並べ替えの保存に失敗しました。"), "error");
       fetchAll();
     }
   };
 
   // ---- メモ ----
   const handleSaveNote = async (data: NoteInput) => {
-    if (editingNote) {
-      await updateNoteApi(editingNote.id, data);
-      showToast("メモを更新しました。", "success");
-    } else {
-      await createNoteApi(data);
-      showToast(data.action_plan_id ? "メモを作成しました。" : "メモを未紐付けで作成しました。後から紐付けられます。", "success");
+    try {
+      if (editingNote) {
+        await dataSource.updateNote(editingNote.id, data);
+        showToast("メモを更新しました。", "success");
+      } else {
+        await dataSource.createNote(data);
+        showToast(data.action_plan_id ? "メモを作成しました。" : "メモを未紐付けで作成しました。後から紐付けられます。", "success");
+      }
+      await fetchAll();
+    } catch (err) {
+      showToast(errorMessage(err, "メモの保存に失敗しました。"), "error");
+      throw err;
     }
-    await fetchAll();
   };
 
   const handleToggleTodo = async (todoItemId: number, checked: boolean) => {
@@ -312,18 +320,18 @@ export default function GoalDashboard() {
       }))
     );
     try {
-      await toggleNoteTodoApi(todoItemId, checked);
+      await dataSource.toggleNoteTodo(todoItemId, checked);
       fetchAll();
     } catch (err) {
       console.error(err);
-      showToast("todoの更新に失敗しました。", "error");
+      showToast(errorMessage(err, "todoの更新に失敗しました。"), "error");
       fetchAll();
     }
   };
 
   const handleAttachNote = async (actionPlanId: number) => {
     if (!attachTargetNote) return;
-    await attachNoteApi(attachTargetNote.id, actionPlanId);
+    await dataSource.attachNote(attachTargetNote.id, actionPlanId);
     showToast("アクションプランに紐付けました。", "success");
     await fetchAll();
   };
@@ -333,55 +341,23 @@ export default function GoalDashboard() {
     if (!deleteTarget) return;
     try {
       if (deleteTarget.kind === "goal") {
-        await deleteGoalApi(deleteTarget.goal.id);
+        await dataSource.deleteGoal(deleteTarget.goal.id);
         if (selectedGoalId === deleteTarget.goal.id) setSelectedGoalId(null);
       } else if (deleteTarget.kind === "actionPlan") {
-        await deleteActionPlanApi(deleteTarget.actionPlan.id);
+        await dataSource.deleteActionPlan(deleteTarget.actionPlan.id);
         if (selectedActionPlanId === deleteTarget.actionPlan.id) setSelectedActionPlanId(null);
       } else {
-        await deleteNoteApi(deleteTarget.note.id);
+        await dataSource.deleteNote(deleteTarget.note.id);
       }
       showToast("削除しました。", "success");
       await fetchAll();
     } catch (err) {
       console.error(err);
-      showToast("削除に失敗しました。", "error");
+      showToast(errorMessage(err, "削除に失敗しました。"), "error");
     } finally {
       setDeleteTarget(null);
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
-        <Paper sx={{ maxWidth: 420, width: "100%", textAlign: "center", p: { xs: 4, sm: 6 }, borderRadius: 4 }}>
-          {isAuthenticating ? (
-            <>
-              <CircularProgress sx={{ mb: 2 }} />
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                接続中です…
-              </Typography>
-            </>
-          ) : (
-            <>
-              <FlagOutlinedIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 800 }}>
-                目標達成支援アプリへようこそ
-              </Typography>
-              <Typography sx={{ mb: 3, color: "text.secondary" }}>
-                目標・アクションプラン・メモを記録するには、
-                <br />
-                GitHubアカウントでのログインが必要です。
-              </Typography>
-              <Button variant="contained" size="large" fullWidth startIcon={<GitHubIcon />} onClick={login}>
-                GitHubでログイン
-              </Button>
-            </>
-          )}
-        </Paper>
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
@@ -391,9 +367,9 @@ export default function GoalDashboard() {
           <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
             目標達成支援
           </Typography>
-          {githubLogin && (
+          {accountLabel && (
             <Typography variant="body2" sx={{ color: "text.secondary", mr: 2, display: { xs: "none", sm: "block" } }}>
-              {githubLogin}
+              {accountLabel}
             </Typography>
           )}
           {learningNotes.length > 0 && (
@@ -411,7 +387,7 @@ export default function GoalDashboard() {
           <IconButton onClick={toggle} aria-label="テーマ切り替え" sx={{ mr: 1 }}>
             {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
           </IconButton>
-          <IconButton onClick={logout} aria-label="ログアウト">
+          <IconButton onClick={onLogout} aria-label="ログアウト">
             <LogoutIcon />
           </IconButton>
         </Toolbar>
@@ -431,6 +407,8 @@ export default function GoalDashboard() {
           />
         </Tabs>
       </AppBar>
+
+      {topBanner}
 
       <Container maxWidth="md" sx={{ py: 4 }}>
         {loading ? (
