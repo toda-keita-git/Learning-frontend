@@ -1,0 +1,41 @@
+:root {
+  font-family: "Segoe UI", system-ui, "Hiragino Sans", "Yu Gothic", Meiryo,
+    sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #1f2937;
+  background-color: #f6f7fb;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f6f7fb;
+}
+
+/* JS読み込み前(初回ペイント)も、OSがダークモードならその配色に合わせ、白フラッシュを防ぐ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e5e7eb;
+    background-color: #0f172a;
+  }
+
+  body {
+    background-color: #0f172a;
+  }
+}
+
+/* MUI がボタン等のスタイルを管理するため、素の a / button の色指定は最小限に */
+a {
+  color: inherit;
+  text-decoration: none;
+}

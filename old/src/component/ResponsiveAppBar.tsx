@@ -8,7 +8,7 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useNavigate } from "react-router-dom";
 
-const APP_NAME = "目標達成支援";
+const APP_NAME = "学習ログ";
 
 type ResponsiveAppBarProps = {
   // ランディングページ（Home）など、下にスクロールしてもCTAへ戻れるようにしたい

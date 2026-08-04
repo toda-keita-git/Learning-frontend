@@ -8,7 +8,7 @@ import { AuthProvider } from "./Context";
 // xlsx/react-syntax-highlighter/@octokit/rest など重い依存を含む画面は、
 // 初回表示（Home）のバンドルから切り離すために遅延読み込みする
 const FileSearch = lazy(() => import("./FileSearch"));
-const GoalDashboard = lazy(() => import("./GoalDashboard"));
+const LearningContent = lazy(() => import("./LearningContent"));
 const GuestLearningContent = lazy(() => import("./GuestLearningContent"));
 const PageNotFound = lazy(() => import("./PageNotFound"));
 
@@ -58,16 +58,11 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/FileSearch" element={<FileSearch />} />
           <Route path="/guest" element={<GuestLearningContent />} />
-          {/*
-            ルート名は /LearningContent のままにしている。GitHub OAuth Appの
-            コールバックURL（VITE_CALLBACK_URL）に焼き込まれているため、
-            ここを変えるとOAuth設定側の更新も必要になってしまう。
-          */}
           <Route
             path="/LearningContent"
             element={
               <AuthProvider>
-                <GoalDashboard />
+                <LearningContent />
               </AuthProvider>
             }
           />

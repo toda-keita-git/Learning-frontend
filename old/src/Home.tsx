@@ -11,16 +11,18 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import { alpha } from "@mui/material/styles";
-import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import SearchIcon from "@mui/icons-material/Search";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
-import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import InquiryDialog from "./component/InquiryDialog";
 import Dialog from "@mui/material/Dialog";
@@ -28,39 +30,55 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import recordDialogEditShot from "./assets/screenshots/record-dialog-edit.webp";
+import recordDialogPreviewShot from "./assets/screenshots/record-dialog-preview.webp";
+import searchResultsShot from "./assets/screenshots/search-results.webp";
 import { isStorageAvailable, detectPlatformHint } from "./component/guestStorage";
 import { loadPersistedSession } from "./component/authStorage";
 
 const features = [
   {
-    icon: <FlagOutlinedIcon fontSize="large" color="primary" />,
-    title: "目標 → アクションプラン → メモ",
-    desc: "最終目標を立て、そのためのアクションプランを分解し、日々のメモで積み上げる。3階層でやることが明確になります。",
+    icon: <AddCircleOutlineIcon fontSize="large" color="primary" />,
+    title: "学習記録",
+    desc: "登録・編集・削除はいつでも無料。フリープランでも100件まで記録できます。",
   },
   {
-    icon: <InsightsOutlinedIcon fontSize="large" color="primary" />,
-    title: "進捗の自動集計",
-    desc: "メモの習熟度・進捗度から、アクションプラン→目標の達成率を自動で計算。手動更新は不要です。",
+    icon: <LocalOfferIcon fontSize="large" color="primary" />,
+    title: "カテゴリ・タグ管理",
+    desc: "学んだ内容をカテゴリとタグで整理。あとから素早く探し出せます。",
   },
   {
-    icon: <DragIndicatorIcon fontSize="large" color="primary" />,
-    title: "ドラッグ&ドロップの優先順位付け",
-    desc: "アクションプランはドラッグして並べ替えるだけ。今やるべきことがひと目でわかります。",
+    icon: <SearchIcon fontSize="large" color="primary" />,
+    title: "学習内容の検索",
+    desc: "タイトルやタグから、過去の学びをチャット形式で振り返れます。",
   },
   {
-    icon: <PlaylistAddCheckIcon fontSize="large" color="primary" />,
-    title: "todoチェックリスト付きタスクメモ",
-    desc: "タスク用メモにはチェック付きのtodoを持たせられ、チェックした割合がそのまま進捗度になります。",
+    icon: <HubOutlinedIcon fontSize="large" color="primary" />,
+    title: "関連する過去の記録",
+    desc: "記録の詳細を開くと、タグ・カテゴリー・タイトルが似ている過去の記録を自動で表示します。",
   },
   {
-    icon: <LinkOutlinedIcon fontSize="large" color="primary" />,
-    title: "メモは後からでも紐付けOK",
-    desc: "アクションプランが決まっていなくてもメモは作成でき、あとから紐付け先を選べます。",
+    icon: <GitHubIcon fontSize="large" color="primary" />,
+    title: "GitHub連携",
+    desc: "専用リポジトリが自動作成され、コードと記録を一緒に管理できます。",
+  },
+  {
+    icon: <MenuBookOutlinedIcon fontSize="large" color="primary" />,
+    title: "今日の復習",
+    desc: "3分・10分・じっくりから選べる、スキマ時間モード。忘れかけている記録から順に思い出せます。",
   },
   {
     icon: <LocalOfferOutlinedIcon fontSize="large" color="primary" />,
-    title: "カテゴリ・タグ管理",
-    desc: "メモをカテゴリとタグで整理。あとから素早く探し出せます。",
+    title: "穴埋め復習",
+    desc: "メモの中で[[ ]]で囲んだ語句だけを隠して確認できます。",
+  },
+  {
+    icon: <LocalFireDepartmentIcon sx={{ fontSize: 40, color: "#f97316" }} />,
+    title: "学習の記録",
+    desc: "連続で記録した日数を、GitHubの「草」のようなグラフで振り返れます。",
   },
 ];
 
@@ -68,17 +86,17 @@ const steps = [
   {
     no: "1",
     title: "GitHubでログイン",
-    desc: "「使ってみる」を押すとGitHub認証へ。アカウント登録は不要で、GitHubアカウントだけで始められます。",
+    desc: "「使ってみる」を押すとGitHub認証へ。初回ログイン時に、あなた専用の保存先リポジトリが自動で用意されます。",
   },
   {
     no: "2",
-    title: "目標とアクションプランを設定",
-    desc: "最終目標を立て、それを達成するためのアクションプランを分解して登録します。",
+    title: "学んだことを記録",
+    desc: "「新規学習記録」から、タイトル・カテゴリ・タグ・理解度・参考リンクを登録。GitHub上のコードも紐づけられます。",
   },
   {
     no: "3",
-    title: "メモで日々の取り組みを記録",
-    desc: "学習用・タスク用・通常の3種類のメモで、アクションプランへの取り組みを記録。進捗は自動で積み上がります。",
+    title: "検索して振り返る",
+    desc: "「学習内容検索」で、タイトルやタグから過去の学びをすぐに呼び出し。詳細は必要な1件だけ開いて確認できます。",
   },
 ];
 
@@ -86,6 +104,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [storageWarningOpen, setStorageWarningOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
 
   // ゲストモードはこの端末のlocalStorageだけで完結するため、シークレット/
@@ -128,17 +147,17 @@ export default function Home() {
         }}
       >
         <Container maxWidth="md" sx={{ textAlign: "center" }}>
-          <FlagOutlinedIcon sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
+          <MenuBookIcon sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
           <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
-            目標達成支援
+            学習ログ
           </Typography>
           <Typography
             variant="h6"
             sx={{ color: "text.secondary", fontWeight: 400, mb: 4 }}
           >
-            最終目標をアクションプランに分解し、日々のメモで積み上げる。
+            学んだことを「メモ」と「GitHub上のコード」で結びつけて記録し、
             <br />
-            進捗は自動で集計され、やることがいつも明確なままです。
+            あとからいつでも振り返れる学習記録アプリ。
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="center">
             <Button
@@ -220,6 +239,79 @@ export default function Home() {
         </Stack>
       </Container>
 
+      {/* 実際の画面（文章だけでは伝わりにくいので、実際のUIをそのまま見せる） */}
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}>
+          実際の画面
+        </Typography>
+        <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
+          文章だけでは伝わりにくいので、実際の画面をそのままお見せします。
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
+            gap: 3,
+          }}
+        >
+          {[
+            {
+              src: recordDialogEditShot,
+              alt: "学んだことを記録するフォームの画面。タイトル・見出し・Markdown記法と[[ ]]を使った内容メモ・参考URL2件・カテゴリ・ハッシュタグ3件・理解度・添付ファイルまで、すべての項目に入力例が入っている",
+              title: "学んだことをその場で記録",
+              desc: "タイトルとメモを書くだけでOK。カテゴリ・タグ・理解度・参考URL・ファイル添付などは、必要な項目だけ入力できます。",
+            },
+            {
+              src: recordDialogPreviewShot,
+              alt: "内容メモのプレビュー画面。Markdown記法が見出しや箇条書きとして整形され、[[ ]]で囲んだ部分が伏字になって表示されている",
+              title: "Markdown記法と穴埋め復習",
+              desc: "メモはMarkdownで整形して見やすく。[[ ]]で囲んだ語句は復習時に伏字になり、思い出す練習ができます。",
+            },
+            {
+              src: searchResultsShot,
+              alt: "検索結果の画面。登録済みの学習記録3件がカード形式に並び、そのうち1件だけ詳細を見るが開かれ、メモ・参考リンク・添付ファイル・編集削除ボタンまで表示されている",
+              title: "チャット感覚で検索・振り返り",
+              desc: "キーワードを送るだけで、過去の学びがカードになって出てきます。気になる1件だけ開いて確認できます。",
+            },
+          ].map((shot) => (
+            <Paper key={shot.title} elevation={0} sx={{ border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+              <Box
+                onClick={() => setLightbox({ src: shot.src, alt: shot.alt })}
+                sx={{
+                  position: "relative",
+                  cursor: "zoom-in",
+                  "&:hover .zoom-hint": { opacity: 1 },
+                }}
+              >
+                <Box component="img" src={shot.src} alt={shot.alt} sx={{ display: "block", width: "100%" }} />
+                <Box
+                  className="zoom-hint"
+                  sx={{
+                    position: "absolute",
+                    pointerEvents: "none",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: "rgba(0,0,0,0.35)",
+                    opacity: 0,
+                    transition: "opacity .15s",
+                  }}
+                >
+                  <ZoomInIcon sx={{ color: "#fff", fontSize: 40 }} />
+                </Box>
+              </Box>
+              <Box sx={{ p: 2 }}>
+                <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{shot.title}</Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  {shot.desc}
+                </Typography>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+      </Container>
+
       {/* GitHubログインについて（やさしい説明＋詳細はアコーディオンに格納） */}
       <Box sx={{ bgcolor: "action.hover", py: { xs: 5, md: 7 } }}>
         <Container maxWidth="md">
@@ -238,7 +330,7 @@ export default function Home() {
               </Typography>
             </Stack>
             <Typography sx={{ mb: 1, lineHeight: 1.9 }}>
-              GitHubでログインすると、<b>あなた専用の保存場所</b>が自動で用意され、書いた目標・アクションプラン・メモを無料でずっと保存しておけます。
+              GitHubでログインすると、<b>あなた専用の保存場所</b>が自動で用意され、書いた学習記録を無料でずっと保存しておけます。
               難しい設定は不要で、むずかしいことが分からなくても大丈夫です。ボタンを押すだけで準備が整います。
             </Typography>
             <Typography sx={{ mb: 2, lineHeight: 1.9, color: "text.secondary" }}>
@@ -269,7 +361,7 @@ export default function Home() {
                     >
                       learning-site-&lt;ユーザー名&gt;
                     </Box>
-                    という名前の「リポジトリ」（GitHub用語でファイル置き場のこと）です。今後の機能拡張で、メモに添付したコードやファイルもここに保存されます。
+                    という名前の「リポジトリ」（GitHub用語でファイル置き場のこと）です。学習記録に添付したコードやファイルは、ここに保存されます。
                   </li>
                   <li>
                     作成されるリポジトリは<b>非公開（Private）</b>です。あなたと、あなたが許可した相手だけが閲覧できます。
@@ -369,7 +461,7 @@ export default function Home() {
           無料で使える主な機能
         </Typography>
         <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
-          いつでも無料でお使いいただけます。
+          いつでも無料でお使いいただけます（学習記録はフリープランで100件まで）。
         </Typography>
         <Box
           sx={{
@@ -437,6 +529,46 @@ export default function Home() {
         <DialogActions>
           <Button onClick={() => setStorageWarningOpen(false)}>閉じる</Button>
         </DialogActions>
+      </Dialog>
+
+      {/* スクリーンショットの拡大表示 */}
+      <Dialog
+        open={!!lightbox}
+        onClose={() => setLightbox(null)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: "transparent", boxShadow: "none" } }}
+      >
+        <Box sx={{ position: "relative" }}>
+          <IconButton
+            onClick={() => setLightbox(null)}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              bgcolor: "rgba(0,0,0,0.5)",
+              color: "#fff",
+              "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {lightbox && (
+            <Box
+              component="img"
+              src={lightbox.src}
+              alt={lightbox.alt}
+              onClick={() => setLightbox(null)}
+              sx={{
+                display: "block",
+                width: "100%",
+                height: "auto",
+                borderRadius: 1,
+                cursor: "zoom-out",
+              }}
+            />
+          )}
+        </Box>
       </Dialog>
     </>
   );
