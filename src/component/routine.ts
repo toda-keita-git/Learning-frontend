@@ -49,6 +49,13 @@ export const markRoutineDone = (userId: number | null | undefined, noteId: numbe
   saveAll(userId, all);
 };
 
+// チェック済みを手動で取り消し、即座に「未チェック」へ戻す
+export const clearRoutineDone = (userId: number | null | undefined, noteId: number): void => {
+  const all = loadAll(userId);
+  delete all[noteId];
+  saveAll(userId, all);
+};
+
 // 作成・編集ダイアログのプリセット
 export const ROUTINE_PRESETS: { label: string; days: number }[] = [
   { label: "毎日", days: 1 },

@@ -18,6 +18,7 @@ import {
   toggleNoteTodoApi,
   addNoteAttachmentApi,
   deleteNoteAttachmentApi,
+  createCategoryApi,
   CategoriesApi,
   TagsApi,
 } from "./Api";
@@ -45,6 +46,8 @@ export interface PlanDataSource {
   toggleNoteTodo(todoItemId: number, checked: boolean): Promise<void>;
   addNoteAttachment(noteId: number, attachment: Omit<NoteAttachment, "id" | "note_id">): Promise<void>;
   deleteNoteAttachment(attachmentId: number): Promise<void>;
+  // タグと同様、メモ編集中にその場で新規作成できるようにする。戻り値は作成したカテゴリー
+  createCategory(name: string): Promise<CategoryOption>;
 }
 
 // ログイン済みアカウント用: 既存のバックエンドAPIをそのまま呼び出す
@@ -101,5 +104,15 @@ export const apiPlanDataSource: PlanDataSource = {
   },
   async deleteNoteAttachment(attachmentId) {
     await deleteNoteAttachmentApi(attachmentId);
+  },
+  async createCategory(name) {
+    await createCategoryApi({ name });
+    // category_insertは作成したidを返さないため、作り直したidを名前一致（最大id＝最新）で拾う
+    const list: CategoryOption[] = (await CategoriesApi()) ?? [];
+    const matches = list.filter((c) => c.name === name);
+    if (matches.length === 0) {
+      throw new Error("カテゴリーの作成に失敗しました。");
+    }
+    return matches.reduce((a, b) => (b.id > a.id ? b : a));
   },
 };

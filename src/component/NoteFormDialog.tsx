@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
+import axios from "axios";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -10,7 +11,6 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Slider from "@mui/material/Slider";
 import Typography from "@mui/material/Typography";
-import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Checkbox from "@mui/material/Checkbox";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -32,6 +32,20 @@ import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryO
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
 
+// 全角数字（IME経由でよく入力される）を半角へ正規化してから数字以外を取り除く。
+// type="number"はモバイルIMEによっては全角のまま渡ってきて弾かれてしまうため、
+// type="text"+inputMode="numeric"にした上でこちらで正規化する
+const normalizeDigits = (raw: string): string =>
+  raw.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[^0-9]/g, "");
+
+const errorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err) && typeof err.response?.data === "string" && err.response.data) {
+    return err.response.data;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -52,6 +66,8 @@ interface NoteFormDialogProps {
   onDeleteAttachment?: (attachmentId: number) => Promise<void>;
   categories: CategoryOption[];
   tagOptions: string[];
+  // カテゴリーをタグと同様、その場で新規作成できるようにする（未指定なら選択のみ）
+  onCreateCategory?: (name: string) => Promise<CategoryOption>;
 }
 
 export default function NoteFormDialog({
@@ -64,6 +80,7 @@ export default function NoteFormDialog({
   onDeleteAttachment,
   categories,
   tagOptions,
+  onCreateCategory,
 }: NoteFormDialogProps) {
   const [type, setType] = useState<NoteType>("normal");
   const [title, setTitle] = useState("");
@@ -76,6 +93,7 @@ export default function NoteFormDialog({
   const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
   const [bodyTab, setBodyTab] = useState<"write" | "preview">("write");
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
@@ -292,11 +310,9 @@ export default function NoteFormDialog({
             </Stack>
           )}
 
-          <Stack spacing={0.5}>
+          <Stack spacing={0.75}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                本文（Markdown記法対応: **太字** / # 見出し / - 箇条書き / `コード` / ==ハイライト==）
-              </Typography>
+              <Typography variant="subtitle2">本文</Typography>
               <ToggleButtonGroup
                 value={bodyTab}
                 exclusive
@@ -314,11 +330,12 @@ export default function NoteFormDialog({
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 multiline
-                minRows={4}
+                minRows={6}
                 fullWidth
+                placeholder={"Markdown記法が使えます\n**太字** / # 見出し / - 箇条書き / `コード` / ==ハイライト=="}
               />
             ) : (
-              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5, minHeight: 96 }}>
+              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5, minHeight: 140 }}>
                 <MarkdownContent text={body} />
               </Box>
             )}
@@ -397,36 +414,82 @@ export default function NoteFormDialog({
                 />
               ))}
               <TextField
-                type="number"
+                type="text"
+                inputMode="numeric"
                 size="small"
                 label="カスタム(日)"
-                value={reviewIntervalDays !== null && !ROUTINE_PRESETS.some((p) => p.days === reviewIntervalDays) ? reviewIntervalDays : ""}
+                value={reviewIntervalDays !== null && !ROUTINE_PRESETS.some((p) => p.days === reviewIntervalDays) ? String(reviewIntervalDays) : ""}
                 onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setReviewIntervalDays(e.target.value === "" ? null : Number.isFinite(n) && n > 0 ? n : reviewIntervalDays);
+                  const digits = normalizeDigits(e.target.value);
+                  if (digits === "") {
+                    setReviewIntervalDays(null);
+                    return;
+                  }
+                  const n = Number(digits);
+                  if (Number.isFinite(n) && n > 0) setReviewIntervalDays(n);
                 }}
-                slotProps={{ htmlInput: { min: 1 } }}
+                slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
                 sx={{ width: 130 }}
               />
             </Stack>
           </div>
 
-          {categories.length > 0 && (
-            <TextField
-              select
-              label="カテゴリー"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value === "" ? "" : Number(e.target.value))}
-              fullWidth
-            >
-              <MenuItem value="">なし</MenuItem>
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
+          <Autocomplete
+            freeSolo
+            options={categories}
+            loading={creatingCategory}
+            getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
+            isOptionEqualToValue={(o, v) => o.id === (v as CategoryOption).id}
+            value={categories.find((c) => c.id === categoryId) ?? null}
+            onChange={async (_, newValue) => {
+              if (newValue === null) {
+                setCategoryId("");
+                return;
+              }
+              if (typeof newValue !== "string") {
+                setCategoryId(newValue.id);
+                return;
+              }
+              const trimmed = newValue.trim();
+              if (!trimmed) {
+                setCategoryId("");
+                return;
+              }
+              const existing = categories.find((c) => c.name === trimmed);
+              if (existing) {
+                setCategoryId(existing.id);
+                return;
+              }
+              if (!onCreateCategory) return;
+              setCreatingCategory(true);
+              try {
+                const created = await onCreateCategory(trimmed);
+                setCategoryId(created.id);
+              } catch (err) {
+                showToast(errorMessage(err, "カテゴリーの作成に失敗しました。"), "error");
+              } finally {
+                setCreatingCategory(false);
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="カテゴリー"
+                placeholder="選択、または入力して新規作成"
+                slotProps={{
+                  input: {
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {creatingCategory ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  },
+                }}
+              />
+            )}
+          />
 
           <Autocomplete
             multiple

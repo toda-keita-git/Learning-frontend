@@ -1,5 +1,5 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, HTMLAttributes, PointerEvent as ReactPointerEvent } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import axios from "axios";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -35,13 +35,14 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import Badge from "@mui/material/Badge";
 import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
-import { isRoutineDue, markRoutineDone } from "./component/routine";
+import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/routine";
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
@@ -52,8 +53,6 @@ import ProgressBadge from "./component/ProgressBadge";
 import PlanFormDialog from "./component/PlanFormDialog";
 import PlanTree from "./component/PlanTree";
 import NoteTray from "./component/NoteTray";
-import DragHintTooltip from "./component/DragHintTooltip";
-import { maybeAutoScrollWindow } from "./component/dragAutoScroll";
 import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
@@ -77,8 +76,6 @@ const errorMessage = (err: unknown, fallback: string): string => {
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 };
-
-const LONG_PRESS_MS = 220;
 
 export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
@@ -104,8 +101,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [noteFixedPlanId, setNoteFixedPlanId] = useState<number | null | undefined>(undefined);
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  // TODOチェックリストでチェックした直後、取り消し線を見せてから一覧から消すための一時状態
-  const [justChecked, setJustChecked] = useState<Set<number>>(new Set());
+  // ToDoの完了記録はlocalStorage（routine.ts）にあるためReact stateの変化を検知できない。
+  // チェック/取り消しのたびにこれをインクリメントし、useMemoの依存に使って再計算させる
+  const [routineVersion, setRoutineVersion] = useState(0);
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
@@ -121,15 +119,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       return next;
     });
 
-  // メモトレイからプラン行（またはプラン新規作成ゾーン）へのドラッグ（Pointer Events）
+  // メモトレイからプラン行（またはプラン新規作成ゾーン）へのドラッグ状態。
+  // 実際のPointer Events処理はNoteTray自身が持ち、ここではボード側の表示連動に必要な分だけ受け取る
   const [draggingNoteId, setDraggingNoteId] = useState<number | null>(null);
-  const [noteDragPointer, setNoteDragPointer] = useState<{ x: number; y: number } | null>(null);
   const [noteHoverPlanId, setNoteHoverPlanId] = useState<number | null>(null);
   const [noteHoverCreateZone, setNoteHoverCreateZone] = useState(false);
-  const noteLongPressTimer = useRef<number | null>(null);
-  const noteStartPos = useRef<{ x: number; y: number } | null>(null);
-  const noteRafId = useRef<number | null>(null);
-  const notePendingPoint = useRef<{ x: number; y: number } | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -206,41 +200,75 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
   // ---- ToDoリスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
+  // 未チェック＝期日が来ているもの。期日を過ぎるとチェック済みから自動でこちらへ戻る
   const dueRoutineNotes = useMemo(
     () => routineNotes.filter((n) => isRoutineDue(userId, n.id, n.review_interval_days)),
-    // justCheckedの変化をトリガーに、localStorage側の完了記録を読み直させる
+    // routineVersionの変化をトリガーに、localStorage側の完了記録を読み直させる
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routineNotes, userId, justChecked]
+    [routineNotes, userId, routineVersion]
   );
-  const routineTodoNotes = useMemo(() => {
+  // チェック済み＝直近で完了し、まだ次の期日が来ていないもの
+  const checkedRoutineNotes = useMemo(() => {
     const dueIds = new Set(dueRoutineNotes.map((n) => n.id));
-    return routineNotes.filter((n) => dueIds.has(n.id) || justChecked.has(n.id));
-  }, [routineNotes, dueRoutineNotes, justChecked]);
+    return routineNotes.filter((n) => !dueIds.has(n.id));
+  }, [routineNotes, dueRoutineNotes]);
 
   // 設定した日数そのものをグループの見出しにする（昇順）
-  const routineGroups = useMemo(() => {
+  const groupByDays = (list: Note[]): [number, Note[]][] => {
     const byDays = new Map<number, Note[]>();
-    for (const note of routineTodoNotes) {
+    for (const note of list) {
       const days = note.review_interval_days!;
-      const list = byDays.get(days) ?? [];
-      list.push(note);
-      byDays.set(days, list);
+      const group = byDays.get(days) ?? [];
+      group.push(note);
+      byDays.set(days, group);
     }
     return Array.from(byDays.entries()).sort(([a], [b]) => a - b);
-  }, [routineTodoNotes]);
+  };
+  const dueRoutineGroups = useMemo(() => groupByDays(dueRoutineNotes), [dueRoutineNotes]);
+  const checkedRoutineGroups = useMemo(() => groupByDays(checkedRoutineNotes), [checkedRoutineNotes]);
 
-  // やることチェック操作。チェックを見せてから一覧を更新する（連打防止でjustCheckedは合成のまま）
   const handleRoutineCheck = (note: Note) => {
     markRoutineDone(userId, note.id);
-    setJustChecked((prev) => new Set(prev).add(note.id));
-    window.setTimeout(() => {
-      setJustChecked((prev) => {
-        const next = new Set(prev);
-        next.delete(note.id);
-        return next;
-      });
-    }, 450);
+    setRoutineVersion((v) => v + 1);
   };
+  const handleRoutineUncheck = (note: Note) => {
+    clearRoutineDone(userId, note.id);
+    setRoutineVersion((v) => v + 1);
+  };
+
+  const openNoteDetail = (note: Note) => {
+    setEditingNote(note);
+    setNoteFixedPlanId(undefined);
+    setNoteDialogOpen(true);
+  };
+
+  const renderRoutineRow = (note: Note, checked: boolean) => (
+    <Paper key={note.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}>
+      <Checkbox checked={checked} onChange={() => (checked ? handleRoutineUncheck(note) : handleRoutineCheck(note))} />
+      <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => openNoteDetail(note)}>
+        <Typography
+          noWrap
+          sx={{
+            fontWeight: 600,
+            textDecoration: checked ? "line-through" : "none",
+            color: checked ? "text.disabled" : "text.primary",
+          }}
+        >
+          {note.title}
+        </Typography>
+        {note.tags.length > 0 && (
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
+            {note.tags.map((tag) => (
+              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+            ))}
+          </Stack>
+        )}
+      </Stack>
+      <IconButton size="small" onClick={() => openNoteDetail(note)} aria-label="詳細を見る">
+        <ChevronRightIcon fontSize="small" />
+      </IconButton>
+    </Paper>
+  );
 
   // 関連メモグラフ
   const graphItems = useMemo(
@@ -404,100 +432,13 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     }
   };
 
-  // ---- メモをドラッグして「プランへリンク」または「新しいプランとして保存」 ----
-  const clearNoteLongPress = () => {
-    if (noteLongPressTimer.current !== null) {
-      window.clearTimeout(noteLongPressTimer.current);
-      noteLongPressTimer.current = null;
-    }
-  };
-
+  // メモをドラッグして「新しいプランとして保存」（実際のドラッグ処理自体はNoteTrayが持つ）
   const handleCreatePlanFromNote = (note: Note) => {
     setPendingLinkNoteId(note.id);
     setEditingPlan(null);
     setCreateParentId(null);
     setPlanDialogOpen(true);
   };
-
-  const processNoteMove = () => {
-    noteRafId.current = null;
-    const point = notePendingPoint.current;
-    if (!point) return;
-    maybeAutoScrollWindow(point.y);
-    const hitEl = document.elementFromPoint(point.x, point.y);
-    if (hitEl?.closest('[data-drop-create-plan="true"]')) {
-      setNoteHoverCreateZone(true);
-      setNoteHoverPlanId(null);
-      return;
-    }
-    setNoteHoverCreateZone(false);
-    const row = hitEl?.closest("[data-plan-id]") as HTMLElement | null;
-    setNoteHoverPlanId(row ? Number(row.dataset.planId) : null);
-  };
-
-  const noteDragPropsFor = (note: Note): HTMLAttributes<HTMLDivElement> => ({
-    style: { touchAction: draggingNoteId !== null ? ("none" as const) : ("auto" as const) },
-    onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
-      noteStartPos.current = { x: e.clientX, y: e.clientY };
-      clearNoteLongPress();
-      const pointerId = e.pointerId;
-      const target = e.currentTarget;
-      const point = { x: e.clientX, y: e.clientY };
-      noteLongPressTimer.current = window.setTimeout(() => {
-        setDraggingNoteId(note.id);
-        setNoteDragPointer(point);
-        target.setPointerCapture(pointerId);
-      }, LONG_PRESS_MS);
-    },
-    onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (noteStartPos.current && draggingNoteId === null) {
-        const dx = Math.abs(e.clientX - noteStartPos.current.x);
-        const dy = Math.abs(e.clientY - noteStartPos.current.y);
-        if (dx > 8 || dy > 8) clearNoteLongPress();
-        return;
-      }
-      if (draggingNoteId === null) return;
-      notePendingPoint.current = { x: e.clientX, y: e.clientY };
-      setNoteDragPointer({ x: e.clientX, y: e.clientY });
-      if (noteRafId.current === null) {
-        noteRafId.current = requestAnimationFrame(processNoteMove);
-      }
-    },
-    onPointerUp: () => {
-      clearNoteLongPress();
-      if (noteRafId.current !== null) {
-        cancelAnimationFrame(noteRafId.current);
-        noteRafId.current = null;
-      }
-      if (draggingNoteId !== null) {
-        const draggedNote = notes.find((n) => n.id === draggingNoteId);
-        if (draggedNote) {
-          if (noteHoverCreateZone) {
-            handleCreatePlanFromNote(draggedNote);
-          } else if (noteHoverPlanId !== null && !draggedNote.links.includes(noteHoverPlanId)) {
-            handleLinkNote(draggedNote, noteHoverPlanId);
-          }
-        }
-      }
-      setDraggingNoteId(null);
-      setNoteDragPointer(null);
-      setNoteHoverPlanId(null);
-      setNoteHoverCreateZone(false);
-      noteStartPos.current = null;
-    },
-    onPointerCancel: () => {
-      clearNoteLongPress();
-      if (noteRafId.current !== null) {
-        cancelAnimationFrame(noteRafId.current);
-        noteRafId.current = null;
-      }
-      setDraggingNoteId(null);
-      setNoteDragPointer(null);
-      setNoteHoverPlanId(null);
-      setNoteHoverCreateZone(false);
-      noteStartPos.current = null;
-    },
-  });
 
   const libraryNotes = useMemo(() => {
     if (libraryTypeFilter === "all") return notes;
@@ -546,7 +487,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               ToDoリスト
             </Typography>
 
-            {routineTodoNotes.length === 0 ? (
+            {routineNotes.length === 0 ? (
               <Stack spacing={1} alignItems="center" sx={{ py: 6 }}>
                 <SentimentSatisfiedAltIcon sx={{ fontSize: 48, color: "success.main" }} />
                 <Typography color="text.secondary">今、対応することはありません。</Typography>
@@ -555,44 +496,43 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 </Typography>
               </Stack>
             ) : (
-              routineGroups.map(([days, groupNotes]) => (
-                <Stack key={days} spacing={1}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    {days}日ごと
+              <>
+                <Stack spacing={2}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    未チェック（{dueRoutineNotes.length}）
                   </Typography>
-                  {groupNotes.map((note) => {
-                    const checked = justChecked.has(note.id);
-                    return (
-                      <Paper
-                        key={note.id}
-                        variant="outlined"
-                        sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}
-                      >
-                        <Checkbox checked={checked} onChange={() => handleRoutineCheck(note)} />
-                        <Stack sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            noWrap
-                            sx={{
-                              fontWeight: 600,
-                              textDecoration: checked ? "line-through" : "none",
-                              color: checked ? "text.disabled" : "text.primary",
-                            }}
-                          >
-                            {note.title}
-                          </Typography>
-                          {note.tags.length > 0 && (
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
-                              {note.tags.map((tag) => (
-                                <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
-                              ))}
-                            </Stack>
-                          )}
-                        </Stack>
-                      </Paper>
-                    );
-                  })}
+                  {dueRoutineNotes.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      今、対応することはありません。
+                    </Typography>
+                  ) : (
+                    dueRoutineGroups.map(([days, groupNotes]) => (
+                      <Stack key={days} spacing={1}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          {days}日ごと
+                        </Typography>
+                        {groupNotes.map((note) => renderRoutineRow(note, false))}
+                      </Stack>
+                    ))
+                  )}
                 </Stack>
-              ))
+
+                {checkedRoutineNotes.length > 0 && (
+                  <Stack spacing={2}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "text.secondary" }}>
+                      チェック済み（{checkedRoutineNotes.length}）
+                    </Typography>
+                    {checkedRoutineGroups.map(([days, groupNotes]) => (
+                      <Stack key={days} spacing={1}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          {days}日ごと
+                        </Typography>
+                        {groupNotes.map((note) => renderRoutineRow(note, true))}
+                      </Stack>
+                    ))}
+                  </Stack>
+                )}
+              </>
             )}
           </Stack>
         ) : bottomTab === "library" ? (
@@ -861,14 +801,13 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       </Container>
 
       {!loading && bottomTab === "plans" && (
-        <NoteTray notes={notes} draggingNoteId={draggingNoteId} dragPropsFor={noteDragPropsFor} />
-      )}
-
-      {noteDragPointer && (
-        <DragHintTooltip
-          kind={noteHoverCreateZone ? "nest" : noteHoverPlanId !== null ? "link" : null}
-          x={noteDragPointer.x}
-          y={noteDragPointer.y}
+        <NoteTray
+          notes={notes}
+          onLinkNote={handleLinkNote}
+          onCreatePlanFromNote={handleCreatePlanFromNote}
+          onDraggingChange={setDraggingNoteId}
+          onHoverPlanChange={setNoteHoverPlanId}
+          onHoverCreateZoneChange={setNoteHoverCreateZone}
         />
       )}
 
@@ -915,6 +854,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         fixedPlanId={noteFixedPlanId}
         categories={categories}
         tagOptions={tagOptions}
+        onCreateCategory={async (name) => {
+          const created = await dataSource.createCategory(name);
+          setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "ja")));
+          return created;
+        }}
         onAddAttachment={
           editingNote
             ? async (attachment: Omit<NoteAttachment, "id" | "note_id">) => {

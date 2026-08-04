@@ -23,21 +23,10 @@ import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
 import MarkdownContent from "./MarkdownContent";
 import type { Note, NoteAttachment } from "./PlanTypes";
 import { NOTE_TYPE_LABEL } from "./PlanTypes";
+import { NOTE_TYPE_COLOR, NOTE_TYPE_BORDER_COLOR } from "./noteVisuals";
 import ProgressBadge from "./ProgressBadge";
 import PlanPicker from "./PlanPicker";
 import type { PlanOption } from "./PlanPicker";
-
-const TYPE_COLOR: Record<Note["type"], "warning" | "success" | "default"> = {
-  learning: "warning",
-  task: "success",
-  normal: "default",
-};
-
-const TYPE_BORDER_COLOR: Record<Note["type"], string> = {
-  learning: "warning.main",
-  task: "success.main",
-  normal: "divider",
-};
 
 const PREVIEW_UNSUPPORTED = ["excel", "pdf", "docx", "doc", "pptx", "zip-archive", "binary"];
 
@@ -106,7 +95,7 @@ export default function NoteCard({
         borderRadius: 2,
         borderLeftWidth: 3,
         borderLeftStyle: "solid",
-        borderLeftColor: TYPE_BORDER_COLOR[note.type],
+        borderLeftColor: NOTE_TYPE_BORDER_COLOR[note.type],
         opacity: dragging ? 0.4 : 1,
         ...(dragProps?.style ?? {}),
       }}
@@ -114,7 +103,7 @@ export default function NoteCard({
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
         <Stack spacing={0.5} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Chip label={NOTE_TYPE_LABEL[note.type]} size="small" color={TYPE_COLOR[note.type]} variant="outlined" />
+            <Chip label={NOTE_TYPE_LABEL[note.type]} size="small" color={NOTE_TYPE_COLOR[note.type]} variant="outlined" />
             <Typography variant="caption" color="text.secondary">
               {new Date(note.created_at).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" })}
             </Typography>

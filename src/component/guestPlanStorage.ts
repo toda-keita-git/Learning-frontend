@@ -154,6 +154,19 @@ export function listGuestTags(): string[] {
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
+// タグと同様、メモ編集中にその場で新規作成できるようにする（既存の同名カテゴリーがあればそれを返す）
+function createGuestCategory(name: string): CategoryOption {
+  const existing = load<CategoryOption>(CATEGORIES_KEY);
+  const found = existing.find((c) => c.name === name);
+  if (found) return found;
+  if (existing.length >= GUEST_CATEGORY_LIMIT) {
+    throw new Error(`ゲストモードではカテゴリーは${GUEST_CATEGORY_LIMIT}件までです。GitHubでログインすると増やせます。`);
+  }
+  const created: CategoryOption = { id: nextId(), name };
+  save(CATEGORIES_KEY, [...existing, created]);
+  return created;
+}
+
 function ensureGuestTagsRegistered(tagNames: string[]): string[] {
   const existing = load<{ id: number; name: string }>(TAGS_KEY);
   const existingNames = new Set(existing.map((t) => t.name));
@@ -377,6 +390,10 @@ export const guestPlanDataSource: PlanDataSource = {
       NOTES_KEY,
       notes.map((n) => ({ ...n, attachments: n.attachments.filter((a) => a.id !== attachmentId) }))
     );
+  },
+
+  async createCategory(name) {
+    return createGuestCategory(name);
   },
 };
 

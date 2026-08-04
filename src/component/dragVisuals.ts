@@ -9,13 +9,16 @@ export const DRAG_COLOR = {
   reorder: "warning.main",
   // ルート（独立した目標）に戻す
   promote: "text.secondary",
+  // メモから新しいプランを作成する
+  create: "secondary.main",
 } as const;
 
-export type DragHintKind = "link" | "nest" | "reorder" | "promote" | null;
+export type DragHintKind = "link" | "nest" | "reorder" | "promote" | "create" | null;
 
 export const DRAG_HINT_TEXT: Record<Exclude<DragHintKind, null>, string> = {
   link: "ここにリンク",
   nest: "この中に入れる",
   reorder: "ここに並べる",
   promote: "ルート（独立した目標）にする",
+  create: "ここで新しい目標を作成",
 };
