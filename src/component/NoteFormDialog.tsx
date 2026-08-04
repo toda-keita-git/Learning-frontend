@@ -15,6 +15,9 @@ import IconButton from "@mui/material/IconButton";
 import Checkbox from "@mui/material/Checkbox";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import ToggleButton from "@mui/material/ToggleButton";
+import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
@@ -23,6 +26,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
+import MarkdownContent from "./MarkdownContent";
 import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
@@ -69,6 +73,7 @@ export default function NoteFormDialog({
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [tags, setTags] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
+  const [bodyTab, setBodyTab] = useState<"write" | "preview">("write");
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
@@ -80,6 +85,7 @@ export default function NoteFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    setBodyTab("write");
     if (initialNote) {
       setType(initialNote.type);
       setTitle(initialNote.title);
@@ -281,14 +287,37 @@ export default function NoteFormDialog({
             </Stack>
           )}
 
-          <TextField
-            label="本文"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            multiline
-            minRows={4}
-            fullWidth
-          />
+          <Stack spacing={0.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                本文（Markdown記法対応: **太字** / # 見出し / - 箇条書き / `コード` / ==ハイライト==）
+              </Typography>
+              <ToggleButtonGroup
+                value={bodyTab}
+                exclusive
+                size="small"
+                onChange={(_, v) => v && setBodyTab(v)}
+              >
+                <ToggleButton value="write">編集</ToggleButton>
+                <ToggleButton value="preview" disabled={!body.trim()}>
+                  プレビュー
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+            {bodyTab === "write" ? (
+              <TextField
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+              />
+            ) : (
+              <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5, minHeight: 96 }}>
+                <MarkdownContent text={body} />
+              </Box>
+            )}
+          </Stack>
 
           <div>
             <Typography variant="body2" color="text.secondary" gutterBottom>

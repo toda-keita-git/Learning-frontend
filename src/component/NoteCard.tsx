@@ -19,6 +19,7 @@ import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
 import { getFileType } from "./getFileType";
 import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
+import MarkdownContent from "./MarkdownContent";
 import type { Note, NoteAttachment } from "./PlanTypes";
 import { NOTE_TYPE_LABEL } from "./PlanTypes";
 import ProgressBadge from "./ProgressBadge";
@@ -163,9 +164,9 @@ export default function NoteCard({
       )}
 
       {note.body && (
-        <Typography variant="body2" sx={{ mt: 1.5, whiteSpace: "pre-wrap", color: "text.secondary" }}>
-          {note.body}
-        </Typography>
+        <Stack sx={{ mt: 1.5 }}>
+          <MarkdownContent text={note.body} />
+        </Stack>
       )}
 
       {note.attachments.length > 0 && (

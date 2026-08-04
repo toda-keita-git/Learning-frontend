@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -28,88 +29,136 @@ interface PlanListProps {
 
 type DropHint = { kind: "row"; targetId: number; mode: "before" | "after" | "nest" } | { kind: "root" } | null;
 
-const LONG_PRESS_MS = 220;
-const MOVE_CANCEL_PX = 8;
+const sameHint = (a: DropHint, b: DropHint) => {
+  if (a === b) return true;
+  if (!a || !b || a.kind !== b.kind) return false;
+  if (a.kind === "row" && b.kind === "row") return a.targetId === b.targetId && a.mode === b.mode;
+  return true;
+};
 
+// ハンドル（つまみアイコン）をつかんだ瞬間に即ドラッグ開始する。長押し待ちは行わず、
+// 指の動きにdata-plan-idの行をtransformで直接追従させることで「ぬるぬる」動く体感にする
 export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder, onReparent, onPromoteToRoot }: PlanListProps) {
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropHint, setDropHint] = useState<DropHint>(null);
-  const longPressTimer = useRef<number | null>(null);
-  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
+  const rafId = useRef<number | null>(null);
+  const pendingPoint = useRef<{ x: number; y: number } | null>(null);
+  const draggingIdRef = useRef<number | null>(null);
+  const dropHintRef = useRef<DropHint>(null);
 
-  const clearLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
+  const setRowRef = (id: number) => (el: HTMLDivElement | null) => {
+    if (el) rowRefs.current.set(id, el);
+    else rowRefs.current.delete(id);
   };
 
-  const handlePointerDown = (plan: Plan) => (e: ReactPointerEvent<HTMLDivElement>) => {
-    startPos.current = { x: e.clientX, y: e.clientY };
-    clearLongPress();
-    const pointerId = e.pointerId;
-    const target = e.currentTarget;
-    longPressTimer.current = window.setTimeout(() => {
-      setDraggingId(plan.id);
-      target.setPointerCapture(pointerId);
-    }, LONG_PRESS_MS);
+  const applyDragVisual = (id: number, dy: number) => {
+    const el = rowRefs.current.get(id);
+    if (!el) return;
+    el.style.transform = `translateY(${dy}px) scale(1.02)`;
+    el.style.zIndex = "10";
+    el.style.boxShadow = "0 10px 24px rgba(0,0,0,0.22)";
+    el.style.pointerEvents = "none";
   };
 
-  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (startPos.current && draggingId === null) {
-      const dx = Math.abs(e.clientX - startPos.current.x);
-      const dy = Math.abs(e.clientY - startPos.current.y);
-      if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) {
-        clearLongPress(); // 長押し確定前に動いた＝スクロール操作とみなしてドラッグ開始をキャンセル
-      }
-      return;
-    }
-    if (draggingId === null) return;
+  const clearDragVisual = (id: number) => {
+    const el = rowRefs.current.get(id);
+    if (!el) return;
+    el.style.transform = "";
+    el.style.zIndex = "";
+    el.style.boxShadow = "";
+    el.style.pointerEvents = "";
+  };
 
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const rootZone = el?.closest('[data-drop-root="true"]');
+  const updateDropHint = (next: DropHint) => {
+    if (sameHint(dropHintRef.current, next)) return;
+    dropHintRef.current = next;
+    setDropHint(next);
+  };
+
+  const processMove = () => {
+    rafId.current = null;
+    const point = pendingPoint.current;
+    const origin = dragOrigin.current;
+    const id = draggingIdRef.current;
+    if (!point || !origin || id === null) return;
+
+    applyDragVisual(id, point.y - origin.y);
+
+    const hitEl = document.elementFromPoint(point.x, point.y);
+    const rootZone = hitEl?.closest('[data-drop-root="true"]');
     if (rootZone) {
-      setDropHint({ kind: "root" });
+      updateDropHint({ kind: "root" });
       return;
     }
-    const row = el?.closest("[data-plan-id]") as HTMLElement | null;
+    const row = hitEl?.closest("[data-plan-id]") as HTMLElement | null;
     if (!row) {
-      setDropHint(null);
+      updateDropHint(null);
       return;
     }
     const targetId = Number(row.dataset.planId);
-    if (targetId === draggingId) {
-      setDropHint(null);
+    if (targetId === id) {
+      updateDropHint(null);
       return;
     }
     const rect = row.getBoundingClientRect();
-    const relY = (e.clientY - rect.top) / rect.height;
+    const relY = (point.y - rect.top) / rect.height;
     const mode: "before" | "after" | "nest" = relY < 0.25 ? "before" : relY > 0.75 ? "after" : "nest";
-    setDropHint({ kind: "row", targetId, mode });
+    updateDropHint({ kind: "row", targetId, mode });
+  };
+
+  const handleHandlePointerDown = (plan: Plan) => (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragOrigin.current = { x: e.clientX, y: e.clientY };
+    draggingIdRef.current = plan.id;
+    dropHintRef.current = null;
+    setDraggingId(plan.id);
+    setDropHint(null);
+  };
+
+  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (draggingIdRef.current === null) return;
+    pendingPoint.current = { x: e.clientX, y: e.clientY };
+    if (rafId.current === null) {
+      rafId.current = requestAnimationFrame(processMove);
+    }
   };
 
   const finishDrag = () => {
-    clearLongPress();
-    if (draggingId !== null && dropHint) {
-      if (dropHint.kind === "root") {
-        onPromoteToRoot?.(draggingId);
-      } else if (dropHint.mode === "nest") {
-        onReparent(draggingId, dropHint.targetId);
-      } else {
-        const ids = plans.map((p) => p.id);
-        const fromIndex = ids.indexOf(draggingId);
-        if (fromIndex !== -1) {
-          ids.splice(fromIndex, 1);
-          const toIndex = ids.indexOf(dropHint.targetId);
-          const insertAt = dropHint.mode === "before" ? toIndex : toIndex + 1;
-          ids.splice(insertAt, 0, draggingId);
-          onReorder(ids);
+    if (rafId.current !== null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+    const id = draggingIdRef.current;
+    const hint = dropHintRef.current;
+    if (id !== null) {
+      clearDragVisual(id);
+      if (hint) {
+        if (hint.kind === "root") {
+          onPromoteToRoot?.(id);
+        } else if (hint.mode === "nest") {
+          onReparent(id, hint.targetId);
+        } else {
+          const ids = plans.map((p) => p.id);
+          const fromIndex = ids.indexOf(id);
+          if (fromIndex !== -1) {
+            ids.splice(fromIndex, 1);
+            const toIndex = ids.indexOf(hint.targetId);
+            const insertAt = hint.mode === "before" ? toIndex : toIndex + 1;
+            ids.splice(insertAt, 0, id);
+            onReorder(ids);
+          }
         }
       }
     }
+    dragOrigin.current = null;
+    pendingPoint.current = null;
+    draggingIdRef.current = null;
+    dropHintRef.current = null;
     setDraggingId(null);
     setDropHint(null);
-    startPos.current = null;
   };
 
   if (plans.length === 0) {
@@ -143,21 +192,17 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
       {plans.map((plan) => (
         <Paper
           key={plan.id}
+          ref={setRowRef(plan.id)}
           data-plan-id={plan.id}
           variant="outlined"
-          onPointerDown={handlePointerDown(plan)}
-          onPointerMove={handlePointerMove}
-          onPointerUp={finishDrag}
-          onPointerCancel={finishDrag}
           sx={{
             p: 1.5,
             borderRadius: 2,
             display: "flex",
             alignItems: "center",
             gap: 1,
-            cursor: "grab",
-            touchAction: draggingId !== null ? "none" : "auto",
-            opacity: draggingId === plan.id ? 0.4 : 1,
+            transition: draggingId === plan.id ? "none" : "box-shadow .15s",
+            willChange: "transform",
             outline: dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "nest" ? "2px solid" : "none",
             outlineColor: "primary.main",
             borderTop: dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "before" ? "3px solid" : undefined,
@@ -166,7 +211,26 @@ export default function PlanList({ plans, onSelect, onEdit, onDelete, onReorder,
             borderBottomColor: "primary.main",
           }}
         >
-          <DragIndicatorIcon fontSize="small" sx={{ color: "text.disabled" }} />
+          <Box
+            data-drag-handle="true"
+            onPointerDown={handleHandlePointerDown(plan)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={finishDrag}
+            onPointerCancel={finishDrag}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+              cursor: "grab",
+              touchAction: "none",
+              "&:active": { cursor: "grabbing", bgcolor: "action.hover" },
+            }}
+          >
+            <DragIndicatorIcon fontSize="small" sx={{ color: "text.disabled" }} />
+          </Box>
 
           <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => draggingId === null && onSelect(plan)}>
             <Stack direction="row" spacing={1} alignItems="center">

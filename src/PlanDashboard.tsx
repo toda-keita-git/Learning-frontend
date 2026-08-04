@@ -35,6 +35,9 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import Badge from "@mui/material/Badge";
+import Checkbox from "@mui/material/Checkbox";
+import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
@@ -99,6 +102,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // TODOチェックリストでチェックした直後、取り消し線を見せてから一覧から消すための一時状態
+  const [justChecked, setJustChecked] = useState<Set<number>>(new Set());
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
@@ -235,6 +240,30 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       showToast(errorMessage(err, "理解度の更新に失敗しました。"), "error");
     }
   };
+
+  // 今日の復習TODOのチェック操作。チェックを見せてから一覧を更新する（連打防止でjustCheckedは合成のまま）
+  const handleQuickReview = (note: Note, understood: boolean) => {
+    setJustChecked((prev) => new Set(prev).add(note.id));
+    const level = note.mastery ?? 3;
+    const newLevel = understood ? Math.min(5, level + 1) : Math.max(1, level - 1);
+    void handleRateNote(
+      { id: note.id, title: note.title, explanatory_text: note.body ?? "", understanding_level: note.mastery, category_name: "", tags: note.tags, reference_url: null },
+      newLevel,
+      understood
+    );
+    window.setTimeout(() => {
+      setJustChecked((prev) => {
+        const next = new Set(prev);
+        next.delete(note.id);
+        return next;
+      });
+    }, 450);
+  };
+
+  const reviewTodoNotes = useMemo(() => {
+    const dueIds = new Set(dueLearningNotes.map((n) => n.id));
+    return learningNotes.filter((n) => dueIds.has(n.id) || justChecked.has(n.id));
+  }, [learningNotes, dueLearningNotes, justChecked]);
 
   // 関連メモグラフ
   const graphItems = useMemo(
@@ -481,17 +510,61 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             <CircularProgress />
           </Box>
         ) : bottomTab === "review" ? (
-          <Stack spacing={2} alignItems="center" sx={{ py: 6 }}>
-            <MenuBookOutlinedIcon sx={{ fontSize: 48, color: "primary.main" }} />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              今日の復習
-            </Typography>
-            <Typography color="text.secondary">
-              {dueLearningNotes.length > 0 ? `${dueLearningNotes.length}件の学習用メモが復習待ちです。` : "今、復習が必要なメモはありません。"}
-            </Typography>
-            <Button variant="contained" size="large" onClick={() => setReviewOpen(true)} disabled={learningNotes.length === 0}>
-              復習をはじめる
-            </Button>
+          <Stack spacing={2}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                今日の復習
+              </Typography>
+              {reviewTodoNotes.length > 0 && (
+                <Button size="small" startIcon={<MenuBookOutlinedIcon />} onClick={() => setReviewOpen(true)}>
+                  カードでじっくり復習
+                </Button>
+              )}
+            </Stack>
+
+            {reviewTodoNotes.length === 0 ? (
+              <Stack spacing={1} alignItems="center" sx={{ py: 6 }}>
+                <SentimentSatisfiedAltIcon sx={{ fontSize: 48, color: "success.main" }} />
+                <Typography color="text.secondary">今、復習が必要なメモはありません。</Typography>
+              </Stack>
+            ) : (
+              <Stack spacing={1}>
+                {reviewTodoNotes.map((note) => {
+                  const checked = justChecked.has(note.id);
+                  return (
+                    <Paper
+                      key={note.id}
+                      variant="outlined"
+                      sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <Checkbox checked={checked} onChange={() => handleQuickReview(note, true)} />
+                      <Stack sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          noWrap
+                          sx={{
+                            fontWeight: 600,
+                            textDecoration: checked ? "line-through" : "none",
+                            color: checked ? "text.disabled" : "text.primary",
+                          }}
+                        >
+                          {note.title}
+                        </Typography>
+                        {note.tags.length > 0 && (
+                          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
+                            {note.tags.map((tag) => (
+                              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+                            ))}
+                          </Stack>
+                        )}
+                      </Stack>
+                      <IconButton size="small" onClick={() => handleQuickReview(note, false)} aria-label="まだ理解できていない">
+                        <ReplayIcon fontSize="small" />
+                      </IconButton>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
           </Stack>
         ) : bottomTab === "library" ? (
           <Stack spacing={2}>
