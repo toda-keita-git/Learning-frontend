@@ -27,6 +27,7 @@ import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
 import MarkdownContent from "./MarkdownContent";
+import { ROUTINE_PRESETS } from "./routine";
 import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
@@ -74,6 +75,7 @@ export default function NoteFormDialog({
   const [tags, setTags] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
   const [bodyTab, setBodyTab] = useState<"write" | "preview">("write");
+  const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
@@ -96,6 +98,7 @@ export default function NoteFormDialog({
       setCategoryId(initialNote.category_id ?? "");
       setTags(initialNote.tags ?? []);
       setAttachments(initialNote.attachments ?? []);
+      setReviewIntervalDays(initialNote.review_interval_days ?? null);
     } else {
       setType("normal");
       setTitle("");
@@ -106,6 +109,7 @@ export default function NoteFormDialog({
       setCategoryId("");
       setTags([]);
       setAttachments([]);
+      setReviewIntervalDays(null);
     }
   }, [open, initialNote]);
 
@@ -188,6 +192,7 @@ export default function NoteFormDialog({
         mastery: type === "learning" ? mastery : null,
         progress: type === "task" && todoItems.length === 0 ? progress : null,
         category_id: categoryId === "" ? null : Number(categoryId),
+        review_interval_days: reviewIntervalDays,
         todo_items:
           type === "task"
             ? todoItems.filter((t) => t.label.trim()).map((t) => ({ ...t, label: t.label.trim() }))
@@ -367,6 +372,43 @@ export default function NoteFormDialog({
                 GitHub連携の準備ができていないため、添付は使えません。
               </Typography>
             )}
+          </div>
+
+          <div>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              繰り返し（「今日の復習」タブにやることとして表示）
+            </Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" alignItems="center" sx={{ rowGap: 0.75 }}>
+              <Chip
+                label="なし"
+                size="small"
+                variant={reviewIntervalDays === null ? "filled" : "outlined"}
+                color={reviewIntervalDays === null ? "primary" : "default"}
+                onClick={() => setReviewIntervalDays(null)}
+              />
+              {ROUTINE_PRESETS.map((preset) => (
+                <Chip
+                  key={preset.label}
+                  label={preset.label}
+                  size="small"
+                  variant={reviewIntervalDays === preset.days ? "filled" : "outlined"}
+                  color={reviewIntervalDays === preset.days ? "primary" : "default"}
+                  onClick={() => setReviewIntervalDays(preset.days)}
+                />
+              ))}
+              <TextField
+                type="number"
+                size="small"
+                label="カスタム(日)"
+                value={reviewIntervalDays !== null && !ROUTINE_PRESETS.some((p) => p.days === reviewIntervalDays) ? reviewIntervalDays : ""}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setReviewIntervalDays(e.target.value === "" ? null : Number.isFinite(n) && n > 0 ? n : reviewIntervalDays);
+                }}
+                slotProps={{ htmlInput: { min: 1 } }}
+                sx={{ width: 130 }}
+              />
+            </Stack>
           </div>
 
           {categories.length > 0 && (

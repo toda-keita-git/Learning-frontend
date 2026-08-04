@@ -14,6 +14,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import AddIcon from "@mui/icons-material/Add";
+import RepeatIcon from "@mui/icons-material/Repeat";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
@@ -117,6 +118,9 @@ export default function NoteCard({
             <Typography variant="caption" color="text.secondary">
               {new Date(note.created_at).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" })}
             </Typography>
+            {note.review_interval_days && (
+              <Chip icon={<RepeatIcon fontSize="small" />} label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" />
+            )}
           </Stack>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {note.title}

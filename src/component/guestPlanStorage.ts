@@ -213,6 +213,7 @@ function toNote(id: number, data: NoteInput, tags: string[]): Note {
     mastery: data.mastery,
     progress: data.progress,
     category_id: data.category_id,
+    review_interval_days: data.review_interval_days,
     created_at: new Date().toISOString(),
     user_id: 0,
     todo_items: todoItems,
@@ -319,6 +320,7 @@ export const guestPlanDataSource: PlanDataSource = {
       mastery: data.mastery,
       progress: data.progress,
       category_id: data.category_id,
+      review_interval_days: data.review_interval_days,
       todo_items: todoItems,
       tags,
     };

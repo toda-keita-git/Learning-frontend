@@ -49,6 +49,8 @@ export interface Note {
   mastery: number | null;
   progress: number | null;
   category_id: number | null;
+  // nullなら繰り返しなし。設定時は「今日の復習」タブでN日ごとのやることとして表示される（頻度は自由設定）
+  review_interval_days: number | null;
   created_at: string;
   user_id: number;
   tags: string[];
@@ -68,6 +70,7 @@ export type NoteInput = {
   mastery: number | null;
   progress: number | null;
   category_id: number | null;
+  review_interval_days: number | null;
   todo_items: NoteTodoItem[];
   tags: string[];
   // 作成時のみ有効（サーバーはnote_insertでこの2つをそのまま張ってくれる）。更新時はlink/unlink・attachment系APIを使う
