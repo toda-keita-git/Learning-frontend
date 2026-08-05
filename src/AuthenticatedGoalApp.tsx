@@ -3,17 +3,20 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
 import CircularProgress from "@mui/material/CircularProgress";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import GoogleIcon from "@mui/icons-material/Google";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import { AuthContext } from "./Context";
 import PlanDashboard from "./PlanDashboard";
 import { apiPlanDataSource } from "./component/planDataSource";
 
-// GitHubログインを要求するゲート。ログイン済みならバックエンドAPIを使う
-// PlanDashboardを、未ログインならログイン画面を表示する
+// GitHub・Googleいずれかのログインを要求するゲート。ログイン済みならバックエンドAPIを使う
+// PlanDashboardを、未ログインならログイン画面（初回ログイン時にどちらを使うか選ぶ場所）を表示する
 export default function AuthenticatedGoalApp() {
-  const { isAuthenticated, isAuthenticating, login, logout, githubLogin, userId } = useContext(AuthContext);
+  const { isAuthenticated, isAuthenticating, login, loginWithGoogle, logout, githubLogin, googleEmail, authProvider, userId } =
+    useContext(AuthContext);
 
   if (!isAuthenticated) {
     return (
@@ -35,11 +38,16 @@ export default function AuthenticatedGoalApp() {
               <Typography sx={{ mb: 3, color: "text.secondary" }}>
                 目標・アクションプラン・メモを記録するには、
                 <br />
-                GitHubアカウントでのログインが必要です。
+                GitHubまたはGoogleアカウントでのログインが必要です。
               </Typography>
-              <Button variant="contained" size="large" fullWidth startIcon={<GitHubIcon />} onClick={login}>
-                GitHubでログイン
-              </Button>
+              <Stack spacing={1.5}>
+                <Button variant="contained" size="large" fullWidth startIcon={<GitHubIcon />} onClick={login}>
+                  GitHubでログイン
+                </Button>
+                <Button variant="outlined" size="large" fullWidth startIcon={<GoogleIcon />} onClick={loginWithGoogle}>
+                  Googleでログイン
+                </Button>
+              </Stack>
             </>
           )}
         </Paper>
@@ -47,5 +55,7 @@ export default function AuthenticatedGoalApp() {
     );
   }
 
-  return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} accountLabel={githubLogin} onLogout={logout} />;
+  const accountLabel = authProvider === "google" ? googleEmail : githubLogin;
+
+  return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} accountLabel={accountLabel} onLogout={logout} />;
 }

@@ -71,6 +71,19 @@ export default function App() {
               </AuthProvider>
             }
           />
+          {/*
+            GoogleのOAuth Appのコールバック先。GitHubの/LearningContentと同じ
+            認証済みシェル（AuthProvider + AuthenticatedGoalApp）をそのまま再利用し、
+            Context.tsx側でこのパスにいるかどうかを見てGoogle用の処理を分岐する。
+          */}
+          <Route
+            path="/google/callback"
+            element={
+              <AuthProvider>
+                <AuthenticatedGoalApp />
+              </AuthProvider>
+            }
+          />
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </Suspense>

@@ -21,11 +21,14 @@ import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
+import GoogleDriveFileSelector from "./GoogleDriveFileSelector";
+import { uploadDriveFile } from "./driveClient";
 import MarkdownContent from "./MarkdownContent";
 import { ROUTINE_PRESETS } from "./routine";
 import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
@@ -100,12 +103,14 @@ export default function NoteFormDialog({
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
+  const [driveSelectorOpen, setDriveSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { octokit, githubLogin, repoName } = useContext(AuthContext);
+  const { octokit, githubLogin, repoName, authProvider, driveFolderId, ensureDriveAccessToken } =
+    useContext(AuthContext);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -155,7 +160,37 @@ export default function NoteFormDialog({
   };
 
   const handleFilesSelected = async (files: FileList | null) => {
-    if (!files || files.length === 0 || !octokit || !githubLogin || !repoName) return;
+    if (!files || files.length === 0) return;
+
+    if (authProvider === "google") {
+      if (!driveFolderId) return;
+      setUploadingImages(true);
+      try {
+        const accessToken = await ensureDriveAccessToken();
+        if (!accessToken) throw new Error("Driveのアクセストークンを取得できませんでした。");
+        for (const file of Array.from(files)) {
+          const { id: fileId } = await uploadDriveFile(accessToken, driveFolderId, file);
+          await addAttachmentLocallyOrRemotely({
+            kind: "image",
+            github_path: fileId,
+            // commit_sha列はGitHubでは未使用（画像はコミットshaを取らない）ため、
+            // Drive添付ではここにファイル名を流用してチップ表示に使う
+            commit_sha: file.name,
+            repo_name: driveFolderId,
+            provider: "google",
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        showToast("画像のアップロードに失敗しました。", "error");
+      } finally {
+        setUploadingImages(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    if (!octokit || !githubLogin || !repoName) return;
     setUploadingImages(true);
     try {
       for (const file of Array.from(files)) {
@@ -170,7 +205,13 @@ export default function NoteFormDialog({
           content: base64,
         });
         const sha = data.content && "sha" in data.content ? (data.content.sha as string) : null;
-        await addAttachmentLocallyOrRemotely({ kind: "image", github_path: path, commit_sha: sha, repo_name: repoName });
+        await addAttachmentLocallyOrRemotely({
+          kind: "image",
+          github_path: path,
+          commit_sha: sha,
+          repo_name: repoName,
+          provider: "github",
+        });
       }
     } catch (err) {
       console.error(err);
@@ -188,13 +229,31 @@ export default function NoteFormDialog({
     try {
       const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
       const sha = !Array.isArray(data) && "sha" in data ? data.sha : null;
-      await addAttachmentLocallyOrRemotely({ kind: "code", github_path: path, commit_sha: sha, repo_name: repoName });
+      await addAttachmentLocallyOrRemotely({
+        kind: "code",
+        github_path: path,
+        commit_sha: sha,
+        repo_name: repoName,
+        provider: "github",
+      });
     } catch (err) {
       console.error(err);
       showToast("コードの添付に失敗しました。", "error");
     } finally {
       setResolvingCodeSha(false);
     }
+  };
+
+  const handleDriveFileSelect = async (fileId: string, fileName: string) => {
+    setDriveSelectorOpen(false);
+    if (!driveFolderId) return;
+    await addAttachmentLocallyOrRemotely({
+      kind: "code",
+      github_path: fileId,
+      commit_sha: fileName,
+      repo_name: driveFolderId,
+      provider: "google",
+    });
   };
 
   const handleRemoveAttachment = async (attachment: NoteAttachment, index: number) => {
@@ -236,6 +295,8 @@ export default function NoteFormDialog({
   };
 
   const hasGithub = !!octokit && !!repoName;
+  const hasGoogleDrive = authProvider === "google" && !!driveFolderId;
+  const hasAnyStorage = hasGithub || hasGoogleDrive;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -351,15 +412,31 @@ export default function NoteFormDialog({
               画像・コードの添付（任意・複数可）
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mb: 1, rowGap: 0.75 }}>
-              {attachments.map((attachment, index) => (
-                <Chip
-                  key={attachment.id ?? `${attachment.github_path}-${index}`}
-                  icon={attachment.kind === "image" ? <ImageOutlinedIcon /> : <GitHubIcon />}
-                  label={attachment.github_path.split("/").pop()}
-                  onDelete={() => handleRemoveAttachment(attachment, index)}
-                  sx={{ maxWidth: 220 }}
-                />
-              ))}
+              {attachments.map((attachment, index) => {
+                const isGoogle = attachment.provider === "google";
+                // Drive添付はgithub_pathがfileId（ファイル名ではない）なので、
+                // commit_sha列に流用保存したファイル名があればそちらを表示に使う
+                const label = isGoogle
+                  ? attachment.commit_sha || attachment.github_path
+                  : attachment.github_path.split("/").pop();
+                return (
+                  <Chip
+                    key={attachment.id ?? `${attachment.github_path}-${index}`}
+                    icon={
+                      attachment.kind === "image" ? (
+                        <ImageOutlinedIcon />
+                      ) : isGoogle ? (
+                        <CloudOutlinedIcon />
+                      ) : (
+                        <GitHubIcon />
+                      )
+                    }
+                    label={label}
+                    onDelete={() => handleRemoveAttachment(attachment, index)}
+                    sx={{ maxWidth: 220 }}
+                  />
+                );
+              })}
             </Stack>
             <Stack direction="row" spacing={1}>
               <input
@@ -374,7 +451,7 @@ export default function NoteFormDialog({
                 size="small"
                 variant="outlined"
                 startIcon={uploadingImages ? <CircularProgress size={14} /> : <ImageOutlinedIcon fontSize="small" />}
-                disabled={!hasGithub || uploadingImages}
+                disabled={!hasAnyStorage || uploadingImages}
                 onClick={() => fileInputRef.current?.click()}
               >
                 画像を選ぶ
@@ -382,16 +459,26 @@ export default function NoteFormDialog({
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={resolvingCodeSha ? <CircularProgress size={14} /> : <GitHubIcon fontSize="small" />}
-                disabled={!hasGithub || resolvingCodeSha}
-                onClick={() => setGithubSelectorOpen(true)}
+                startIcon={
+                  resolvingCodeSha ? (
+                    <CircularProgress size={14} />
+                  ) : hasGoogleDrive ? (
+                    <CloudOutlinedIcon fontSize="small" />
+                  ) : (
+                    <GitHubIcon fontSize="small" />
+                  )
+                }
+                disabled={!hasAnyStorage || resolvingCodeSha}
+                onClick={() => (hasGoogleDrive ? setDriveSelectorOpen(true) : setGithubSelectorOpen(true))}
               >
                 コードを選ぶ
               </Button>
             </Stack>
-            {!hasGithub && (
+            {!hasAnyStorage && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                GitHub連携の準備ができていないため、添付は使えません。
+                {authProvider === "google"
+                  ? "Googleドライブ連携の準備ができていないため、添付は使えません。"
+                  : "GitHub連携の準備ができていないため、添付は使えません。"}
               </Typography>
             )}
           </div>
@@ -519,6 +606,11 @@ export default function NoteFormDialog({
         open={githubSelectorOpen}
         onClose={() => setGithubSelectorOpen(false)}
         onFileSelect={handleGithubFileSelect}
+      />
+      <GoogleDriveFileSelector
+        open={driveSelectorOpen}
+        onClose={() => setDriveSelectorOpen(false)}
+        onFileSelect={handleDriveFileSelect}
       />
     </Dialog>
   );

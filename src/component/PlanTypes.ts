@@ -35,10 +35,14 @@ export interface NoteAttachment {
   id?: number;
   note_id?: number;
   kind: AttachmentKind;
+  // providerが"google"の場合、github_pathにはDriveのfileIdを、repo_nameには
+  // drive_folder_idを流用して保存する（カラム名はGitHub由来のままだが、
+  // リネームによる影響範囲拡大を避けるための意図的な流用）
   github_path: string;
   commit_sha: string | null;
   repo_name: string;
   sort_order?: number;
+  provider?: "github" | "google"; // 省略時はgithub扱い（既存データとの後方互換）
 }
 
 export interface Note {

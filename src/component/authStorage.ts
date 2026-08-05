@@ -12,13 +12,19 @@
 const STORAGE_KEY = "learningAuthSession";
 
 export type PersistedSession = {
-  accessToken: string; // GitHub API呼び出し用（Octokit）
+  accessToken: string; // GitHub API呼び出し用（Octokit）。Googleセッションでは未使用のため空文字を入れる
   appToken: string; // このアプリのバックエンドAPI呼び出し用（本人確認）
   userId: number;
+  // GitHubログイン名。Googleセッションの場合はGoogleアカウントのメールアドレスを
+  // 表示用に流用する（新規フィールドを増やさず既存の検証ロジックをそのまま使うため）
   githubLogin: string;
   // 学習記録の添付先として使うリポジトリ名。このカラムが無かった頃に保存された
   // セッションにはまだ含まれないため、任意項目として扱う
   repoName?: string | null;
+  // Googleドライブ連携用（GitHub連携と並存）。無い場合はgithub扱い
+  authProvider?: "github" | "google";
+  // 添付先として使うGoogleドライブのフォルダID
+  driveFolderId?: string | null;
 };
 
 export const savePersistedSession = (session: PersistedSession) => {

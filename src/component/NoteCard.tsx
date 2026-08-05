@@ -12,6 +12,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import RepeatIcon from "@mui/icons-material/Repeat";
@@ -20,6 +21,7 @@ import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
 import { getFileType } from "./getFileType";
 import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
+import { getDriveFileBase64 } from "./driveClient";
 import MarkdownContent from "./MarkdownContent";
 import type { Note, NoteAttachment } from "./PlanTypes";
 import { NOTE_TYPE_LABEL } from "./PlanTypes";
@@ -54,7 +56,7 @@ export default function NoteCard({
   dragProps,
   dragging,
 }: NoteCardProps) {
-  const { octokit, githubLogin } = useContext(AuthContext);
+  const { octokit, githubLogin, ensureDriveAccessToken } = useContext(AuthContext);
   const { showToast } = useToast();
   const [viewerOpen, setViewerOpen] = useState<NoteAttachment | null>(null);
   const [viewerContent, setViewerContent] = useState("");
@@ -63,17 +65,36 @@ export default function NoteCard({
 
   const linkedOptions = planOptions.filter((opt) => note.links.includes(opt.id));
 
+  // Drive添付はgithub_pathがfileId（拡張子を持たない）なので、ファイル種別の判定や
+  // タイトル表示にはcommit_sha列に流用保存したファイル名（表示名）を使う
+  const attachmentDisplayPath = (attachment: NoteAttachment): string =>
+    attachment.provider === "google" ? attachment.commit_sha || attachment.github_path : attachment.github_path;
+
   const handleViewAttachment = async (attachment: NoteAttachment) => {
-    if (!octokit || !githubLogin) return;
     setLoadingAttachmentId(attachment.id ?? -1);
     try {
-      const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: attachment.repo_name, path: attachment.github_path });
-      if (Array.isArray(data) || !("content" in data)) {
-        throw new Error("フォルダーは表示できません。");
+      let raw: string;
+      const displayPath = attachmentDisplayPath(attachment);
+
+      if (attachment.provider === "google") {
+        const accessToken = await ensureDriveAccessToken();
+        if (!accessToken) throw new Error("Driveのアクセストークンを取得できませんでした。");
+        raw = await getDriveFileBase64(accessToken, attachment.github_path);
+      } else {
+        if (!octokit || !githubLogin) return;
+        const { data } = await octokit.repos.getContent({
+          owner: githubLogin,
+          repo: attachment.repo_name,
+          path: attachment.github_path,
+        });
+        if (Array.isArray(data) || !("content" in data)) {
+          throw new Error("フォルダーは表示できません。");
+        }
+        raw = data.content.replace(/\n/g, "");
       }
-      const raw = data.content.replace(/\n/g, "");
-      const fileType = getFileType(attachment.github_path);
-      const ext = attachment.github_path.split(".").pop() ?? "";
+
+      const fileType = getFileType(displayPath);
+      const ext = displayPath.split(".").pop() ?? "";
       const content = fileType === "image" ? getImageDataUrl(raw, ext) : decodeBase64Text(raw);
       setViewerContent(content);
       setViewerOpen(attachment);
@@ -174,6 +195,8 @@ export default function NoteCard({
                   <CircularProgress size={14} />
                 ) : attachment.kind === "image" ? (
                   <ImageOutlinedIcon fontSize="small" />
+                ) : attachment.provider === "google" ? (
+                  <CloudOutlinedIcon fontSize="small" />
                 ) : (
                   <GitHubIcon fontSize="small" />
                 )
@@ -181,7 +204,7 @@ export default function NoteCard({
               onClick={() => handleViewAttachment(attachment)}
               disabled={loadingAttachmentId !== null}
             >
-              {attachment.github_path.split("/").pop()}
+              {attachmentDisplayPath(attachment).split("/").pop()}
             </Button>
           ))}
         </Stack>
@@ -221,8 +244,8 @@ export default function NoteCard({
         <GitHubFileViewerDialog
           open={!!viewerOpen}
           onClose={() => setViewerOpen(null)}
-          path={viewerOpen.github_path}
-          content={PREVIEW_UNSUPPORTED.includes(getFileType(viewerOpen.github_path)) ? "" : viewerContent}
+          path={attachmentDisplayPath(viewerOpen)}
+          content={PREVIEW_UNSUPPORTED.includes(getFileType(attachmentDisplayPath(viewerOpen))) ? "" : viewerContent}
           isEditable={false}
           onUpdateFile={async () => {}}
         />

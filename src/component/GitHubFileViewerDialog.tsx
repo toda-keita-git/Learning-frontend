@@ -307,7 +307,7 @@ const GitHubFileViewerDialog: React.FC<Props> = ({
                     このファイル形式はここではプレビュー・編集できません。
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    ファイルはGitHub上にそのまま保存されています。内容を確認したい場合はGitHub上で開いてください。
+                    ファイルは保存元（GitHub / Googleドライブ）にそのまま保存されています。内容を確認したい場合はそちらで開いてください。
                   </Typography>
                 </Box>
               );
