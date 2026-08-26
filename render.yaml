@@ -33,6 +33,10 @@ services:
         sync: false
       - key: VITE_CALLBACK_URL
         sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: VITE_GOOGLE_CALLBACK_URL
+        sync: false
       - key: VITE_REPO_OWNER
         sync: false
       - key: VITE_REPO_NAME
