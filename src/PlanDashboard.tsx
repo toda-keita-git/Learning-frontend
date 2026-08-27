@@ -42,6 +42,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import Badge from "@mui/material/Badge";
 import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
@@ -49,6 +50,7 @@ import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/rou
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
+import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import Alert from "@mui/material/Alert";
@@ -122,6 +124,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [routineVersion, setRoutineVersion] = useState(0);
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [boardHelpOpen, setBoardHelpOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
@@ -714,9 +717,14 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         ) : !selectedPlan ? (
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                プランボード
-              </Typography>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  プランボード
+                </Typography>
+                <IconButton size="small" onClick={() => setBoardHelpOpen(true)} aria-label="プランボードの使い方">
+                  <HelpOutlineIcon fontSize="small" />
+                </IconButton>
+              </Stack>
               <Button
                 startIcon={<AddIcon />}
                 variant="contained"
@@ -1035,6 +1043,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       )}
 
       <RelatedGraphDialog open={graphOpen} onClose={() => setGraphOpen(false)} items={graphItems} onOpenItem={handleOpenGraphItem} />
+      <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>削除の確認</DialogTitle>
