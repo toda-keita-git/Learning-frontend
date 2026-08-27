@@ -227,8 +227,10 @@ export default function PlanTree({
     const afterHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "after";
     const noteHighlight = noteDropHighlightId === plan.id;
 
+    // 1階層あたりのインデントを20px→9pxに縮小。深い階層でもタイトルの表示幅が
+    // 潰れにくくする（10階層あっても消費されるのは最大81px程度に収まる）
     return (
-      <Box key={plan.id} sx={{ ml: depth === 0 ? 0 : 2.5 }}>
+      <Box key={plan.id} sx={{ ml: depth === 0 ? 0 : "9px" }}>
         <Paper
           ref={setRowRef(plan.id)}
           data-plan-id={plan.id}
