@@ -54,6 +54,7 @@ import WifiOffIcon from "@mui/icons-material/WifiOff";
 import Alert from "@mui/material/Alert";
 import type { PlanDataSource } from "./component/planDataSource";
 import type { Plan, Note, NoteInput, PlanInput, CategoryOption, NoteAttachment } from "./component/PlanTypes";
+import { NOTE_TYPE_LABEL } from "./component/PlanTypes";
 import { PLAN_STATUS_LABEL } from "./component/PlanTypes";
 import ProgressBadge from "./component/ProgressBadge";
 import PlanFormDialog from "./component/PlanFormDialog";
@@ -680,9 +681,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               sx={{ flexWrap: "wrap" }}
             >
               <ToggleButton value="all">すべて</ToggleButton>
-              <ToggleButton value="learning">学習用</ToggleButton>
-              <ToggleButton value="task">タスク用</ToggleButton>
-              <ToggleButton value="normal">通常</ToggleButton>
+              <ToggleButton value="learning">{NOTE_TYPE_LABEL.learning}</ToggleButton>
+              <ToggleButton value="task">{NOTE_TYPE_LABEL.task}</ToggleButton>
+              <ToggleButton value="normal">{NOTE_TYPE_LABEL.normal}</ToggleButton>
             </ToggleButtonGroup>
 
             {libraryNotes.length === 0 ? (
