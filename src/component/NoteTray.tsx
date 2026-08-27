@@ -199,19 +199,28 @@ export default function NoteTray({
     <Paper
       elevation={4}
       sx={{
-        position: "sticky",
+        // 折りたたみ中は見出し行だけの高さで下部ナビのすぐ上に固定し、常に画面最下部に見える位置を保つ。
+        // 展開時はAppBar直下から下部ナビ直上まで広げ、プランボード（メインコンテンツ）と
+        // ほぼ同じ縦幅で表示できるようにする
+        position: "fixed",
+        left: 0,
+        right: 0,
         bottom: 56,
+        top: expanded ? { xs: 56, sm: 64 } : "auto",
         borderRadius: 0,
         borderTop: "1px solid",
         borderColor: "divider",
         zIndex: (t) => t.zIndex.appBar - 1,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       <Stack
         direction="row"
         alignItems="center"
         spacing={1}
-        sx={{ px: 2, py: 1, cursor: "pointer" }}
+        sx={{ px: 2, py: 1, cursor: "pointer", flexShrink: 0 }}
         onClick={() => setExpanded((v) => !v)}
       >
         <DescriptionOutlinedIcon fontSize="small" color="action" />
@@ -226,8 +235,8 @@ export default function NoteTray({
       </Stack>
 
       {expanded && (
-        <Box sx={{ px: 1.5, pb: 1.5 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1, mb: 1 }}>
+        <Box sx={{ px: 1.5, pb: 1.5, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", gap: 1, mb: 1, flexShrink: 0 }}>
             <TextField
               size="small"
               placeholder="メモを検索…"
@@ -257,10 +266,11 @@ export default function NoteTray({
             </ToggleButtonGroup>
           </Stack>
 
-          {/* 縦スクロールのリストにして、件数が増えても「横に延々とスワイプする」状態にならないようにする */}
+          {/* 縦スクロールのリストにして、件数が増えても「横に延々とスワイプする」状態にならないようにする。
+              展開時のトレイ自体がプランボードと同じ高さまで広がるため、ここは残り領域いっぱいまで伸ばす */}
           <Stack
             spacing={0.75}
-            sx={{ maxHeight: "38vh", overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y" }}
+            sx={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y" }}
           >
             {filtered.length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
@@ -355,7 +365,7 @@ export default function NoteTray({
             )}
           </Stack>
 
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, flexShrink: 0 }}>
             左端の⣿を持ってプランへドラッグ、または行をタップしてリンク先を選べます。
           </Typography>
         </Box>
