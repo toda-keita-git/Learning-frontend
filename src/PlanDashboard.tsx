@@ -117,7 +117,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [noteFixedPlanId, setNoteFixedPlanId] = useState<number | null | undefined>(undefined);
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  // ToDoの完了記録はlocalStorage（routine.ts）にあるためReact stateの変化を検知できない。
+  // 習慣の完了記録はlocalStorage（routine.ts）にあるためReact stateの変化を検知できない。
   // チェック/取り消しのたびにこれをインクリメントし、useMemoの依存に使って再計算させる
   const [routineVersion, setRoutineVersion] = useState(0);
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
@@ -240,7 +240,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   }, [notes, selectedPlanId, plans]);
   const currentStreak = useMemo(() => calculateStreakStats(streakDates), [streakDates]);
 
-  // ---- ToDoリスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
+  // ---- 習慣リスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
   // 未チェック＝期日が来ているもの。期日を過ぎるとチェック済みから自動でこちらへ戻る
   const dueRoutineNotes = useMemo(
@@ -596,7 +596,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         ) : bottomTab === "review" ? (
           <Stack spacing={3}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              ToDoリスト
+              習慣リスト
             </Typography>
 
             {routineNotes.length === 0 ? (
@@ -965,7 +965,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <BottomNavigationAction label="プラン" value="plans" icon={<FlagOutlinedIcon />} />
           <BottomNavigationAction label="メモ" value="library" icon={<DescriptionOutlinedIcon />} />
           <BottomNavigationAction
-            label="ToDo"
+            label="習慣"
             value="review"
             icon={
               <Badge badgeContent={dueRoutineNotes.length} color="error">

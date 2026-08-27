@@ -69,7 +69,7 @@ export default function RelatedGraphDialog({ open, onClose, items, onOpenItem }:
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.item.id, n])), [nodes]);
 
   // つながりが1つも無い記録＝「今日やること」の対象（タグを増やすと関連づけやすくなる）。
-  // 復習すべき記録の提示は「ToDoリスト」の役割なので、ここでは扱わない
+  // 復習すべき記録の提示は「習慣リスト」の役割なので、ここでは扱わない
   const isolatedItems = useMemo(() => nodes.filter((n) => n.degree === 0).map((n) => n.item), [nodes]);
 
   const categories = useMemo(
