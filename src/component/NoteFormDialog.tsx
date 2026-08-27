@@ -305,7 +305,7 @@ export default function NoteFormDialog({
         <Stack spacing={2.5} sx={{ mt: 1 }}>
           <Tabs value={type} onChange={(_, v) => setType(v)} variant="fullWidth">
             <Tab value="learning" label="学習用" />
-            <Tab value="task" label="タスク用" />
+            <Tab value="task" label="チェックリスト用" />
             <Tab value="normal" label="通常" />
           </Tabs>
 

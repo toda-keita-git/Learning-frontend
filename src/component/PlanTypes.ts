@@ -91,6 +91,6 @@ export const PLAN_STATUS_LABEL: Record<PlanStatus, string> = {
 
 export const NOTE_TYPE_LABEL: Record<NoteType, string> = {
   learning: "学習用",
-  task: "タスク用",
+  task: "チェックリスト用",
   normal: "通常",
 };
