@@ -14,6 +14,7 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import SearchIcon from "@mui/icons-material/Search";
@@ -27,6 +28,7 @@ import { maybeAutoScrollWindow } from "./dragAutoScroll";
 import PlanSelectDialog from "./PlanSelectDialog";
 import type { PlanOption } from "./PlanPicker";
 import { NOTE_TRAY_EXPANDED_HEIGHT } from "./noteTrayLayout";
+import NoteTrayHelpDialog from "./NoteTrayHelpDialog";
 
 interface NoteTrayProps {
   notes: Note[];
@@ -81,6 +83,7 @@ export default function NoteTray({
   const [dropTarget, setDropTarget] = useState<DropTarget>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const [linkPickerNote, setLinkPickerNote] = useState<Note | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const rafId = useRef<number | null>(null);
   const pendingPoint = useRef<{ x: number; y: number } | null>(null);
@@ -235,6 +238,16 @@ export default function NoteTray({
           {expanded && filtered.length !== notes.length ? `${filtered.length} / ${notes.length}件` : `${notes.length}件`}
           ）
         </Typography>
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            setHelpOpen(true);
+          }}
+          aria-label="メモトレイの使い方"
+        >
+          <HelpOutlineIcon fontSize="small" />
+        </IconButton>
         <IconButton size="small" aria-label={expanded ? "閉じる" : "開く"}>
           {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
         </IconButton>
@@ -370,10 +383,6 @@ export default function NoteTray({
               </Typography>
             )}
           </Stack>
-
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, flexShrink: 0 }}>
-            左端の⣿を持ってプランへドラッグ、または行をタップしてリンク先を選べます。
-          </Typography>
         </Box>
       )}
 
@@ -418,6 +427,8 @@ export default function NoteTray({
           if (linkPickerNote) onLinkNote(linkPickerNote, planId);
         }}
       />
+
+      <NoteTrayHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </Paper>
   );
 }
