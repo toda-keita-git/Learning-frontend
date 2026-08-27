@@ -289,14 +289,17 @@ export default function PlanTree({
             <FiberManualRecordIcon sx={{ fontSize: 8, color: "text.disabled" }} />
           )}
 
+          {/* ステータスChipはタイトルの横ではなく下に置く。横に並べると深い階層ほど
+              タイトルの表示幅を圧迫し、階層が深いツリーで文字が縦一列になるほど
+              狭くなってしまうため（Chip分の幅を常にタイトルへ回せるようにする） */}
           <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => draggingId === null && onSelect(plan)}>
-            <Stack direction="row" spacing={1} alignItems="flex-start">
-              <Typography sx={{ fontWeight: isGoal ? 700 : 600, minWidth: 0, wordBreak: "break-word" }} variant={isGoal ? "body1" : "body2"}>
-                {plan.title}
-              </Typography>
-              <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" sx={{ flexShrink: 0, mt: 0.25 }} />
+            <Typography sx={{ fontWeight: isGoal ? 700 : 600, wordBreak: "break-word" }} variant={isGoal ? "body1" : "body2"}>
+              {plan.title}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25 }}>
+              <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" />
+              <ProgressBadge value={plan.progress} />
             </Stack>
-            <ProgressBadge value={plan.progress} />
           </Stack>
 
           <IconButton
