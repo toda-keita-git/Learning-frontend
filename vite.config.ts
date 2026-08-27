@@ -148,7 +148,12 @@ export default defineConfig({
   },
   preview: {
     host: "0.0.0.0",
-    allowedHosts: ["learning-frontend-x5jf.onrender.com"],
+    // Renderのフロントエンドは過去にURLが変わっているため、現行・旧URLの両方を許可しておく
+    // （どちらかに戻して確認したいときにブロックされないようにするため）
+    allowedHosts: [
+      "learning-frontend-1-vtyf.onrender.com",
+      "learning-frontend-x5jf.onrender.com",
+    ],
   },
   esbuild: {
     logOverride: { "unused-import": "silent" },
