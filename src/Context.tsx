@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
 import { setAppToken, googleRefreshApi } from "./component/Api";
+import { useToast } from "./ToastContext";
 import {
   savePersistedSession,
   loadPersistedSession,
@@ -65,6 +66,7 @@ export const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   const [octokit, setOctokit] = useState<Octokit | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [githubLogin, setGithubLogin] = useState<string | null>(null);
@@ -154,7 +156,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             body: JSON.stringify({ code: authCode }),
           });
 
-          if (!response.ok) throw new Error("バックエンドからのトークン取得に失敗しました。");
+          if (!response.ok) {
+            // DevToolsが無い環境（スマホ等）でも原因が分かるよう、ステータスと
+            // バックエンドが返した本文をそのままエラーメッセージに含める
+            const bodyText = await response.text().catch(() => "");
+            throw new Error(`バックエンドからのトークン取得に失敗しました。(status: ${response.status}) ${bodyText}`.trim());
+          }
 
           const data = await response.json();
           const driveToken = data.access_token; // Drive API呼び出し用（短命）
@@ -192,6 +199,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           window.location.assign("/LearningContent");
         } catch (err) {
           console.error("Googleトークンの取得に失敗しました:", err);
+          showToast(err instanceof Error ? err.message : "Googleログインに失敗しました。", "error", { durationMs: 10000 });
         } finally {
           setIsAuthenticating(false);
         }
