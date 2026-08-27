@@ -26,6 +26,7 @@ import DragHintTooltip from "./DragHintTooltip";
 import { maybeAutoScrollWindow } from "./dragAutoScroll";
 import PlanSelectDialog from "./PlanSelectDialog";
 import type { PlanOption } from "./PlanPicker";
+import { NOTE_TRAY_EXPANDED_HEIGHT } from "./noteTrayLayout";
 
 interface NoteTrayProps {
   notes: Note[];
@@ -39,6 +40,10 @@ interface NoteTrayProps {
   onDraggingChange?: (draggingNoteId: number | null) => void;
   onHoverPlanChange?: (planId: number | null) => void;
   onHoverCreateZoneChange?: (hovering: boolean) => void;
+  // 開閉は親で持つ。展開時、プランボード側に「トレイの高さぶん下に余白を足す」よう
+  // 伝える必要があり、親が両者のサイズを揃えて把握する必要があるため
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }
 
 // 一度に描画する行数の上限。これを超える分は検索・絞り込みで辿らせる。
@@ -67,8 +72,9 @@ export default function NoteTray({
   onDraggingChange,
   onHoverPlanChange,
   onHoverCreateZoneChange,
+  expanded,
+  onToggleExpanded,
 }: NoteTrayProps) {
-  const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -200,13 +206,13 @@ export default function NoteTray({
       elevation={4}
       sx={{
         // 折りたたみ中は見出し行だけの高さで下部ナビのすぐ上に固定し、常に画面最下部に見える位置を保つ。
-        // 展開時はAppBar直下から下部ナビ直上まで広げ、プランボード（メインコンテンツ）と
-        // ほぼ同じ縦幅で表示できるようにする
+        // 展開時は画面の下半分ちょうどの高さまで広げる（上半分にプランボードが残るようにし、
+        // メモをドラッグしてプランへドロップできる状態を保つ）
         position: "fixed",
         left: 0,
         right: 0,
         bottom: 56,
-        top: expanded ? { xs: 56, sm: 64 } : "auto",
+        height: expanded ? NOTE_TRAY_EXPANDED_HEIGHT : "auto",
         borderRadius: 0,
         borderTop: "1px solid",
         borderColor: "divider",
@@ -221,7 +227,7 @@ export default function NoteTray({
         alignItems="center"
         spacing={1}
         sx={{ px: 2, py: 1, cursor: "pointer", flexShrink: 0 }}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={onToggleExpanded}
       >
         <DescriptionOutlinedIcon fontSize="small" color="action" />
         <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }}>
