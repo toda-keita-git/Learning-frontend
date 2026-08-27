@@ -53,7 +53,7 @@ export interface Note {
   mastery: number | null;
   progress: number | null;
   category_id: number | null;
-  // nullなら繰り返しなし。設定時は「ToDoリスト」タブでN日ごとのやることとして表示される（頻度は自由設定）
+  // nullなら繰り返しなし。設定時は「習慣リスト」タブでN日ごとのやることとして表示される（頻度は自由設定）
   review_interval_days: number | null;
   created_at: string;
   user_id: number;

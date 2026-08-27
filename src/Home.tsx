@@ -327,7 +327,7 @@ export default function Home() {
             </Box>
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                記録の閲覧・タイトル検索・タグ絞り込み・ToDoリスト・学習分析ダッシュボード。
+                記録の閲覧・タイトル検索・タグ絞り込み・習慣リスト・学習分析ダッシュボード。
                 記録の登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
               </Typography>
             </Box>
