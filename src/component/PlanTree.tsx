@@ -8,6 +8,7 @@ import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
@@ -289,21 +290,15 @@ export default function PlanTree({
           )}
 
           <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => draggingId === null && onSelect(plan)}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography sx={{ fontWeight: isGoal ? 700 : 600 }} variant={isGoal ? "body1" : "body2"} noWrap>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <Typography sx={{ fontWeight: isGoal ? 700 : 600, minWidth: 0, wordBreak: "break-word" }} variant={isGoal ? "body1" : "body2"}>
                 {plan.title}
               </Typography>
-              <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" />
+              <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" sx={{ flexShrink: 0, mt: 0.25 }} />
             </Stack>
             <ProgressBadge value={plan.progress} />
           </Stack>
 
-          <IconButton size="small" onClick={() => onEdit(plan)} aria-label="編集">
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={() => onDelete(plan)} aria-label="削除">
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
           <IconButton
             size="small"
             onClick={(e) => setMenuState({ plan, anchorEl: e.currentTarget })}
@@ -434,6 +429,31 @@ export default function PlanTree({
                 </MenuItem>,
               ]
             : []),
+          <Divider key="divider" />,
+          <MenuItem
+            key="edit"
+            onClick={() => {
+              onEdit(menuState.plan);
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <EditOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>編集</ListItemText>
+          </MenuItem>,
+          <MenuItem
+            key="delete"
+            onClick={() => {
+              onDelete(menuState.plan);
+              setMenuState(null);
+            }}
+          >
+            <ListItemIcon>
+              <DeleteOutlineIcon fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText sx={{ color: "error.main" }}>削除</ListItemText>
+          </MenuItem>,
         ]}
       </Menu>
     </Box>
