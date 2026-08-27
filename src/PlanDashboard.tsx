@@ -63,6 +63,7 @@ import PlanFormDialog from "./component/PlanFormDialog";
 import PlanSelectDialog from "./component/PlanSelectDialog";
 import PlanTree from "./component/PlanTree";
 import NoteTray from "./component/NoteTray";
+import { NOTE_TRAY_EXPANDED_HEIGHT } from "./component/noteTrayLayout";
 import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
@@ -104,6 +105,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [tagOptions, setTagOptions] = useState<string[]>([]);
 
   const [bottomTab, setBottomTab] = useState<BottomTab>("plans");
+  // メモトレイの開閉。展開時はプランボード側の下余白をトレイの高さぶん広げる必要があるため、親で持つ
+  const [noteTrayOpen, setNoteTrayOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
@@ -591,7 +594,16 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         </Alert>
       )}
 
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container
+        maxWidth="md"
+        sx={{
+          pt: 4,
+          // メモトレイが展開されている間は、その高さぶん下に余白を足す。
+          // トレイはposition:fixedで画面下半分に重なるため、余白がないと
+          // 最後のプラン行がトレイの下に隠れたまま出せなくなる
+          pb: noteTrayOpen && bottomTab === "plans" ? { xs: `calc(${NOTE_TRAY_EXPANDED_HEIGHT.xs} + 32px)`, sm: `calc(${NOTE_TRAY_EXPANDED_HEIGHT.sm} + 32px)` } : 4,
+        }}
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -737,9 +749,6 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                 新しい目標
               </Button>
             </Stack>
-            <Typography variant="caption" color="text.secondary">
-              目標・アクションプランを1つのツリーにまとめて表示しています。つまみをドラッグすれば、どの行の上にも自由に並べ替え・入れ子にできます。
-            </Typography>
 
             <TextField
               size="small"
@@ -954,6 +963,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           notes={notes}
           planOptions={planOptions}
           selectedPlanId={selectedPlanId}
+          expanded={noteTrayOpen}
+          onToggleExpanded={() => setNoteTrayOpen((v) => !v)}
           onLinkNote={handleLinkNote}
           onCreatePlanFromNote={handleCreatePlanFromNote}
           onDraggingChange={setDraggingNoteId}
