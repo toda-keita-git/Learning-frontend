@@ -914,7 +914,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
             {notesLinkedTo(selectedPlan.id).length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-                まだリンクされたメモがありません。下のメモトレイからドラッグ、または「+」から新規作成できます。
+                まだリンクされたメモがありません。下のメモトレイでドラッグまたはタップしてリンク、または「+」から新規作成できます。
               </Typography>
             ) : (
               <Stack spacing={1.5}>
@@ -943,6 +943,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       {!loading && bottomTab === "plans" && (
         <NoteTray
           notes={notes}
+          planOptions={planOptions}
+          selectedPlanId={selectedPlanId}
           onLinkNote={handleLinkNote}
           onCreatePlanFromNote={handleCreatePlanFromNote}
           onDraggingChange={setDraggingNoteId}
