@@ -323,6 +323,9 @@ export default function NoteFormDialog({
       <DialogTitle>{initialNote ? "メモを編集" : "メモを作成"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
+          {/* 3つのタブを常に見せたいのでfullWidthのまま。「チェックリスト用」は
+              スマホ幅だと2行になるが、scrollableにすると選択中のタブへ自動スクロールして
+              先頭の「学習用」が画面外に隠れてしまい、かえって分かりにくくなるため */}
           <Tabs value={type} onChange={(_, v) => setType(v)} variant="fullWidth">
             <Tab value="learning" label="学習用" />
             <Tab value="task" label="チェックリスト用" />
@@ -483,7 +486,7 @@ export default function NoteFormDialog({
                 );
               })}
             </Stack>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
               <input
                 ref={fileInputRef}
                 type="file"
