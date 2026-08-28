@@ -33,7 +33,7 @@ import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
-import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
+import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import NoteAddOutlinedIcon from "@mui/icons-material/NoteAddOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -49,7 +49,7 @@ import { ColorModeContext } from "./ColorModeContext";
 import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/routine";
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
-import RelatedGraphDialog from "./component/RelatedGraphDialog";
+import TodayNextDialog from "./component/TodayNextDialog";
 import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
 import AccountLinkDialog from "./component/AccountLinkDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
@@ -115,7 +115,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // チェック/取り消しのたびにこれをインクリメントし、useMemoの依存に使って再計算させる
   const [routineVersion, setRoutineVersion] = useState(0);
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
-  const [graphOpen, setGraphOpen] = useState(false);
+  const [todayNextOpen, setTodayNextOpen] = useState(false);
   const [boardHelpOpen, setBoardHelpOpen] = useState(false);
   const [accountLinkOpen, setAccountLinkOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
@@ -307,25 +307,6 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       </IconButton>
     </Paper>
   );
-
-  // 関連メモグラフ
-  const graphItems = useMemo(
-    () =>
-      notes.map((n) => ({
-        id: n.id,
-        title: n.title,
-        category_name: categories.find((c) => c.id === n.category_id)?.name ?? "",
-        tags: n.tags,
-        created_at: n.created_at,
-      })),
-    [notes, categories]
-  );
-  const handleOpenGraphItem = (id: number) => {
-    const note = notes.find((n) => n.id === id);
-    if (!note) return;
-    setGraphOpen(false);
-    setBottomTab("library");
-  };
 
   // ---- プラン ----
   const handleSavePlan = async (data: PlanInput) => {
@@ -552,11 +533,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               {accountLabel}
             </Typography>
           )}
-          {notes.length > 1 && (
-            <IconButton onClick={() => setGraphOpen(true)} aria-label="関連メモグラフ" sx={{ mr: 1 }}>
-              <HubOutlinedIcon />
-            </IconButton>
-          )}
+          <IconButton onClick={() => setTodayNextOpen(true)} aria-label="今日やること・次にやる事" sx={{ mr: 1 }}>
+            <TodayOutlinedIcon />
+          </IconButton>
           {userId !== null && (
             <IconButton onClick={() => setAccountLinkOpen(true)} aria-label="アカウント連携" sx={{ mr: 1 }}>
               <ManageAccountsOutlinedIcon />
@@ -1048,7 +1027,18 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         <StreakDialog open={streakDialogOpen} onClose={() => setStreakDialogOpen(false)} dates={streakDates} />
       )}
 
-      <RelatedGraphDialog open={graphOpen} onClose={() => setGraphOpen(false)} items={graphItems} onOpenItem={handleOpenGraphItem} />
+      <TodayNextDialog
+        open={todayNextOpen}
+        onClose={() => setTodayNextOpen(false)}
+        plans={plans}
+        notes={notes}
+        userId={userId}
+        onOpenPlan={(planId) => {
+          setTodayNextOpen(false);
+          setBottomTab("plans");
+          setSelectedPlanId(planId);
+        }}
+      />
       <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
       <AccountLinkDialog open={accountLinkOpen} onClose={() => setAccountLinkOpen(false)} />
 
