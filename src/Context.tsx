@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
-import { setAppToken, googleRefreshApi, linkGoogleApi, linkGithubApi } from "./component/Api";
+import { setAppToken, googleRefreshApi, linkGoogleApi, linkGithubApi, meApi } from "./component/Api";
 import { useToast } from "./ToastContext";
 import { errorMessage } from "./component/errorMessage";
 import {
@@ -53,6 +53,12 @@ interface AuthContextType {
   // --- アカウント連携（1つのアカウントにGitHubとGoogleの両方を持たせる） ---
   linkGithub: () => void;
   linkGoogle: () => void;
+  // どちらのアカウントを連携済みか。ログインに使ったプロバイダーに関わらず、
+  // 添付の保存先として使えるかどうかの判断に使う
+  hasGithub: boolean;
+  hasGoogle: boolean;
+  // 連携直後など、サーバー側の状態を取り直したいときに呼ぶ
+  refreshAccountInfo: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -73,6 +79,9 @@ export const AuthContext = createContext<AuthContextType>({
   loginWithGoogle: () => {},
   linkGithub: () => {},
   linkGoogle: () => {},
+  hasGithub: false,
+  hasGoogle: false,
+  refreshAccountInfo: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -90,6 +99,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [driveFolderId, setDriveFolderId] = useState<string | null>(null);
   const [driveAccessToken, setDriveAccessToken] = useState<string | null>(null);
   const [driveAccessTokenExpiresAt, setDriveAccessTokenExpiresAt] = useState<number | null>(null);
+  // 連携状況。ログインに使ったプロバイダーだけでは「もう一方も連携済みか」が
+  // 分からないため、サーバー(/me)から取得して保持する
+  const [hasGithub, setHasGithub] = useState(false);
+  const [hasGoogle, setHasGoogle] = useState(false);
 
   const effectRan = useRef(false);
   // repo_nameカラムが無かった頃に保存されたセッションなど、値がまだ無い場合の保険
@@ -152,6 +165,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updatePersistedRepoName(newRepoName);
   };
 
+  // サーバー(/me)から連携状況を取り直す。
+  // 「GitHubでログインしているが、Googleも連携済み」といった状態は
+  // ログイン応答だけでは分からない（GitHubのログイン応答にdrive_folder_idは無い）ため、
+  // ここで取得しないと連携済みのDriveが添付先として使えないままになる
+  const refreshAccountInfo = async (): Promise<void> => {
+    try {
+      const info = await meApi();
+      setHasGithub(info.has_github);
+      setHasGoogle(info.has_google);
+      if (info.drive_folder_id) setDriveFolderId(info.drive_folder_id);
+      if (info.repo_name) setRepoNameState((prev) => prev ?? info.repo_name);
+    } catch (err) {
+      // 取得できなくてもアプリ自体は使えるようにする（オフライン等）
+      console.error("アカウント情報の取得に失敗しました:", err);
+    }
+  };
+
   // Driveのアクセストークンは短命なので、呼ばれるたびに残り有効期限を見て
   // 必要なら自動で再取得してから返す
   const ensureDriveAccessToken = async (): Promise<string | null> => {
@@ -202,6 +232,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const data = await linkGithubApi(authCode);
             savePersistedSession({ ...saved, repoName: data.repo_name ?? saved.repoName });
           }
+          // 連携直後は保存先の選択肢が増えるので、状態を取り直してから画面へ戻す
+          await refreshAccountInfo();
           showToast("アカウントを連携しました。", "success");
         } catch (err) {
           console.error("アカウント連携に失敗しました:", err);
@@ -342,6 +374,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (saved) {
       setUserId(saved.userId);
       setAppToken(saved.appToken);
+      // どちらを連携済みかはローカルの保存内容だけでは分からないため、サーバーに聞く。
+      // これをしないと「GitHubでログイン中だがGoogleも連携済み」の場合に
+      // Driveが添付先として選べないままになる
+      refreshAccountInfo();
 
       if (saved.authProvider === "google") {
         setAuthProvider("google");
@@ -390,6 +426,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loginWithGoogle,
     linkGithub,
     linkGoogle,
+    hasGithub,
+    hasGoogle,
+    refreshAccountInfo,
   }}
 >
   {children}
