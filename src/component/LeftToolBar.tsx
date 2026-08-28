@@ -28,7 +28,6 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
-import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
@@ -55,7 +54,6 @@ interface LeftToolBarProps {
   onManage: () => void;
   onOpenList?: () => void;
   onOpenAnalytics?: () => void;
-  onOpenGraph?: () => void;
   onOpenPlans?: () => void;
   onOpenInquiries?: () => void;
   onLogout?: () => void;
@@ -186,7 +184,6 @@ export default function LeftToolBar({
   onManage,
   onOpenList,
   onOpenAnalytics,
-  onOpenGraph,
   onOpenPlans,
   onOpenInquiries,
   onLogout,
@@ -251,13 +248,6 @@ export default function LeftToolBar({
         <Tooltip title="学習分析ダッシュボード" placement="right">
           <IconButton onClick={onOpenAnalytics} sx={{ mb: 0.5 }}>
             <InsightsOutlinedIcon />
-          </IconButton>
-        </Tooltip>
-      )}
-      {onOpenGraph && (
-        <Tooltip title="学びのつながり" placement="right">
-          <IconButton onClick={onOpenGraph} sx={{ mb: 0.5 }}>
-            <HubOutlinedIcon />
           </IconButton>
         </Tooltip>
       )}
@@ -340,19 +330,6 @@ export default function LeftToolBar({
             </ListItemIcon>
             <ListItemText
               primary="学習分析ダッシュボード"
-              primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
-            />
-          </ListItemButton>
-        )}
-
-        {/* --- 学びのつながり（グラフビュー） --- */}
-        {onOpenGraph && (
-          <ListItemButton onClick={onOpenGraph}>
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <HubOutlinedIcon />
-            </ListItemIcon>
-            <ListItemText
-              primary="学びのつながり"
               primaryTypographyProps={{ noWrap: true, fontSize: "0.9rem" }}
             />
           </ListItemButton>
