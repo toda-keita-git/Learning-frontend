@@ -9,6 +9,8 @@ import Box from "@mui/material/Box";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import AddLinkIcon from "@mui/icons-material/AddLink";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import type { ReactNode } from "react";
@@ -26,9 +28,19 @@ const ITEMS: { icon: ReactNode; title: string; body: string }[] = [
     body: "上に広がっているプランボードの行まで持っていくと「ここにリンク」、新規作成ゾーンまで持っていくと「ここで新しい目標を作成」が表示されます。指を離すとその操作が実行されます。",
   },
   {
+    icon: <ArticleOutlinedIcon fontSize="small" color="action" />,
+    title: "行の中央をタップして中身を読む",
+    body: "トレイにはタイトルしか出ないため、行の中央をタップするとそのメモの本文・チェックリスト・添付・紐づくプランをまとめて確認できます。そのまま編集や削除もできます。",
+  },
+  {
     icon: <AddLinkIcon fontSize="small" color="action" />,
-    title: "行をタップしてリンク先を選ぶ",
-    body: "ドラッグが難しいときは、行そのものか右端のアイコンをタップしてください。検索付きのダイアログからリンク先のプランを選べます。「新しいプランにする」から、そのメモを元に新しい目標を作成することもできます。",
+    title: "右端のアイコンからリンク先を選ぶ",
+    body: "ドラッグが難しいときは、行の右端のリンクアイコンをタップしてください。検索付きのダイアログからリンク先のプランを選べます。「新しいプランにする」から、そのメモを元に新しい目標を作成することもできます。",
+  },
+  {
+    icon: <FlagOutlinedIcon fontSize="small" color="action" />,
+    title: "紐づけ先はタイトルの下に表示",
+    body: "各行のタイトルの下に、そのメモが紐づいているプラン名が出ます。まだどこにも紐づいていないメモは「未リンク」と表示されます。",
   },
   {
     icon: <SearchIcon fontSize="small" color="action" />,
