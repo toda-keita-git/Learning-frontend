@@ -344,6 +344,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             driveFolderId: folderId,
           });
 
+          // ログイン応答だけでは「もう一方（GitHub）も連携済みか」が分からない。
+          // 取り直しておかないと、連携済みのGitHubリポジトリが
+          // 添付先として選べないままセッションが続いてしまう
+          await refreshAccountInfo();
+
           window.history.replaceState({}, document.title, window.location.pathname);
           // /google/callback から通常のアプリ画面へ（保存済みセッションから復元される）
           window.location.assign("/LearningContent");
@@ -400,6 +405,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             repoName: repoNameFromServer,
             authProvider: "github",
           });
+
+          // GitHubのログイン応答にはdrive_folder_idが含まれない。ここで取り直さないと、
+          // Googleを連携済みでもdriveFolderIdがnullのままになり、メモの編集画面に
+          // 「保存先: Google」の選択肢が出ないままこのセッションが続いてしまう
+          // （リロードすれば復元経路で取得されるため、ログイン直後だけ抜けていた）
+          await refreshAccountInfo();
 
           // URLからcodeを削除
           window.history.replaceState({}, document.title, window.location.pathname);

@@ -22,7 +22,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import GoogleIcon from "@mui/icons-material/Google";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AttachmentProviderIcon from "./AttachmentProviderIcon";
 import { attachmentProviderLabel } from "./attachmentVisuals";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -31,9 +31,10 @@ import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
 import GoogleDriveFileSelector from "./GoogleDriveFileSelector";
 import { uploadDriveFile } from "./driveClient";
+import { getFileType } from "./getFileType";
 import MarkdownContent from "./MarkdownContent";
 import { ROUTINE_PRESETS } from "./routine";
-import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
+import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, AttachmentKind, CategoryOption } from "./PlanTypes";
 import { NOTE_TYPE_LABEL } from "./PlanTypes";
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
@@ -56,6 +57,11 @@ const errorMessage = (err: unknown, fallback: string): string => {
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 };
+
+// 添付の種別。画像ならプレビューで画像として描画し、それ以外はテキスト/バイナリとして扱う。
+// 「ファイルを選択」で画像以外も添付できるようになったため、拡張子から判定する
+const attachmentKindOf = (fileName: string): AttachmentKind =>
+  getFileType(fileName) === "image" ? "image" : "code";
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -195,7 +201,7 @@ export default function NoteFormDialog({
         for (const file of Array.from(files)) {
           const { id: fileId } = await uploadDriveFile(accessToken, driveFolderId, file);
           await addAttachmentLocallyOrRemotely({
-            kind: "image",
+            kind: attachmentKindOf(file.name),
             github_path: fileId,
             // commit_sha列はGitHubでは未使用（画像はコミットshaを取らない）ため、
             // Drive添付ではここにファイル名を流用してチップ表示に使う
@@ -206,7 +212,7 @@ export default function NoteFormDialog({
         }
       } catch (err) {
         console.error(err);
-        showToast("画像のアップロードに失敗しました。", "error");
+        showToast("ファイルのアップロードに失敗しました。", "error");
       } finally {
         setUploadingImages(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -230,7 +236,7 @@ export default function NoteFormDialog({
         });
         const sha = data.content && "sha" in data.content ? (data.content.sha as string) : null;
         await addAttachmentLocallyOrRemotely({
-          kind: "image",
+          kind: attachmentKindOf(file.name),
           github_path: path,
           commit_sha: sha,
           repo_name: repoName,
@@ -239,7 +245,7 @@ export default function NoteFormDialog({
       }
     } catch (err) {
       console.error(err);
-      showToast("画像のアップロードに失敗しました。", "error");
+      showToast("ファイルのアップロードに失敗しました。", "error");
     } finally {
       setUploadingImages(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -433,7 +439,7 @@ export default function NoteFormDialog({
 
           <div>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              画像・コードの添付（任意・複数可）
+              ファイルの添付（任意・複数可）
             </Typography>
 
             {/* 両方の保存先が使えるときは、どちらに保存するかを利用者に選ばせる。
@@ -488,10 +494,11 @@ export default function NoteFormDialog({
               })}
             </Stack>
             <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
+              {/* 端末内のファイルを選んでアップロードする。画像に限らず添付できるので
+                  accept は指定しない（以前は accept="image/*" で画像しか選べなかった） */}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
                 multiple
                 hidden
                 onChange={(e) => handleFilesSelected(e.target.files)}
@@ -499,12 +506,15 @@ export default function NoteFormDialog({
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={uploadingImages ? <CircularProgress size={14} /> : <ImageOutlinedIcon fontSize="small" />}
+                startIcon={uploadingImages ? <CircularProgress size={14} /> : <UploadFileIcon fontSize="small" />}
                 disabled={!hasAnyStorage || uploadingImages}
                 onClick={() => fileInputRef.current?.click()}
               >
-                画像を選ぶ
+                ファイルを選択
               </Button>
+              {/* こちらは端末からではなく、保存先（GitHubリポジトリ / Googleドライブ）に
+                  既にあるファイルを選んで添付するボタン。どちらを開くのかが一目で分かるよう、
+                  ラベルは保存先の名前そのものにしている */}
               <Button
                 size="small"
                 variant="outlined"
@@ -514,7 +524,7 @@ export default function NoteFormDialog({
                 disabled={!hasAnyStorage || resolvingCodeSha}
                 onClick={() => (attachTarget === "google" ? setDriveSelectorOpen(true) : setGithubSelectorOpen(true))}
               >
-                {attachTarget === "google" ? "ドライブから選ぶ" : "コードを選ぶ"}
+                {attachmentProviderLabel(attachTarget)}
               </Button>
             </Stack>
             {!hasAnyStorage && (

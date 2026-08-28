@@ -38,6 +38,8 @@ interface NoteTrayProps {
   selectedPlanId: number | null;
   onLinkNote: (note: Note, planId: number) => void;
   onCreatePlanFromNote: (note: Note) => void;
+  // 行の中央をタップしたときに、そのメモの内容を読める画面を開く
+  onPreviewNote: (note: Note) => void;
   // ボード側のUI（新規プラン作成ゾーンの表示・プラン行のハイライト）を連動させるための通知
   onDraggingChange?: (draggingNoteId: number | null) => void;
   onHoverPlanChange?: (planId: number | null) => void;
@@ -58,10 +60,13 @@ type DropTarget = { kind: "plan"; planId: number } | { kind: "create" } | null;
 
 // 「プラン」タブなら常にどこからでも開ける、常設のメモトレイ。
 //
-// 操作は2通り用意する:
+// 操作は3通り用意する:
 //  1. 左端のドラッグハンドル（PlanTreeのプラン並べ替えと同じ操作感）でプラン行や新規作成ゾーンへ運ぶ
-//  2. 行そのものをタップして、検索付きダイアログからリンク先を選ぶ
+//  2. 右端の「リンク」ボタンから、検索付きダイアログでリンク先を選ぶ
+//  3. 行の中央をタップして、メモの内容を読む
 // ドラッグはドロップ先が画面内にある時しか使えないため、件数が増えても確実に届く(2)を必ず併設する。
+// 中央のタップは(2)と同じ動作にしていたが、タイトルしか見えないトレイでは
+// 「中身を確かめてからリンクしたい」場面が多いため、内容表示に割り当てている。
 //
 // ハンドル以外はtouchAction: "pan-y"のままにしてあり、指を置いた場所に関わらず
 // トレイを縦スクロールできる（以前は全カードがtouchAction: "none"でスクロールを奪っていた）。
@@ -71,6 +76,7 @@ export default function NoteTray({
   selectedPlanId,
   onLinkNote,
   onCreatePlanFromNote,
+  onPreviewNote,
   onDraggingChange,
   onHoverPlanChange,
   onHoverCreateZoneChange,
@@ -109,6 +115,15 @@ export default function NoteTray({
   const hiddenCount = filtered.length - visible.length;
 
   const draggingNote = draggingId !== null ? notes.find((n) => n.id === draggingId) ?? null : null;
+
+  // 行に添える紐づけ先の表示。プラン名は「目標 / アクションプラン」という
+  // 階層パスなので、1行に収まるよう末尾（一番近いプラン名）だけを出す
+  const linkLabel = (note: Note): string | null => {
+    if (note.links.length === 0) return null;
+    const first = planOptions.find((o) => o.id === note.links[0]);
+    const head = first ? first.label.split(" / ").pop() ?? first.label : "リンク済み";
+    return note.links.length > 1 ? `${head} ほか${note.links.length - 1}件` : head;
+  };
 
   const updateDropTarget = (next: DropTarget) => {
     const prev = dropTargetRef.current;
@@ -336,36 +351,49 @@ export default function NoteTray({
                     </Box>
 
                     <ButtonBase
-                      onClick={() => setLinkPickerNote(note)}
+                      onClick={() => onPreviewNote(note)}
+                      aria-label={`${note.title} の内容を見る`}
                       sx={{
                         flex: 1,
                         minWidth: 0,
                         display: "flex",
-                        alignItems: "center",
-                        gap: 0.75,
+                        flexDirection: "column",
+                        alignItems: "stretch",
+                        gap: 0.25,
                         py: 0.75,
                         px: 0.25,
                         borderRadius: 1,
-                        justifyContent: "flex-start",
+                        justifyContent: "center",
                         textAlign: "left",
                         touchAction: "pan-y",
                       }}
                     >
-                      <Chip
-                        label={NOTE_TYPE_LABEL[note.type]}
-                        size="small"
-                        color={NOTE_TYPE_COLOR[note.type]}
-                        variant="outlined"
-                        sx={{ flexShrink: 0 }}
-                      />
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
-                        {note.title}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+                        <Chip
+                          label={NOTE_TYPE_LABEL[note.type]}
+                          size="small"
+                          color={NOTE_TYPE_COLOR[note.type]}
+                          variant="outlined"
+                          sx={{ flexShrink: 0 }}
+                        />
+                        <Typography variant="body2" noWrap sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
+                          {note.title}
+                        </Typography>
+                        {alreadyLinked && (
+                          <Tooltip title="このプランにリンク済み">
+                            <CheckCircleIcon fontSize="small" color="success" sx={{ flexShrink: 0 }} />
+                          </Tooltip>
+                        )}
+                      </Box>
+                      {/* トレイはタイトルしか出ないため、どのプランのメモなのかが分からなかった。
+                          1行だけ紐づけ先を添える（複数ある場合は先頭＋残り件数） */}
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        sx={{ color: linkLabel(note) ? "text.secondary" : "text.disabled", minWidth: 0 }}
+                      >
+                        {linkLabel(note) ?? "未リンク"}
                       </Typography>
-                      {alreadyLinked && (
-                        <Tooltip title="このプランにリンク済み">
-                          <CheckCircleIcon fontSize="small" color="success" sx={{ flexShrink: 0 }} />
-                        </Tooltip>
-                      )}
                     </ButtonBase>
 
                     <Tooltip title="リンク先のプランを選ぶ">

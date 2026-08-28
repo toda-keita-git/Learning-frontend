@@ -10,11 +10,11 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import CloseIcon from "@mui/icons-material/Close";
-import GitHubIcon from "@mui/icons-material/GitHub";
+import LoginIcon from "@mui/icons-material/Login";
 import PlanDashboard from "./PlanDashboard";
 import { guestPlanDataSource, clearGuestPlanData } from "./component/guestPlanStorage";
 
-// GitHubログイン不要のお試しモード。バックエンドへは一切書き込まず、
+// ログイン不要のお試しモード。バックエンドへは一切書き込まず、
 // この端末のlocalStorageだけでプラン・メモを完結させる
 export default function GuestGoalDashboard() {
   const navigate = useNavigate();
@@ -37,10 +37,10 @@ export default function GuestGoalDashboard() {
           <Button
             color="inherit"
             size="small"
-            startIcon={<GitHubIcon fontSize="small" />}
+            startIcon={<LoginIcon fontSize="small" />}
             onClick={() => navigate("/LearningContent")}
           >
-            GitHubでログイン
+            ログイン
           </Button>
           <IconButton color="inherit" size="small" onClick={() => setBannerDismissed(true)} aria-label="閉じる">
             <CloseIcon fontSize="small" />
@@ -48,7 +48,7 @@ export default function GuestGoalDashboard() {
         </Stack>
       }
     >
-      ゲストモードで試しています。データはこの端末だけに保存され、GitHubでログインしても自動では引き継がれません。
+      ゲストモードで試しています。データはこの端末だけに保存され、ログインしても自動では引き継がれません。
     </Alert>
   );
 

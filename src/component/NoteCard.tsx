@@ -16,6 +16,9 @@ import AttachmentProviderIcon from "./AttachmentProviderIcon";
 import { attachmentProviderLabel } from "./attachmentVisuals";
 import AddIcon from "@mui/icons-material/Add";
 import RepeatIcon from "@mui/icons-material/Repeat";
+import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import LinkOffIcon from "@mui/icons-material/LinkOff";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
@@ -217,25 +220,58 @@ export default function NoteCard({
         </Stack>
       )}
 
-      <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.5 }} alignItems="center">
-        {linkedOptions.map((opt) => (
-          <Chip
-            key={opt.id}
-            label={opt.label}
-            size="small"
-            onDelete={() => onUnlink(opt.id)}
-            sx={{ maxWidth: 220 }}
-          />
-        ))}
+      {/* 紐づくプランは、タグ用のチップと見分けが付かないと「どのプランに属するメモか」が
+          分からなくなる。見出しを添えた独立したブロックにし、1件ずつ行で表示する。
+          プラン名は「目標 / アクションプラン」という階層パスなので長くなりやすく、
+          チップだと途中で切れてどのプランか読み取れないため、折り返す行にしている */}
+      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px dashed", borderColor: "divider" }}>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.75 }}>
+          <AccountTreeOutlinedIcon fontSize="small" color="action" />
+          <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>
+            紐づくプラン{linkedOptions.length > 0 ? `（${linkedOptions.length}件）` : ""}
+          </Typography>
+        </Stack>
+
+        {linkedOptions.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            まだどのプランにも紐づいていません。
+          </Typography>
+        ) : (
+          <Stack spacing={0.5} sx={{ mb: 1 }}>
+            {linkedOptions.map((opt) => (
+              <Stack
+                key={opt.id}
+                direction="row"
+                spacing={0.75}
+                alignItems="flex-start"
+                sx={{ px: 1, py: 0.5, borderRadius: 1, bgcolor: "action.hover" }}
+              >
+                <FlagOutlinedIcon fontSize="small" color="primary" sx={{ mt: 0.25, flexShrink: 0 }} />
+                <Typography variant="body2" sx={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
+                  {opt.label}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => onUnlink(opt.id)}
+                  aria-label={`「${opt.label}」とのリンクを外す`}
+                  sx={{ flexShrink: 0 }}
+                >
+                  <LinkOffIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            ))}
+          </Stack>
+        )}
+
         <Chip
           icon={<AddIcon fontSize="small" />}
-          label="プラン"
+          label={linkedOptions.length === 0 ? "プランに紐づける" : "紐づけを変更"}
           size="small"
           variant={pickerOpen ? "filled" : "outlined"}
           color={pickerOpen ? "primary" : "default"}
           onClick={() => setPickerOpen((v) => !v)}
         />
-      </Stack>
+      </Box>
 
       {pickerOpen && <PlanPicker options={planOptions} linkedIds={note.links} onToggle={(id) => (note.links.includes(id) ? onUnlink(id) : onLink(id))} />}
 

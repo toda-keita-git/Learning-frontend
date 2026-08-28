@@ -13,6 +13,9 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import { alpha } from "@mui/material/styles";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import GitHubIcon from "@mui/icons-material/GitHub";
+import GoogleIcon from "@mui/icons-material/Google";
+import LoginIcon from "@mui/icons-material/Login";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
@@ -21,6 +24,9 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
+import ChecklistIcon from "@mui/icons-material/Checklist";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import InquiryDialog from "./component/InquiryDialog";
 import Dialog from "@mui/material/Dialog";
@@ -34,28 +40,48 @@ import { loadPersistedSession } from "./component/authStorage";
 const features = [
   {
     icon: <FlagOutlinedIcon fontSize="large" color="primary" />,
-    title: "目標 → アクションプラン → メモ",
-    desc: "最終目標を立て、そのためのアクションプランを分解し、日々のメモで積み上げる。3階層でやることが明確になります。",
+    title: "目標を何段でも分解できる",
+    desc: "最終目標の下にアクションプランをぶら下げ、さらにその下にも分解できます。段数の制限はなく、1つのツリーとして全体を見渡せます。",
   },
   {
     icon: <InsightsOutlinedIcon fontSize="large" color="primary" />,
     title: "進捗の自動集計",
-    desc: "メモの習熟度・進捗度から、アクションプラン→目標の達成率を自動で計算。手動更新は不要です。",
+    desc: "メモの習熟度・チェック消化率から、アクションプラン→目標の達成率を自動で計算。手動更新は不要です。",
   },
   {
     icon: <DragIndicatorIcon fontSize="large" color="primary" />,
-    title: "ドラッグ&ドロップの優先順位付け",
-    desc: "アクションプランはドラッグして並べ替えるだけ。今やるべきことがひと目でわかります。",
+    title: "ドラッグ&ドロップで整理",
+    desc: "プランはドラッグして並べ替え・入れ替え・入れ子化ができます。メモトレイからプランへドラッグすれば、その場で紐づけられます。",
   },
   {
     icon: <PlaylistAddCheckIcon fontSize="large" color="primary" />,
-    title: "todoチェックリスト付きタスクメモ",
+    title: "チェックリスト付きメモ",
     desc: "チェック用メモにはチェック付きのtodoを持たせられ、チェックした割合がそのまま進捗度になります。",
+  },
+  {
+    icon: <TodayOutlinedIcon fontSize="large" color="primary" />,
+    title: "今日やること・次にやる事",
+    desc: "目標ごとに、今日が期限の習慣メモと、まだ終わっていないアクションプランを一覧できます。次に何をするか迷いません。",
+  },
+  {
+    icon: <ChecklistIcon fontSize="large" color="primary" />,
+    title: "習慣リストと継続日数",
+    desc: "メモに「繰り返し」を設定すると、指定した日数ごとに習慣リストへ出てきます。続いた日数も記録されます。",
   },
   {
     icon: <LinkOutlinedIcon fontSize="large" color="primary" />,
     title: "メモは後からでも紐付けOK",
-    desc: "アクションプランが決まっていなくてもメモは作成でき、あとから紐付け先を選べます。",
+    desc: "アクションプランが決まっていなくてもメモは作成でき、あとから紐付け先を選べます。1つのメモを複数のプランに紐づけることもできます。",
+  },
+  {
+    icon: <AttachFileIcon fontSize="large" color="primary" />,
+    title: "ファイル添付はGitHub / Googleドライブ",
+    desc: "メモに画像やコード、資料を添付できます。保存先はGitHubリポジトリかGoogleドライブから選べ、どちらに入っているかがメモ上に表示されます。",
+  },
+  {
+    icon: <WifiOffIcon fontSize="large" color="primary" />,
+    title: "オフラインでも記録できる",
+    desc: "通信が無くても閲覧・検索・記録ができ、オンラインに戻った時点で自動的に送信されます。スマホにインストールしてアプリのように使えます。",
   },
   {
     icon: <LocalOfferOutlinedIcon fontSize="large" color="primary" />,
@@ -67,18 +93,18 @@ const features = [
 const steps = [
   {
     no: "1",
-    title: "GitHubでログイン",
-    desc: "「使ってみる」を押すとGitHub認証へ。アカウント登録は不要で、GitHubアカウントだけで始められます。",
+    title: "GitHubかGoogleでログイン",
+    desc: "「無料ではじめる」を押すと、GitHubとGoogleのどちらでログインするかを選べます。このサイト用のアカウント登録やパスワードの設定は不要です。",
   },
   {
     no: "2",
     title: "目標とアクションプランを設定",
-    desc: "最終目標を立て、それを達成するためのアクションプランを分解して登録します。",
+    desc: "最終目標を立て、それを達成するためのアクションプランを分解して登録します。アクションプランは何段でも入れ子にでき、ドラッグで並べ替えられます。",
   },
   {
     no: "3",
     title: "メモで日々の取り組みを記録",
-    desc: "学習用・チェック用・通常の3種類のメモで、アクションプランへの取り組みを記録。進捗は自動で積み上がります。",
+    desc: "学習用・チェック用・通常の3種類のメモで取り組みを記録し、メモトレイからプランへ紐づけます。進捗は紐づいたメモから自動で積み上がります。",
   },
 ];
 
@@ -141,13 +167,16 @@ export default function Home() {
             進捗は自動で集計され、やることがいつも明確なままです。
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="center">
+            {/* ログイン画面ではGitHub / Google の2つから選べる。ここで「GitHubログイン」と
+                書いてしまうと、押した先で選択肢が2つ出て戸惑わせるため、
+                ボタン側では提供元を名指ししない */}
             <Button
               variant="contained"
               size="large"
-              startIcon={<GitHubIcon />}
+              startIcon={<LoginIcon />}
               onClick={() => navigate("/LearningContent")}
             >
-              {isAlreadyLoggedIn ? "アプリを開く" : "使ってみる（GitHubログイン）"}
+              {isAlreadyLoggedIn ? "アプリを開く" : "無料ではじめる"}
             </Button>
             {!isAlreadyLoggedIn && (
               <Button variant="outlined" size="large" onClick={handleTryGuestMode}>
@@ -220,7 +249,7 @@ export default function Home() {
         </Stack>
       </Container>
 
-      {/* GitHubログインについて（やさしい説明＋詳細はアコーディオンに格納） */}
+      {/* ログインと保存先について（やさしい説明＋詳細はアコーディオンに格納） */}
       <Box sx={{ bgcolor: "action.hover", py: { xs: 5, md: 7 } }}>
         <Container maxWidth="md">
           <Paper
@@ -232,17 +261,32 @@ export default function Home() {
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-              <GitHubIcon color="primary" />
+              <LockOutlinedIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                なぜGitHubのログインが必要なの？
+                なぜログインが必要なの？
               </Typography>
             </Stack>
             <Typography sx={{ mb: 1, lineHeight: 1.9 }}>
-              GitHubでログインすると、<b>あなた専用の保存場所</b>が自動で用意され、書いた目標・アクションプラン・メモを無料でずっと保存しておけます。
-              難しい設定は不要で、むずかしいことが分からなくても大丈夫です。ボタンを押すだけで準備が整います。
+              ログインすると、書いた目標・アクションプラン・メモが<b>あなた専用の記録</b>として保存され、
+              スマホでもパソコンでも同じ内容を続きから使えます。ログインには<b>GitHub</b>と<b>Google</b>のどちらかを使います。
+              このサイト用に新しくアカウントを作ったり、パスワードを決めたりする必要はありません。
             </Typography>
+            {/* 狭い画面ではrowのまま折り返すと2行目だけ字下がりして見えるので、縦に積む */}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 2 }} sx={{ my: 2 }}>
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <GitHubIcon fontSize="small" />
+                <Typography variant="body2">GitHubでログイン</Typography>
+              </Stack>
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <GoogleIcon fontSize="small" />
+                <Typography variant="body2">Googleでログイン</Typography>
+              </Stack>
+            </Stack>
             <Typography sx={{ mb: 2, lineHeight: 1.9, color: "text.secondary" }}>
-              その保存場所は他の人には見えない非公開の状態で作られるので、安心して使えます（念のため、パスワードなどの重要な情報は書かないようにしてください）。
+              どちらを選んでも機能は同じです。あとから「その他 → アカウント情報」でもう一方を連携すれば、
+              1つのアカウントのまま両方を使えるようになります（連携しても記録は消えません）。
+              なお、メモに添付したファイルだけは、あなたのGitHubリポジトリかGoogleドライブに保存されます。
+              念のため、パスワードなどの重要な情報は書かないようにしてください。
             </Typography>
 
             <Accordion elevation={0} disableGutters sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}>
@@ -254,7 +298,11 @@ export default function Home() {
               <AccordionDetails sx={{ px: 0 }}>
                 <Box component="ul" sx={{ m: 0, pl: 3, color: "text.secondary", lineHeight: 2 }}>
                   <li>
-                    保存場所の正体は、GitHubの
+                    目標・アクションプラン・メモの本文は、このアプリのデータベースに保存されます。
+                    GitHubやGoogleは、ログインの本人確認と、次の「添付ファイルの置き場所」として使います。
+                  </li>
+                  <li>
+                    GitHubでログインすると、
                     <Box
                       component="code"
                       sx={{
@@ -269,23 +317,23 @@ export default function Home() {
                     >
                       learning-site-&lt;ユーザー名&gt;
                     </Box>
-                    という名前の「リポジトリ」（GitHub用語でファイル置き場のこと）です。今後の機能拡張で、メモに添付したコードやファイルもここに保存されます。
+                    という<b>非公開（Private）</b>のリポジトリが自動で用意され、メモに添付した画像やコードがそこに保存されます。
+                    このリポジトリは手動で削除・改名しないでください。
                   </li>
                   <li>
-                    作成されるリポジトリは<b>非公開（Private）</b>です。あなたと、あなたが許可した相手だけが閲覧できます。
-                  </li>
-                  <li>
-                    ログイン時に、GitHubから<b>「repo」という権限</b>の許可を求められます。これは上記の保存場所を作ったり、内容を更新したりするために必要な権限です。
-                  </li>
-                  <li>
-                    この
-                    <Box
-                      component="code"
-                      sx={{ fontFamily: "monospace", color: "primary.main" }}
-                    >
-                      learning-site-…
+                    Googleでログインすると、あなたのGoogleドライブに<b>このアプリ専用のフォルダ</b>が作られ、添付ファイルはそこに保存されます。
+                    要求する権限は
+                    <Box component="code" sx={{ mx: 0.5, fontFamily: "monospace", color: "primary.main" }}>
+                      drive.file
                     </Box>
-                    リポジトリは、アプリのデータ保存に使われます。手動で削除・改名しないでください。
+                    のみで、<b>このアプリが作成したファイル以外は読み書きできません</b>。ドライブ内の既存のファイルは見えません。
+                  </li>
+                  <li>
+                    GitHubのログイン時には<b>「repo」という権限</b>の許可を求められます。上記の保存場所を作ったり、内容を更新したりするために必要な権限です。
+                  </li>
+                  <li>
+                    添付ファイルがGitHubとGoogleのどちらに入っているかは、メモの添付ボタンにアイコンとラベルで表示されます。
+                    両方を連携している場合は、メモを書くときに保存先を選べます。
                   </li>
                 </Box>
               </AccordionDetails>
@@ -327,8 +375,8 @@ export default function Home() {
             </Box>
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                記録の閲覧・タイトル検索・タグ絞り込み・習慣リスト・学習分析ダッシュボード。
-                記録の登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
+                プラン・メモの閲覧、タイトル/本文/タグでの検索、習慣リスト、今日やること・次にやる事の確認。
+                プラン・メモの登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
               </Typography>
             </Box>
           </Paper>
@@ -353,7 +401,7 @@ export default function Home() {
             </Box>
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                初回ログイン、GitHubファイルの添付・プレビュー・編集、カテゴリー・タグの作成・編集・削除。
+                初回ログイン、アカウント連携、添付ファイル（GitHubリポジトリ・Googleドライブ）の追加・表示、カテゴリー・タグの作成・編集・削除。
               </Typography>
             </Box>
           </Paper>
@@ -369,7 +417,7 @@ export default function Home() {
           無料で使える主な機能
         </Typography>
         <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
-          いつでも無料でお使いいただけます。
+          下記はすべて無料プランに含まれています。追加費用はかかりません。
         </Typography>
         <Box
           sx={{

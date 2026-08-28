@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -25,12 +25,9 @@ import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import AddIcon from "@mui/icons-material/Add";
-import LogoutIcon from "@mui/icons-material/Logout";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import Brightness4Icon from "@mui/icons-material/Brightness4";
-import Brightness7Icon from "@mui/icons-material/Brightness7";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
@@ -43,15 +40,29 @@ import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 
 import { useToast } from "./ToastContext";
-import { ColorModeContext } from "./ColorModeContext";
 import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/routine";
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import TodayNextDialog from "./component/TodayNextDialog";
 import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
-import AccountLinkDialog from "./component/AccountLinkDialog";
+import AccountInfoDialog from "./component/AccountInfoDialog";
+import SettingsDialog from "./component/SettingsDialog";
+import FaqDialog from "./component/FaqDialog";
+import UsageGuideDialog from "./component/UsageGuideDialog";
+import PricingPlanDialog from "./component/PricingPlanDialog";
+import NotePreviewDialog from "./component/NotePreviewDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import Alert from "@mui/material/Alert";
@@ -70,7 +81,7 @@ import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
 
-type BottomTab = "plans" | "library" | "review";
+type BottomTab = "plans" | "library" | "review" | "more";
 
 type DeleteTarget = { kind: "plan"; plan: Plan } | { kind: "note"; note: Note };
 
@@ -85,7 +96,6 @@ interface PlanDashboardProps {
 
 export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
-  const { mode, toggle } = useContext(ColorModeContext);
 
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -117,7 +127,14 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [todayNextOpen, setTodayNextOpen] = useState(false);
   const [boardHelpOpen, setBoardHelpOpen] = useState(false);
-  const [accountLinkOpen, setAccountLinkOpen] = useState(false);
+  const [accountInfoOpen, setAccountInfoOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false);
+  const [usageGuideOpen, setUsageGuideOpen] = useState(false);
+  const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
+  // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
+  // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
+  const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
@@ -520,32 +537,80 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
   const pendingLinkNote = pendingLinkNoteId !== null ? notes.find((n) => n.id === pendingLinkNoteId) ?? null : null;
 
+  // プレビュー中のメモ。編集・添付追加のあとにnotesが差し替わっても最新が映るよう、
+  // 控えを持たずIDから毎回引き直す（メモが削除された場合は自動的に閉じる）
+  const previewNote = previewNoteId !== null ? notes.find((n) => n.id === previewNoteId) ?? null : null;
+
+  // フッター「その他」に並べる項目。ゲストモードではアカウントが無いので
+  // 「アカウント情報」は出さず、設定の中身だけを使えるようにする
+  const moreMenuItems: { icon: ReactNode; label: string; description: string; onClick: () => void }[] = [
+    ...(userId !== null
+      ? [
+          {
+            icon: <ManageAccountsOutlinedIcon color="action" />,
+            label: "アカウント情報",
+            description: "ログイン中のアカウントと、GitHub・Googleの連携",
+            onClick: () => setAccountInfoOpen(true),
+          },
+        ]
+      : []),
+    {
+      icon: <SettingsOutlinedIcon color="action" />,
+      label: "設定",
+      description: userId !== null ? "画面の明るさ、ログアウト" : "画面の明るさ、ゲストデータの消去",
+      onClick: () => setSettingsOpen(true),
+    },
+    {
+      icon: <QuizOutlinedIcon color="action" />,
+      label: "よくある質問",
+      description: "保存先・進捗の仕組み・オフラインなど",
+      onClick: () => setFaqOpen(true),
+    },
+    {
+      icon: <MenuBookIcon color="action" />,
+      label: "使い方",
+      description: "目標を立ててから振り返るまでの流れ",
+      onClick: () => setUsageGuideOpen(true),
+    },
+    {
+      icon: <LoyaltyOutlinedIcon color="action" />,
+      label: "プラン",
+      description: "ご利用中の料金プランと、含まれる機能",
+      onClick: () => setPricingPlanOpen(true),
+    },
+  ];
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 8 }}>
-      <AppBar position="sticky" color="default" elevation={1}>
+      {/* テーマのMuiAppBarには紫のグラデーション背景を入れてあるが、あれはランディング
+          ページ用。color="default"のこのヘッダーにも効いてしまい、text.secondaryの
+          アカウント名が紫地の上のグレー文字になってライトモードでほとんど読めなかった。
+          ここでは背景を明示的に打ち消して、地の色と文字色を揃える */}
+      <AppBar
+        position="sticky"
+        color="default"
+        elevation={1}
+        sx={{ backgroundImage: "none", bgcolor: "background.paper", color: "text.primary" }}
+      >
         <Toolbar>
           <FlagOutlinedIcon color="primary" sx={{ mr: 1 }} />
           <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
             目標達成支援
           </Typography>
           {accountLabel && (
-            <Typography variant="body2" sx={{ color: "text.secondary", mr: 2, display: { xs: "none", sm: "block" } }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "text.secondary", mr: 2, display: { xs: "none", sm: "block" }, maxWidth: 200 }}
+              noWrap
+            >
               {accountLabel}
             </Typography>
           )}
-          <IconButton onClick={() => setTodayNextOpen(true)} aria-label="今日やること・次にやる事" sx={{ mr: 1 }}>
+          {/* アカウント連携・明るさ切り替え・ログアウトは、フッターの「その他」へ移した。
+              アイコンだけが並んでいて何のボタンか分かりにくく、ログアウトを誤って
+              押しやすい位置でもあったため */}
+          <IconButton onClick={() => setTodayNextOpen(true)} aria-label="今日やること・次にやる事">
             <TodayOutlinedIcon />
-          </IconButton>
-          {userId !== null && (
-            <IconButton onClick={() => setAccountLinkOpen(true)} aria-label="アカウント連携" sx={{ mr: 1 }}>
-              <ManageAccountsOutlinedIcon />
-            </IconButton>
-          )}
-          <IconButton onClick={toggle} aria-label="テーマ切り替え" sx={{ mr: 1 }}>
-            {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
-          <IconButton onClick={onLogout} aria-label="ログアウト">
-            <LogoutIcon />
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -582,6 +647,31 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
+        ) : bottomTab === "more" ? (
+          <Stack spacing={2}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              その他
+            </Typography>
+            <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+              <List disablePadding>
+                {moreMenuItems.map((item, index) => (
+                  <ListItemButton
+                    key={item.label}
+                    onClick={item.onClick}
+                    sx={{ borderTop: index === 0 ? "none" : "1px solid", borderColor: "divider", py: 1.5 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      secondary={item.description}
+                      slotProps={{ primary: { fontWeight: 700 } }}
+                    />
+                    <ChevronRightOutlinedIcon fontSize="small" color="action" />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Paper>
+          </Stack>
         ) : bottomTab === "review" ? (
           <Stack spacing={3}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
@@ -941,6 +1031,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           onToggleExpanded={() => setNoteTrayOpen((v) => !v)}
           onLinkNote={handleLinkNote}
           onCreatePlanFromNote={handleCreatePlanFromNote}
+          onPreviewNote={(note) => setPreviewNoteId(note.id)}
           onDraggingChange={setDraggingNoteId}
           onHoverPlanChange={setNoteHoverPlanId}
           onHoverCreateZoneChange={setNoteHoverCreateZone}
@@ -948,7 +1039,10 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       )}
 
       <Paper elevation={3} sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: (t) => t.zIndex.appBar }}>
+        {/* showLabelsを付けないと、選択中以外のタブはアイコンだけになる。
+            「その他」の「…」は単体では何を指すか分からないため、常にラベルを出す */}
         <BottomNavigation
+          showLabels
           value={bottomTab}
           onChange={(_, v) => {
             setBottomTab(v);
@@ -966,6 +1060,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               </Badge>
             }
           />
+          <BottomNavigationAction label="その他" value="more" icon={<MoreHorizIcon />} />
         </BottomNavigation>
       </Paper>
 
@@ -1040,7 +1135,35 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         }}
       />
       <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
-      <AccountLinkDialog open={accountLinkOpen} onClose={() => setAccountLinkOpen(false)} />
+      <AccountInfoDialog open={accountInfoOpen} onClose={() => setAccountInfoOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onLogout={onLogout}
+        isGuest={userId === null}
+      />
+      <FaqDialog open={faqOpen} onClose={() => setFaqOpen(false)} />
+      <UsageGuideDialog open={usageGuideOpen} onClose={() => setUsageGuideOpen(false)} />
+      <PricingPlanDialog open={pricingPlanOpen} onClose={() => setPricingPlanOpen(false)} />
+
+      <NotePreviewDialog
+        note={previewNote}
+        onClose={() => setPreviewNoteId(null)}
+        planOptions={planOptions}
+        onEdit={(note) => {
+          setPreviewNoteId(null);
+          setEditingNote(note);
+          setNoteFixedPlanId(undefined);
+          setNoteDialogOpen(true);
+        }}
+        onDelete={(note) => {
+          setPreviewNoteId(null);
+          setDeleteTarget({ kind: "note", note });
+        }}
+        onToggleTodo={handleToggleTodo}
+        onLink={(note, planId) => handleLinkNote(note, planId)}
+        onUnlink={(note, planId) => handleUnlinkNote(note, planId)}
+      />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>削除の確認</DialogTitle>

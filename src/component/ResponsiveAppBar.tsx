@@ -4,7 +4,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
 import Button from "@mui/material/Button";
-import GitHubIcon from "@mui/icons-material/GitHub";
+import LoginIcon from "@mui/icons-material/Login";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useNavigate } from "react-router-dom";
 
@@ -50,7 +50,7 @@ function ResponsiveAppBar({ ctaLabel, onCtaClick }: ResponsiveAppBarProps) {
               variant="contained"
               color="secondary"
               size="small"
-              startIcon={<GitHubIcon />}
+              startIcon={<LoginIcon />}
               onClick={onCtaClick}
               sx={{ whiteSpace: "nowrap" }}
             >
