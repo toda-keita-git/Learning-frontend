@@ -237,6 +237,18 @@ export const meApi = async (): Promise<AccountInfo> => {
   return response.data as AccountInfo;
 };
 
+// サーバーが保持しているGitHubアクセストークンを取得する。
+// Googleでログインして後からGitHubを連携した場合、ブラウザ側にGitHubのトークンが
+// 無くリポジトリへの添付ができないため、これで受け取ってOctokitを組み立てる
+export const githubTokenApi = async (): Promise<{
+  access_token: string;
+  github_login: string | null;
+  repo_name: string | null;
+}> => {
+  const response = await axios.get("/github/token");
+  return response.data;
+};
+
 // ログイン中のアカウントにGoogleアカウントを連携する（新規ユーザーは作られない）
 export const linkGoogleApi = async (code: string) => {
   const response = await axios.post("/google/link", { code });

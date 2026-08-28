@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
-import { setAppToken, googleRefreshApi, linkGoogleApi, linkGithubApi, meApi } from "./component/Api";
+import { setAppToken, googleRefreshApi, linkGoogleApi, linkGithubApi, meApi, githubTokenApi } from "./component/Api";
 import { useToast } from "./ToastContext";
 import { errorMessage } from "./component/errorMessage";
 import {
@@ -105,6 +105,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [hasGoogle, setHasGoogle] = useState(false);
 
   const effectRan = useRef(false);
+  // refreshAccountInfoは初回のuseEffect内から呼ばれ、その時点のoctokit stateは
+  // まだ更新前なので、判定用に最新値をrefでも持っておく
+  const octokitRef = useRef<Octokit | null>(null);
   // repo_nameカラムが無かった頃に保存されたセッションなど、値がまだ無い場合の保険
   const repoName = repoNameState ?? (githubLogin ? `learning-site-${githubLogin}` : null);
 
@@ -146,6 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     clearPersistedSession();
     setAppToken(null);
+    octokitRef.current = null;
     setOctokit(null);
     setUserId(null);
     setGithubLogin(null);
@@ -176,6 +180,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setHasGoogle(info.has_google);
       if (info.drive_folder_id) setDriveFolderId(info.drive_folder_id);
       if (info.repo_name) setRepoNameState((prev) => prev ?? info.repo_name);
+      if (info.github_login) setGithubLogin((prev) => prev ?? info.github_login);
+
+      // GitHubへの添付はブラウザ側のOctokitが行うため、GitHubのアクセストークンが要る。
+      // Googleでログインして後からGitHubを連携した場合はログイン応答で受け取る機会が
+      // 無いので、サーバーが保持している分をここで受け取ってOctokitを組み立てる
+      if (info.has_github && !octokitRef.current) {
+        try {
+          const { access_token } = await githubTokenApi();
+          const githubClient = new Octokit({ auth: access_token });
+          octokitRef.current = githubClient;
+          setOctokit(githubClient);
+          _setToken(access_token);
+        } catch (err) {
+          console.error("GitHubアクセストークンの取得に失敗しました:", err);
+        }
+      }
     } catch (err) {
       // 取得できなくてもアプリ自体は使えるようにする（オフライン等）
       console.error("アカウント情報の取得に失敗しました:", err);
@@ -336,7 +356,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (!token) throw new Error("レスポンスにトークンが含まれていません。");
           if (!appToken) throw new Error("レスポンスに認証トークンが含まれていません。");
 
-          setOctokit(new Octokit({ auth: token }));
+          octokitRef.current = new Octokit({ auth: token });
+          setOctokit(octokitRef.current);
           setUserId(id);
           setGithubLogin(loginName);
           setRepoNameState(repoNameFromServer);
@@ -394,7 +415,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Driveアクセストークンの再取得に失敗しました:", err);
           });
       } else {
-        setOctokit(new Octokit({ auth: saved.accessToken }));
+        octokitRef.current = new Octokit({ auth: saved.accessToken });
+        setOctokit(octokitRef.current);
         setGithubLogin(saved.githubLogin);
         setRepoNameState(saved.repoName ?? null);
         setAuthProvider("github");

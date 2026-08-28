@@ -122,9 +122,9 @@ export default function NoteFormDialog({
   // （以前は authProvider === "google" を条件にしていたため、GitHubでログイン中は
   //   Googleを連携済みでもDriveが選べなかった）
   //
-  // GitHub: ブラウザ側にアクセストークン(octokit)が必要なので、GitHubでログイン中のみ使える。
-  // Drive : アクセストークンはrefresh_tokenからサーバー経由で取り直せるため、
-  //         連携さえしていればどちらでログイン中でも使える。
+  // GitHub・Driveとも、アクセストークンはサーバーが保持している分を
+  // 本人確認(JWT)のうえで受け取れる（/github/token・/google/refresh）ため、
+  // 連携さえしていればどちらでログイン中でも使える。
   const hasGithub = !!octokit && !!repoName;
   const hasGoogleDrive = !!driveFolderId;
   const hasAnyStorage = hasGithub || hasGoogleDrive;
