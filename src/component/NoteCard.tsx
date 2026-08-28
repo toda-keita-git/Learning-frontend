@@ -11,9 +11,9 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import GitHubIcon from "@mui/icons-material/GitHub";
-import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import Box from "@mui/material/Box";
+import AttachmentProviderIcon from "./AttachmentProviderIcon";
+import { attachmentProviderLabel } from "./attachmentVisuals";
 import AddIcon from "@mui/icons-material/Add";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import { AuthContext } from "../Context";
@@ -193,17 +193,16 @@ export default function NoteCard({
               startIcon={
                 loadingAttachmentId === attachment.id ? (
                   <CircularProgress size={14} />
-                ) : attachment.kind === "image" ? (
-                  <ImageOutlinedIcon fontSize="small" />
-                ) : attachment.provider === "google" ? (
-                  <CloudOutlinedIcon fontSize="small" />
                 ) : (
-                  <GitHubIcon fontSize="small" />
+                  <AttachmentProviderIcon provider={attachment.provider} />
                 )
               }
               onClick={() => handleViewAttachment(attachment)}
               disabled={loadingAttachmentId !== null}
             >
+              <Box component="span" sx={{ color: "text.secondary", mr: 0.5, flexShrink: 0 }}>
+                {attachmentProviderLabel(attachment.provider)}
+              </Box>
               {attachmentDisplayPath(attachment).split("/").pop()}
             </Button>
           ))}
