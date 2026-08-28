@@ -21,6 +21,9 @@ const GOOGLE_CALLBACK_PATH = "/google/callback";
 // 「今回のOAuthはログインではなくアカウント連携だ」という目印。
 // リダイレクトを挟むため、その間だけ意図を持ち越す必要がある
 const LINK_INTENT_KEY = "oauthLinkIntent";
+// 連携の結果メッセージ。連携後は/LearningContentへページ遷移するため、
+// その場でトーストを出しても遷移で消えてしまう。遷移先で出せるよう持ち越す
+const LINK_RESULT_KEY = "oauthLinkResult";
 // drive.fileはこのアプリが作成したファイルにのみアクセスできる限定スコープ。
 // access_type=offline + prompt=consent で毎回refresh_tokenを強制取得する
 // （Driveのアクセストークンは約1時間で失効するため、GitHubと違い再取得が必須）
@@ -223,6 +226,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (effectRan.current) return;
 
+    // 連携から戻ってきた直後の結果を表示する。連携処理自体は別ページ(/google/callback等)で
+    // 行われ、その場でトーストを出しても遷移で消えるため、ここで拾って出す
+    const linkResultRaw = sessionStorage.getItem(LINK_RESULT_KEY);
+    if (linkResultRaw) {
+      sessionStorage.removeItem(LINK_RESULT_KEY);
+      try {
+        const { severity, message } = JSON.parse(linkResultRaw) as {
+          severity: "success" | "error";
+          message: string;
+        };
+        // 失敗時は原因を読む時間が要るので長めに出す
+        showToast(message, severity, { durationMs: severity === "error" ? 12000 : 4000 });
+      } catch {
+        // 壊れた値が入っていても表示しないだけで、処理は続ける
+      }
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
     const onGoogleCallback = window.location.pathname === GOOGLE_CALLBACK_PATH;
@@ -254,10 +274,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
           // 連携直後は保存先の選択肢が増えるので、状態を取り直してから画面へ戻す
           await refreshAccountInfo();
-          showToast("アカウントを連携しました。", "success");
+          sessionStorage.setItem(
+            LINK_RESULT_KEY,
+            JSON.stringify({ severity: "success", message: "アカウントを連携しました。" })
+          );
         } catch (err) {
           console.error("アカウント連携に失敗しました:", err);
-          showToast(errorMessage(err, "アカウント連携に失敗しました。"), "error", { durationMs: 10000 });
+          sessionStorage.setItem(
+            LINK_RESULT_KEY,
+            JSON.stringify({ severity: "error", message: errorMessage(err, "アカウント連携に失敗しました。") })
+          );
         } finally {
           setIsAuthenticating(false);
           window.history.replaceState({}, document.title, window.location.pathname);
