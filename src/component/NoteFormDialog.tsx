@@ -21,7 +21,7 @@ import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
-import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
+import GoogleIcon from "@mui/icons-material/Google";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import AttachmentProviderIcon from "./AttachmentProviderIcon";
 import { attachmentProviderLabel } from "./attachmentVisuals";
@@ -109,11 +109,32 @@ export default function NoteFormDialog({
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 両方の保存先が使える場合に、利用者がどちらへ保存するかを選ぶ
+  const [attachTargetChoice, setAttachTargetChoice] = useState<"github" | "google">("github");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { octokit, githubLogin, repoName, authProvider, driveFolderId, ensureDriveAccessToken } =
     useContext(AuthContext);
   const { showToast } = useToast();
+
+  // 添付の保存先として使えるか。ログインに使ったプロバイダーではなく、
+  // 実際にその保存先を使う手段が揃っているかで判定する。
+  // （以前は authProvider === "google" を条件にしていたため、GitHubでログイン中は
+  //   Googleを連携済みでもDriveが選べなかった）
+  //
+  // GitHub: ブラウザ側にアクセストークン(octokit)が必要なので、GitHubでログイン中のみ使える。
+  // Drive : アクセストークンはrefresh_tokenからサーバー経由で取り直せるため、
+  //         連携さえしていればどちらでログイン中でも使える。
+  const hasGithub = !!octokit && !!repoName;
+  const hasGoogleDrive = !!driveFolderId;
+  const hasAnyStorage = hasGithub || hasGoogleDrive;
+  const hasBothStorages = hasGithub && hasGoogleDrive;
+  // 実際に保存する先。両方使える場合だけ利用者が選べるようにする
+  const attachTarget: "github" | "google" = hasBothStorages
+    ? attachTargetChoice
+    : hasGoogleDrive
+      ? "google"
+      : "github";
 
   useEffect(() => {
     if (!open) return;
@@ -164,7 +185,7 @@ export default function NoteFormDialog({
   const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    if (authProvider === "google") {
+    if (attachTarget === "google") {
       if (!driveFolderId) return;
       setUploadingImages(true);
       try {
@@ -296,9 +317,6 @@ export default function NoteFormDialog({
     }
   };
 
-  const hasGithub = !!octokit && !!repoName;
-  const hasGoogleDrive = authProvider === "google" && !!driveFolderId;
-  const hasAnyStorage = hasGithub || hasGoogleDrive;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -413,6 +431,38 @@ export default function NoteFormDialog({
             <Typography variant="body2" color="text.secondary" gutterBottom>
               画像・コードの添付（任意・複数可）
             </Typography>
+
+            {/* 両方の保存先が使えるときは、どちらに保存するかを利用者に選ばせる。
+                選ばせないと「どちらに入ったか分からない」状態になってしまうため。
+                片方しか使えないときは選択肢を出さず、どこに入るかだけを示す */}
+            {hasAnyStorage &&
+              (hasBothStorages ? (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap", rowGap: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    保存先
+                  </Typography>
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={attachTargetChoice}
+                    onChange={(_, v: "github" | "google" | null) => v && setAttachTargetChoice(v)}
+                  >
+                    <ToggleButton value="github">
+                      <GitHubIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      GitHub
+                    </ToggleButton>
+                    <ToggleButton value="google">
+                      <GoogleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      Google
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Stack>
+              ) : (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+                  <AttachmentProviderIcon provider={attachTarget} />
+                  {attachmentProviderLabel(attachTarget)}に保存されます
+                </Typography>
+              ))}
             <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mb: 1, rowGap: 0.75 }}>
               {attachments.map((attachment, index) => {
                 const isGoogle = attachment.provider === "google";
@@ -455,18 +505,12 @@ export default function NoteFormDialog({
                 size="small"
                 variant="outlined"
                 startIcon={
-                  resolvingCodeSha ? (
-                    <CircularProgress size={14} />
-                  ) : hasGoogleDrive ? (
-                    <CloudOutlinedIcon fontSize="small" />
-                  ) : (
-                    <GitHubIcon fontSize="small" />
-                  )
+                  resolvingCodeSha ? <CircularProgress size={14} /> : <AttachmentProviderIcon provider={attachTarget} />
                 }
                 disabled={!hasAnyStorage || resolvingCodeSha}
-                onClick={() => (hasGoogleDrive ? setDriveSelectorOpen(true) : setGithubSelectorOpen(true))}
+                onClick={() => (attachTarget === "google" ? setDriveSelectorOpen(true) : setGithubSelectorOpen(true))}
               >
-                コードを選ぶ
+                {attachTarget === "google" ? "ドライブから選ぶ" : "コードを選ぶ"}
               </Button>
             </Stack>
             {!hasAnyStorage && (
