@@ -23,6 +23,8 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import AttachmentProviderIcon from "./AttachmentProviderIcon";
+import { attachmentProviderLabel } from "./attachmentVisuals";
 import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
@@ -422,18 +424,11 @@ export default function NoteFormDialog({
                 return (
                   <Chip
                     key={attachment.id ?? `${attachment.github_path}-${index}`}
-                    icon={
-                      attachment.kind === "image" ? (
-                        <ImageOutlinedIcon />
-                      ) : isGoogle ? (
-                        <CloudOutlinedIcon />
-                      ) : (
-                        <GitHubIcon />
-                      )
-                    }
-                    label={label}
+                    icon={<AttachmentProviderIcon provider={attachment.provider} />}
+                    // 保存先（GitHub / Drive）を必ず添えて、開かなくても分かるようにする
+                    label={`${attachmentProviderLabel(attachment.provider)}・${label}`}
                     onDelete={() => handleRemoveAttachment(attachment, index)}
-                    sx={{ maxWidth: 220 }}
+                    sx={{ maxWidth: 260 }}
                   />
                 );
               })}
