@@ -50,7 +50,7 @@ const features = [
   {
     icon: <PlaylistAddCheckIcon fontSize="large" color="primary" />,
     title: "todoチェックリスト付きタスクメモ",
-    desc: "チェックリスト用メモにはチェック付きのtodoを持たせられ、チェックした割合がそのまま進捗度になります。",
+    desc: "チェック用メモにはチェック付きのtodoを持たせられ、チェックした割合がそのまま進捗度になります。",
   },
   {
     icon: <LinkOutlinedIcon fontSize="large" color="primary" />,
@@ -78,7 +78,7 @@ const steps = [
   {
     no: "3",
     title: "メモで日々の取り組みを記録",
-    desc: "学習用・チェックリスト用・通常の3種類のメモで、アクションプランへの取り組みを記録。進捗は自動で積み上がります。",
+    desc: "学習用・チェック用・通常の3種類のメモで、アクションプランへの取り組みを記録。進捗は自動で積み上がります。",
   },
 ];
 

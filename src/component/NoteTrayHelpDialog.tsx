@@ -33,7 +33,7 @@ const ITEMS: { icon: ReactNode; title: string; body: string }[] = [
   {
     icon: <SearchIcon fontSize="small" color="action" />,
     title: "検索・種別で絞り込み",
-    body: "メモが増えてきたら、検索ボックスや「学習用・チェックリスト用・通常」の種別フィルタで絞り込めます。",
+    body: "メモが増えてきたら、検索ボックスや「学習用・チェック用・通常」の種別フィルタで絞り込めます。",
   },
   {
     icon: <CheckCircleIcon fontSize="small" color="action" />,
