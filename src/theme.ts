@@ -82,6 +82,35 @@ export const getTheme = (mode: PaletteMode) =>
           root: { whiteSpace: "nowrap" },
         },
       },
+      MuiTab: {
+        styleOverrides: {
+          // ダイアログ内でvariant="fullWidth"のタブを3つ並べると、スマホ幅では
+          // 1つあたり80〜90pxしか取れない。既定の左右余白(16px)のままだと
+          // 文字に回せる幅が足りず「チェック/用」のように折り返してしまうため詰める
+          root: {
+            minWidth: 0,
+            paddingLeft: 6,
+            paddingRight: 6,
+            // iPhone SE(第1世代)など320px幅の端末ではタブ1つが75pxしか取れず、
+            // 余白を詰めても全角5文字(14px×5=70px)が入りきらない。
+            // この幅のときだけ文字も少し小さくして1行に収める
+            "@media (max-width:359.95px)": {
+              paddingLeft: 4,
+              paddingRight: 4,
+              fontSize: "0.8125rem",
+            },
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          // スマホ幅では画面そのものが狭く、既定の左右余白(24px)が中身を圧迫する。
+          // タブやボタンが折り返さずに収まるよう、狭い画面でだけ詰める
+          root: ({ theme }) => ({
+            [theme.breakpoints.down("sm")]: { paddingLeft: 16, paddingRight: 16 },
+          }),
+        },
+      },
       MuiPaper: {
         styleOverrides: {
           rounded: { borderRadius: 16 },

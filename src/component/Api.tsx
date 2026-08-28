@@ -383,7 +383,7 @@ export const unlinkNoteApi = async (id: number, planId: number) => {
   return response.data;
 };
 
-// チェックリスト用メモのtodo1件のチェック切替
+// チェック用メモのtodo1件のチェック切替
 export const toggleNoteTodoApi = async (todoItemId: number, checked: boolean) => {
   const response = await axios.post(`/note_todo_toggle/${todoItemId}`, { checked });
   return response.data;

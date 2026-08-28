@@ -34,6 +34,7 @@ import { uploadDriveFile } from "./driveClient";
 import MarkdownContent from "./MarkdownContent";
 import { ROUTINE_PRESETS } from "./routine";
 import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, CategoryOption } from "./PlanTypes";
+import { NOTE_TYPE_LABEL } from "./PlanTypes";
 
 const emptyTodo = (): NoteTodoItem => ({ label: "", checked: false });
 
@@ -323,13 +324,13 @@ export default function NoteFormDialog({
       <DialogTitle>{initialNote ? "メモを編集" : "メモを作成"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ mt: 1 }}>
-          {/* 3つのタブを常に見せたいのでfullWidthのまま。「チェックリスト用」は
-              スマホ幅だと2行になるが、scrollableにすると選択中のタブへ自動スクロールして
-              先頭の「学習用」が画面外に隠れてしまい、かえって分かりにくくなるため */}
+          {/* 3つのタブを常に見せたいのでfullWidthにしている。scrollableにすると
+              選択中のタブへ自動スクロールして先頭のタブが画面外に隠れてしまうため。
+              その代わりラベルはスマホ幅でも1行に収まる長さに保つこと */}
           <Tabs value={type} onChange={(_, v) => setType(v)} variant="fullWidth">
-            <Tab value="learning" label="学習用" />
-            <Tab value="task" label="チェックリスト用" />
-            <Tab value="normal" label="通常" />
+            <Tab value="learning" label={NOTE_TYPE_LABEL.learning} />
+            <Tab value="task" label={NOTE_TYPE_LABEL.task} />
+            <Tab value="normal" label={NOTE_TYPE_LABEL.normal} />
           </Tabs>
 
           <TextField
