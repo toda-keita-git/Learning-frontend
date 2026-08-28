@@ -1,6 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import axios from "axios";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -43,6 +42,7 @@ import Badge from "@mui/material/Badge";
 import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 
 import { useToast } from "./ToastContext";
 import { ColorModeContext } from "./ColorModeContext";
@@ -51,12 +51,14 @@ import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import RelatedGraphDialog from "./component/RelatedGraphDialog";
 import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
+import AccountLinkDialog from "./component/AccountLinkDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import Alert from "@mui/material/Alert";
 import type { PlanDataSource } from "./component/planDataSource";
 import type { Plan, Note, NoteInput, PlanInput, CategoryOption, NoteAttachment } from "./component/PlanTypes";
 import { NOTE_TYPE_LABEL } from "./component/PlanTypes";
+import { errorMessage } from "./component/errorMessage";
 import { PLAN_STATUS_LABEL } from "./component/PlanTypes";
 import ProgressBadge from "./component/ProgressBadge";
 import PlanFormDialog from "./component/PlanFormDialog";
@@ -80,19 +82,6 @@ interface PlanDashboardProps {
   topBanner?: ReactNode;
 }
 
-const errorMessage = (err: unknown, fallback: string): string => {
-  if (axios.isAxiosError(err)) {
-    // response が無い＝サーバーまで届かなかった（オフライン・タイムアウトなど）
-    if (!err.response) {
-      return "オフライン、または通信が不安定なため実行できませんでした。オンラインに戻ってからもう一度お試しください。";
-    }
-    if (typeof err.response.data === "string" && err.response.data) {
-      return err.response.data;
-    }
-  }
-  if (err instanceof Error && err.message) return err.message;
-  return fallback;
-};
 
 export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
@@ -128,6 +117,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [boardHelpOpen, setBoardHelpOpen] = useState(false);
+  const [accountLinkOpen, setAccountLinkOpen] = useState(false);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
@@ -565,6 +555,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           {notes.length > 1 && (
             <IconButton onClick={() => setGraphOpen(true)} aria-label="関連メモグラフ" sx={{ mr: 1 }}>
               <HubOutlinedIcon />
+            </IconButton>
+          )}
+          {userId !== null && (
+            <IconButton onClick={() => setAccountLinkOpen(true)} aria-label="アカウント連携" sx={{ mr: 1 }}>
+              <ManageAccountsOutlinedIcon />
             </IconButton>
           )}
           <IconButton onClick={toggle} aria-label="テーマ切り替え" sx={{ mr: 1 }}>
@@ -1055,6 +1050,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
 
       <RelatedGraphDialog open={graphOpen} onClose={() => setGraphOpen(false)} items={graphItems} onOpenItem={handleOpenGraphItem} />
       <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
+      <AccountLinkDialog open={accountLinkOpen} onClose={() => setAccountLinkOpen(false)} />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>削除の確認</DialogTitle>
