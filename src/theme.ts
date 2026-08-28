@@ -62,7 +62,24 @@ export const getTheme = (mode: PaletteMode) =>
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {
-          root: { borderRadius: 9999, paddingInline: 20 },
+          root: {
+            borderRadius: 9999,
+            paddingInline: 20,
+            // ボタンのラベルは途中で折り返さない。スマホの狭い幅で横並びにすると
+            // ボタンが縮められ、「画像を選/ぶ」のように語の途中で改行されて
+            // 読みにくくなるため。入りきらない場合は、置いている側のStackを
+            // flexWrapで折り返して次の行に送る
+            whiteSpace: "nowrap",
+          },
+          // size="small"のボタンは横並びで使うことが多く、既定の余白(20px)のままだと
+          // 文字に回せる幅が足りなくなりやすいので詰める
+          sizeSmall: { paddingInline: 12 },
+        },
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          // 種別フィルタ等で横に並べるため、ボタン内で折り返させない（理由はMuiButtonと同じ）
+          root: { whiteSpace: "nowrap" },
         },
       },
       MuiPaper: {
