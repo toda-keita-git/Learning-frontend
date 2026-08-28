@@ -217,6 +217,38 @@ export const selectRepoApi = async (repoName: string): Promise<string> => {
 // Googleドライブの短命なアクセストークンを再取得するAPI。
 // GitHubと違いGoogleのアクセストークンは約1時間で失効するため、Drive操作が
 // 必要になるたびに呼ぶ想定（app_tokenでの本人確認が必須）
+// --- アカウント連携（1つのアカウントにGitHubとGoogleの両方を持たせる） ---
+
+export type AccountInfo = {
+  user_id: number;
+  email: string | null;
+  avatar_url: string | null;
+  auth_provider: string | null;
+  has_github: boolean;
+  has_google: boolean;
+  github_login: string | null;
+  repo_name: string | null;
+  drive_folder_id: string | null;
+};
+
+// ログイン中アカウントの情報（どちらのプロバイダーを連携済みか）を取得する
+export const meApi = async (): Promise<AccountInfo> => {
+  const response = await axios.get("/me");
+  return response.data as AccountInfo;
+};
+
+// ログイン中のアカウントにGoogleアカウントを連携する（新規ユーザーは作られない）
+export const linkGoogleApi = async (code: string) => {
+  const response = await axios.post("/google/link", { code });
+  return response.data;
+};
+
+// ログイン中のアカウントにGitHubアカウントを連携する（新規ユーザーは作られない）
+export const linkGithubApi = async (code: string) => {
+  const response = await axios.post("/github/link", { code });
+  return response.data;
+};
+
 export const googleRefreshApi = async (): Promise<{ access_token: string; expires_in: number }> => {
   try {
     const response = await axios.post(`/google/refresh`);

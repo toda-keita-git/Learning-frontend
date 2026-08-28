@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, createContext } from "react";
 import type { ReactNode } from "react";
 import { Octokit } from "@octokit/rest";
-import { setAppToken, googleRefreshApi } from "./component/Api";
+import { setAppToken, googleRefreshApi, linkGoogleApi, linkGithubApi } from "./component/Api";
 import { useToast } from "./ToastContext";
+import { errorMessage } from "./component/errorMessage";
 import {
   savePersistedSession,
   loadPersistedSession,
@@ -17,6 +18,9 @@ const backendUrl = import.meta.env.VITE_BACKEND_TOKEN_URL; // e.g. https://learn
 const googleClient = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const googleCallback = import.meta.env.VITE_GOOGLE_CALLBACK_URL;
 const GOOGLE_CALLBACK_PATH = "/google/callback";
+// 「今回のOAuthはログインではなくアカウント連携だ」という目印。
+// リダイレクトを挟むため、その間だけ意図を持ち越す必要がある
+const LINK_INTENT_KEY = "oauthLinkIntent";
 // drive.fileはこのアプリが作成したファイルにのみアクセスできる限定スコープ。
 // access_type=offline + prompt=consent で毎回refresh_tokenを強制取得する
 // （Driveのアクセストークンは約1時間で失効するため、GitHubと違い再取得が必須）
@@ -45,6 +49,10 @@ interface AuthContextType {
   // 取得できない場合（オフライン等）はnullを返すので、呼び出し側でエラー表示すること
   ensureDriveAccessToken: () => Promise<string | null>;
   loginWithGoogle: () => void;
+
+  // --- アカウント連携（1つのアカウントにGitHubとGoogleの両方を持たせる） ---
+  linkGithub: () => void;
+  linkGoogle: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -63,6 +71,8 @@ export const AuthContext = createContext<AuthContextType>({
   driveFolderId: null,
   ensureDriveAccessToken: async () => null,
   loginWithGoogle: () => {},
+  linkGithub: () => {},
+  linkGoogle: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -85,18 +95,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // repo_nameカラムが無かった頃に保存されたセッションなど、値がまだ無い場合の保険
   const repoName = repoNameState ?? (githubLogin ? `learning-site-${githubLogin}` : null);
 
+  const githubAuthorizeUrl = () =>
+    `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
+
+  const googleAuthorizeUrl = () =>
+    `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClient}` +
+    `&redirect_uri=${encodeURIComponent(googleCallback)}` +
+    `&response_type=code&access_type=offline&prompt=consent` +
+    `&scope=${encodeURIComponent(GOOGLE_SCOPE)}`;
+
   const login = () => {
-    const url = `https://github.com/login/oauth/authorize?client_id=${client}&scope=repo&redirect_uri=${callback}`;
-    window.location.assign(url);
+    sessionStorage.removeItem(LINK_INTENT_KEY);
+    window.location.assign(githubAuthorizeUrl());
   };
 
   const loginWithGoogle = () => {
-    const url =
-      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClient}` +
-      `&redirect_uri=${encodeURIComponent(googleCallback)}` +
-      `&response_type=code&access_type=offline&prompt=consent` +
-      `&scope=${encodeURIComponent(GOOGLE_SCOPE)}`;
-    window.location.assign(url);
+    sessionStorage.removeItem(LINK_INTENT_KEY);
+    window.location.assign(googleAuthorizeUrl());
+  };
+
+  // --- アカウント連携 ---
+  // OAuthのリダイレクト先はログインと同じURLを使い回す（Google Cloud Console／GitHub OAuth Appに
+  // 別のコールバックURLを追加登録しなくて済むようにするため）。
+  // 「これはログインではなく連携だ」という区別はsessionStorageの目印で行う。
+  // localStorageではなくsessionStorageなのは、途中で離脱した目印が
+  // いつまでも残って次回のログインを誤って連携扱いしないようにするため
+  const linkGithub = () => {
+    sessionStorage.setItem(LINK_INTENT_KEY, "github");
+    window.location.assign(githubAuthorizeUrl());
+  };
+
+  const linkGoogle = () => {
+    sessionStorage.setItem(LINK_INTENT_KEY, "google");
+    window.location.assign(googleAuthorizeUrl());
   };
 
   const logout = () => {
@@ -145,6 +176,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
     const onGoogleCallback = window.location.pathname === GOOGLE_CALLBACK_PATH;
+
+    // アカウント連携から戻ってきた場合。ログイン処理（新規ユーザー作成を伴う）ではなく、
+    // ログイン中のユーザー行にもう一方のアカウントを書き足すAPIを呼ぶ
+    const linkIntent = sessionStorage.getItem(LINK_INTENT_KEY);
+    if (code && linkIntent) {
+      sessionStorage.removeItem(LINK_INTENT_KEY);
+      const runLink = async (authCode: string) => {
+        setIsAuthenticating(true);
+        try {
+          // 連携APIは本人確認が必須。保存済みセッションのapp_tokenを先に復元しておく
+          const saved = loadPersistedSession();
+          if (!saved) throw new Error("ログイン情報が見つかりません。もう一度ログインしてください。");
+          setAppToken(saved.appToken);
+
+          if (linkIntent === "google") {
+            const data = await linkGoogleApi(authCode);
+            setDriveFolderId(data.drive_folder_id ?? null);
+            if (data.access_token) {
+              setDriveAccessToken(data.access_token);
+              setDriveAccessTokenExpiresAt(Date.now() + (data.expires_in ?? 3600) * 1000);
+            }
+            savePersistedSession({ ...saved, driveFolderId: data.drive_folder_id ?? saved.driveFolderId });
+          } else {
+            const data = await linkGithubApi(authCode);
+            savePersistedSession({ ...saved, repoName: data.repo_name ?? saved.repoName });
+          }
+          showToast("アカウントを連携しました。", "success");
+        } catch (err) {
+          console.error("アカウント連携に失敗しました:", err);
+          showToast(errorMessage(err, "アカウント連携に失敗しました。"), "error", { durationMs: 10000 });
+        } finally {
+          setIsAuthenticating(false);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          window.location.assign("/LearningContent");
+        }
+      };
+
+      runLink(code);
+      effectRan.current = true;
+      return;
+    }
 
     if (code && onGoogleCallback) {
       const exchangeGoogleCodeForToken = async (authCode: string) => {
@@ -316,6 +388,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     driveFolderId,
     ensureDriveAccessToken,
     loginWithGoogle,
+    linkGithub,
+    linkGoogle,
   }}
 >
   {children}

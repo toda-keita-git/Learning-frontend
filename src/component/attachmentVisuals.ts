@@ -8,4 +8,4 @@ import type { NoteAttachment } from "./PlanTypes";
 // 添付が混在しうる。開いてみるまで保存先が分からないと混乱するため、
 // 一覧の時点でアイコンとラベルの両方で保存先を明示する。
 export const attachmentProviderLabel = (provider: NoteAttachment["provider"]): string =>
-  provider === "google" ? "Drive" : "GitHub";
+  provider === "google" ? "Google" : "GitHub";
