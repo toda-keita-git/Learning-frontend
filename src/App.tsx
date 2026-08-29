@@ -11,6 +11,9 @@ const FileSearch = lazy(() => import("./FileSearch"));
 const AuthenticatedGoalApp = lazy(() => import("./AuthenticatedGoalApp"));
 const GuestGoalDashboard = lazy(() => import("./GuestGoalDashboard"));
 const PageNotFound = lazy(() => import("./PageNotFound"));
+const TermsPage = lazy(() => import("./TermsPage"));
+const PrivacyPage = lazy(() => import("./PrivacyPage"));
+const TokushohoPage = lazy(() => import("./TokushohoPage"));
 
 // ページ遷移のたびに、body/htmlに残った可能性のあるスクロールロック用の
 // インラインスタイルを念のため解除する。一部画面はiOS対策でbody
@@ -58,6 +61,9 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/FileSearch" element={<FileSearch />} />
           <Route path="/guest" element={<GuestGoalDashboard />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/tokushoho" element={<TokushohoPage />} />
           {/*
             ルート名は /LearningContent のままにしている。GitHub OAuth Appの
             コールバックURL（VITE_CALLBACK_URL）に焼き込まれているため、

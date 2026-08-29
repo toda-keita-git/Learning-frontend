@@ -41,7 +41,7 @@ export default function AuthenticatedGoalApp() {
             <>
               <FlagOutlinedIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 800 }}>
-                目標達成支援アプリへようこそ
+                ツミアゲへようこそ
               </Typography>
               <Typography sx={{ mb: 3, color: "text.secondary" }}>
                 目標・アクションプラン・メモを記録するには、

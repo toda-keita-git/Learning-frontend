@@ -595,7 +595,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         <Toolbar>
           <FlagOutlinedIcon color="primary" sx={{ mr: 1 }} />
           <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
-            目標達成支援
+            ツミアゲ
           </Typography>
           {accountLabel && (
             <Typography

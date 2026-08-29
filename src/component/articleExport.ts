@@ -40,7 +40,7 @@ export function buildArticleMarkdown(item: ArticleSourceItem): string {
     md += `## 関連コード\n\n${attachments.map((a) => `- \`${a.path}\``).join("\n")}\n\n`;
   }
 
-  md += `---\n_この記事は学習ログアプリの記録から生成されました。_\n`;
+  md += `---\n_この記事はツミアゲの記録から生成されました。_\n`;
   return md;
 }
 

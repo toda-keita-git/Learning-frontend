@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
 import ResponsiveAppBar from "./component/ResponsiveAppBar";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -156,7 +157,7 @@ export default function Home() {
         <Container maxWidth="md" sx={{ textAlign: "center" }}>
           <FlagOutlinedIcon sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
           <Typography variant="h3" component="h1" sx={{ fontWeight: 800, mb: 2 }}>
-            目標達成支援
+            ツミアゲ
           </Typography>
           {/* 見出しではなく本文（キャッチコピー）なので、見た目はh6のままタグはpにする */}
           <Typography
@@ -471,6 +472,32 @@ export default function Home() {
           >
             お問い合わせ
           </Button>
+        </Container>
+      </Box>
+
+      {/* フッター。利用規約・プライバシーポリシー・特定商取引法に基づく表記への
+          導線が無いという指摘（販売可否評価レポート4.3）への対応 */}
+      <Box component="footer" sx={{ borderTop: "1px solid", borderColor: "divider", py: 3 }}>
+        <Container maxWidth="lg">
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={{ xs: 1, sm: 3 }}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Link component={RouterLink} to="/terms" variant="body2" color="text.secondary" underline="hover">
+              利用規約
+            </Link>
+            <Link component={RouterLink} to="/privacy" variant="body2" color="text.secondary" underline="hover">
+              プライバシーポリシー
+            </Link>
+            <Link component={RouterLink} to="/tokushoho" variant="body2" color="text.secondary" underline="hover">
+              特定商取引法に基づく表記
+            </Link>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mt: 2 }}>
+            © {new Date().getFullYear()} ツミアゲ（運営: 戸田啓太）
+          </Typography>
         </Container>
       </Box>
 
