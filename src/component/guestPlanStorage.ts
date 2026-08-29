@@ -11,6 +11,7 @@ import type {
   PlanInput,
   NoteInput,
 } from "./PlanTypes";
+import { deriveAutoStatus } from "./PlanTypes";
 import type { PlanDataSource, PlanDataBundle } from "./planDataSource";
 
 // ゲストモードは体験版という位置づけのため件数に上限を設ける
@@ -108,7 +109,10 @@ function average(values: (number | null)[]): number | null {
   return nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
 }
 
-// 末端（葉）から根に向かって再帰的に計算し、各プランにprogressを詰め直す
+// 末端（葉）から根に向かって再帰的に計算し、各プランにprogressを詰め直す。
+// バックエンドのProgressServiceと同様、進捗とstatusの不整合（「進捗100%なのに
+// 未着手のまま」等）もここで解消し、変わった分だけlocalStorageへ書き戻す
+// （呼ぶたびに再計算するため、書き戻さないと次回読み込み時にまた同じズレが起きる）
 function withProgress(plans: Plan[], notes: Note[]): Plan[] {
   const notesByPlan = new Map<number, number[]>();
   for (const note of notes) {
@@ -137,7 +141,19 @@ function withProgress(plans: Plan[], notes: Note[]): Plan[] {
     cache.set(plan.id, result);
     return result;
   };
-  return plans.map((plan) => ({ ...plan, progress: compute(plan) }));
+  const withComputedProgress = plans.map((plan) => {
+    const progress = compute(plan);
+    return { ...plan, progress, status: deriveAutoStatus(plan.status, progress) };
+  });
+
+  // statusが変わった分だけlocalStorageへ書き戻す（progressはPlan型の必須項目のため
+  // 一緒に保存されるが、次回読み込み時にどうせ再計算されるので実害はない）
+  const statusChanged = withComputedProgress.some((p, i) => p.status !== plans[i].status);
+  if (statusChanged) {
+    save(PLANS_KEY, withComputedProgress);
+  }
+
+  return withComputedProgress;
 }
 
 // ---- カテゴリー・タグ ----

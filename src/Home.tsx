@@ -155,11 +155,13 @@ export default function Home() {
       >
         <Container maxWidth="md" sx={{ textAlign: "center" }}>
           <FlagOutlinedIcon sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
-          <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
+          <Typography variant="h3" component="h1" sx={{ fontWeight: 800, mb: 2 }}>
             目標達成支援
           </Typography>
+          {/* 見出しではなく本文（キャッチコピー）なので、見た目はh6のままタグはpにする */}
           <Typography
             variant="h6"
+            component="p"
             sx={{ color: "text.secondary", fontWeight: 400, mb: 4 }}
           >
             最終目標をアクションプランに分解し、日々のメモで積み上げる。
@@ -208,6 +210,7 @@ export default function Home() {
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }} ref={stepsRef}>
         <Typography
           variant="h5"
+          component="h2"
           sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
         >
           つかいかた
@@ -240,7 +243,7 @@ export default function Home() {
               >
                 {s.no}
               </Box>
-              <Typography variant="h6" sx={{ mb: 1 }}>
+              <Typography variant="h6" component="h3" sx={{ mb: 1 }}>
                 {s.title}
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>{s.desc}</Typography>
@@ -262,7 +265,7 @@ export default function Home() {
           >
             <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
               <LockOutlinedIcon color="primary" />
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
                 なぜログインが必要なの？
               </Typography>
             </Stack>
@@ -346,6 +349,7 @@ export default function Home() {
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
         <Typography
           variant="h5"
+          component="h2"
           sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
         >
           オンライン・オフラインの違い
@@ -412,6 +416,7 @@ export default function Home() {
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
         <Typography
           variant="h5"
+          component="h2"
           sx={{ fontWeight: 700, textAlign: "center", mb: 1 }}
         >
           無料で使える主な機能
@@ -444,7 +449,7 @@ export default function Home() {
               }}
             >
               <Box sx={{ mb: 1.5 }}>{f.icon}</Box>
-              <Typography variant="h6" sx={{ mb: 1 }}>
+              <Typography variant="h6" component="h3" sx={{ mb: 1 }}>
                 {f.title}
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>{f.desc}</Typography>
