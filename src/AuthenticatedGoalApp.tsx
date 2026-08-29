@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -11,12 +11,20 @@ import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import { AuthContext } from "./Context";
 import PlanDashboard from "./PlanDashboard";
 import { apiPlanDataSource } from "./component/planDataSource";
+import GuestImportGate from "./component/GuestImportGate";
+import { hasGuestData, isGuestImportDismissed } from "./component/guestPlanStorage";
 
 // GitHub・Googleいずれかのログインを要求するゲート。ログイン済みならバックエンドAPIを使う
 // PlanDashboardを、未ログインならログイン画面（初回ログイン時にどちらを使うか選ぶ場所）を表示する
 export default function AuthenticatedGoalApp() {
   const { isAuthenticated, isAuthenticating, login, loginWithGoogle, logout, githubLogin, googleEmail, authProvider, userId } =
     useContext(AuthContext);
+
+  // ログイン直後、この端末にゲストモードの記録が残っていれば取り込みを確認する。
+  // ゲストデータはOAuthの間に増減しないため、マウント時点の1回だけ判定すればよい
+  const [showGuestImportGate, setShowGuestImportGate] = useState(
+    () => hasGuestData() && !isGuestImportDismissed()
+  );
 
   if (!isAuthenticated) {
     return (
@@ -56,6 +64,10 @@ export default function AuthenticatedGoalApp() {
   }
 
   const accountLabel = authProvider === "google" ? googleEmail : githubLogin;
+
+  if (showGuestImportGate) {
+    return <GuestImportGate onDone={() => setShowGuestImportGate(false)} />;
+  }
 
   return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} accountLabel={accountLabel} onLogout={logout} />;
 }

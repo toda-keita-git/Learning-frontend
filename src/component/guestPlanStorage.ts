@@ -417,6 +417,35 @@ export function hasGuestData(): boolean {
   return load<Plan>(PLANS_KEY).length > 0 || load<Note>(NOTES_KEY).length > 0;
 }
 
+// アカウントへの取り込み一覧確認用に、ゲストデータをそのまま返す。
+// plans[].id / parent_id、notes[].links はいずれもこの端末だけで振られたローカルIDで、
+// アカウント側では意味を持たない。取り込み処理（バックエンドのGuestImportService）が
+// これらローカルIDを手がかりに実IDへ張り直す
+export function readGuestDataForImport(): { plans: Plan[]; notes: Note[] } {
+  return { plans: load<Plan>(PLANS_KEY), notes: load<Note>(NOTES_KEY) };
+}
+
+const IMPORT_DISMISSED_KEY = "guestImportDismissed";
+
+// 「今は取り込まない」を選んだことを覚えておき、ログインするたびに毎回
+// 確認ダイアログを出さないようにする（データ自体は消さないので、後から
+// 設定画面等で改めて取り込む導線を用意すれば、このフラグを解除すればまた出せる）
+export function isGuestImportDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(IMPORT_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function dismissGuestImport(): void {
+  try {
+    window.localStorage.setItem(IMPORT_DISMISSED_KEY, "1");
+  } catch {
+    // 保存できなくても致命的ではない（次回また確認ダイアログが出るだけ）
+  }
+}
+
 export function clearGuestPlanData(): void {
   try {
     window.localStorage.removeItem(PLANS_KEY);
