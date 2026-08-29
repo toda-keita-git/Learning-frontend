@@ -37,6 +37,11 @@ services:
         sync: false
       - key: VITE_GOOGLE_CALLBACK_URL
         sync: false
+      # Google Picker API用のAPIキー。OAuthクライアントID/シークレットとは別物。
+      # Google Cloud Consoleで「Google Picker API」を有効化し、HTTPリファラーを
+      # このアプリのドメインに制限したAPIキーを作成して設定する
+      - key: VITE_GOOGLE_PICKER_API_KEY
+        sync: false
       - key: VITE_REPO_OWNER
         sync: false
       - key: VITE_REPO_NAME

@@ -1,5 +1,6 @@
 // Googleドライブ API v3 への薄いfetchラッパー（GitHub側のOctokitに相当）。
-// このアプリの添付ファイル操作（一覧・アップロード・取得・削除）に必要な最小限だけを持つ。
+// このアプリの添付ファイル操作（アップロード・取得・削除）に必要な最小限だけを持つ。
+// 既存ファイルの選択はGoogle Picker（googlePicker.ts）が別に担当する。
 //
 // 取得したファイルは呼び出し側でbase64文字列に変換して返す（getDriveFileBase64）。
 // これは既存のプレビュー/デコード用ヘルパー（decodeBase64.tsx, RichFilePreview.tsx等）が
@@ -9,28 +10,9 @@
 const FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 
-export interface DriveItem {
-  id: string;
-  name: string;
-  mimeType: string;
-}
-
 const authHeaders = (accessToken: string): HeadersInit => ({
   Authorization: `Bearer ${accessToken}`,
 });
-
-// このアプリが作成したファイルはフォルダ直下にしか置かないため、単一階層の一覧のみで足りる
-// （GitHub版のようなネストしたフォルダ探索は行わない）
-export const listDriveFolder = async (accessToken: string, folderId: string): Promise<DriveItem[]> => {
-  const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-  const fields = encodeURIComponent("files(id,name,mimeType)");
-  const response = await fetch(`${FILES_URL}?q=${query}&fields=${fields}&pageSize=1000`, {
-    headers: authHeaders(accessToken),
-  });
-  if (!response.ok) throw new Error("Googleドライブのファイル一覧取得に失敗しました。");
-  const data = await response.json();
-  return (data.files ?? []) as DriveItem[];
-};
 
 const fileToBase64 = (file: File | Blob): Promise<string> =>
   new Promise((resolve, reject) => {
