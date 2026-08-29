@@ -11,6 +11,7 @@ import type {
   PlanInput,
   NoteInput,
 } from "./PlanTypes";
+import { deriveAutoStatus } from "./PlanTypes";
 import type { PlanDataSource, PlanDataBundle } from "./planDataSource";
 
 // ゲストモードは体験版という位置づけのため件数に上限を設ける
@@ -108,7 +109,10 @@ function average(values: (number | null)[]): number | null {
   return nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
 }
 
-// 末端（葉）から根に向かって再帰的に計算し、各プランにprogressを詰め直す
+// 末端（葉）から根に向かって再帰的に計算し、各プランにprogressを詰め直す。
+// バックエンドのProgressServiceと同様、進捗とstatusの不整合（「進捗100%なのに
+// 未着手のまま」等）もここで解消し、変わった分だけlocalStorageへ書き戻す
+// （呼ぶたびに再計算するため、書き戻さないと次回読み込み時にまた同じズレが起きる）
 function withProgress(plans: Plan[], notes: Note[]): Plan[] {
   const notesByPlan = new Map<number, number[]>();
   for (const note of notes) {
@@ -137,7 +141,19 @@ function withProgress(plans: Plan[], notes: Note[]): Plan[] {
     cache.set(plan.id, result);
     return result;
   };
-  return plans.map((plan) => ({ ...plan, progress: compute(plan) }));
+  const withComputedProgress = plans.map((plan) => {
+    const progress = compute(plan);
+    return { ...plan, progress, status: deriveAutoStatus(plan.status, progress) };
+  });
+
+  // statusが変わった分だけlocalStorageへ書き戻す（progressはPlan型の必須項目のため
+  // 一緒に保存されるが、次回読み込み時にどうせ再計算されるので実害はない）
+  const statusChanged = withComputedProgress.some((p, i) => p.status !== plans[i].status);
+  if (statusChanged) {
+    save(PLANS_KEY, withComputedProgress);
+  }
+
+  return withComputedProgress;
 }
 
 // ---- カテゴリー・タグ ----
@@ -399,6 +415,35 @@ export const guestPlanDataSource: PlanDataSource = {
 
 export function hasGuestData(): boolean {
   return load<Plan>(PLANS_KEY).length > 0 || load<Note>(NOTES_KEY).length > 0;
+}
+
+// アカウントへの取り込み一覧確認用に、ゲストデータをそのまま返す。
+// plans[].id / parent_id、notes[].links はいずれもこの端末だけで振られたローカルIDで、
+// アカウント側では意味を持たない。取り込み処理（バックエンドのGuestImportService）が
+// これらローカルIDを手がかりに実IDへ張り直す
+export function readGuestDataForImport(): { plans: Plan[]; notes: Note[] } {
+  return { plans: load<Plan>(PLANS_KEY), notes: load<Note>(NOTES_KEY) };
+}
+
+const IMPORT_DISMISSED_KEY = "guestImportDismissed";
+
+// 「今は取り込まない」を選んだことを覚えておき、ログインするたびに毎回
+// 確認ダイアログを出さないようにする（データ自体は消さないので、後から
+// 設定画面等で改めて取り込む導線を用意すれば、このフラグを解除すればまた出せる）
+export function isGuestImportDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(IMPORT_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function dismissGuestImport(): void {
+  try {
+    window.localStorage.setItem(IMPORT_DISMISSED_KEY, "1");
+  } catch {
+    // 保存できなくても致命的ではない（次回また確認ダイアログが出るだけ）
+  }
 }
 
 export function clearGuestPlanData(): void {

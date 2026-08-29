@@ -399,3 +399,17 @@ export const deleteNoteAttachmentApi = async (attachmentId: number) => {
   const response = await axios.post(`/note_attachment_delete/${attachmentId}`);
   return response.data;
 };
+
+// ゲストモードで作成したプラン・メモをログイン中のアカウントへ取り込む。
+// plans[].id / parent_id、notes[].links はこの端末だけで振られたローカルIDのままでよい
+// （バックエンドがこれを手がかりに実IDへ張り直す）
+export type GuestImportResult = {
+  imported_plans: number;
+  imported_notes: number;
+  skipped_notes: number;
+};
+
+export const guestImportApi = async (plans: Plan[], notes: Note[]): Promise<GuestImportResult> => {
+  const response = await axios.post("/guest_import", { plans, notes });
+  return response.data as GuestImportResult;
+};

@@ -89,6 +89,23 @@ export const PLAN_STATUS_LABEL: Record<PlanStatus, string> = {
   suspended: "中断",
 };
 
+// 進捗率から、自動で追随させるべきstatusを求める。
+// バックエンド側 ProgressCalculator#deriveAutoStatus と同じルールをゲストモード
+// （バックエンドを一切経由しない）でも成立させるための、意図的な重複実装。
+//
+// 「done」「suspended」はユーザーが明示的に選んだ状態として扱い、進捗が変化しても
+// 自動では変更しない。自動で進めるのは「not_started」からの一方向のみ:
+//   not_started → in_progress（進捗1%以上）
+//   not_started/in_progress → done（進捗100%）
+// 対象が無くprogressがnull（"未設定"）の間は、statusをそのまま返す。
+export const deriveAutoStatus = (status: PlanStatus, progress: number | null): PlanStatus => {
+  if (status === "done" || status === "suspended") return status;
+  if (progress === null) return status;
+  if (progress >= 100) return "done";
+  if (progress > 0 && status === "not_started") return "in_progress";
+  return status;
+};
+
 export const NOTE_TYPE_LABEL: Record<NoteType, string> = {
   learning: "学習用",
   task: "チェック用",

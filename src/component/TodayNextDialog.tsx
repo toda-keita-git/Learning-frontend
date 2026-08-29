@@ -82,12 +82,14 @@ export default function TodayNextDialog({
           isRoutineDue(userId, n.id, n.review_interval_days)
       );
 
-      // 完了・中断は「次にやる事」から外す
-      const nextPlans = descendants
-        .filter((p) => p.status !== "done" && p.status !== "suspended")
-        .slice(0, MAX_NEXT_PER_GOAL);
+      // 完了・中断は「次にやる事」から外す。statusに加えてprogressも見ているのは、
+      // バックエンド側は/plans取得のたびにprogress===100のプランをstatus="done"へ
+      // 自動で追随させるが、その反映が届く前の古いデータ（オフラインキャッシュ等）では
+      // 「進捗100%なのに未着手のまま」の行が一時的に残りうるための保険
+      const isDone = (p: Plan) => p.status === "done" || p.status === "suspended" || p.progress === 100;
+      const nextPlans = descendants.filter((p) => !isDone(p)).slice(0, MAX_NEXT_PER_GOAL);
 
-      return { goal, todayNotes, nextPlans, remainingCount: descendants.filter((p) => p.status !== "done" && p.status !== "suspended").length - nextPlans.length };
+      return { goal, todayNotes, nextPlans, remainingCount: descendants.filter((p) => !isDone(p)).length - nextPlans.length };
     });
   }, [plans, notes, userId]);
 

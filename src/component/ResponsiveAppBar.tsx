@@ -37,8 +37,12 @@ function ResponsiveAppBar({ ctaLabel, onCtaClick }: ResponsiveAppBarProps) {
             }}
           >
             <MenuBookIcon />
+            {/* サイトロゴ/ブランド名であってページ本文の見出しではないため、
+                見た目はh6のまま、タグはspanにしてページの見出し階層（h1→h2→h3…）を
+                乱さないようにする */}
             <Typography
               variant="h6"
+              component="span"
               noWrap
               sx={{ fontWeight: 700, letterSpacing: ".08rem", color: "inherit" }}
             >
