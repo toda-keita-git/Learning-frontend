@@ -61,6 +61,15 @@ export const openGoogleDrivePicker = (
           reject(new Error("Google Picker用のAPIキーが設定されていません。"));
           return;
         }
+        // drive.fileスコープでPickerを使う場合、setAppId()が無いと「マイドライブ全体」
+        // からの既存ファイル選択が機能しない（アプリが作成した／既にアクセス権のある
+        // ファイルしか選べないままになる）。値はOAuthクライアントと同じCloud
+        // プロジェクトの「プロジェクト番号」
+        const projectNumber = import.meta.env.VITE_GOOGLE_PROJECT_NUMBER;
+        if (!projectNumber) {
+          reject(new Error("Google Cloudのプロジェクト番号が設定されていません。"));
+          return;
+        }
 
         const views: google.picker.DocsView[] = [];
         if (driveFolderId) {
@@ -77,6 +86,7 @@ export const openGoogleDrivePicker = (
         const builder = new google.picker.PickerBuilder()
           .setOAuthToken(accessToken)
           .setDeveloperKey(apiKey)
+          .setAppId(projectNumber)
           .setLocale("ja")
           .setCallback((data: google.picker.ResponseObject) => {
             if (data.action === google.picker.Action.PICKED) {

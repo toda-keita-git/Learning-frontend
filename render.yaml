@@ -42,6 +42,11 @@ services:
       # このアプリのドメインに制限したAPIキーを作成して設定する
       - key: VITE_GOOGLE_PICKER_API_KEY
         sync: false
+      # drive.fileスコープでPickerを使う場合はsetAppId()が必須。値はGoogle Cloud
+      # ConsoleのIAMと管理 > 設定に表示される「プロジェクト番号」（プロジェクトID
+      # ではない）。VITE_GOOGLE_CLIENT_IDと同じCloudプロジェクトのものを使うこと
+      - key: VITE_GOOGLE_PROJECT_NUMBER
+        sync: false
       - key: VITE_REPO_OWNER
         sync: false
       - key: VITE_REPO_NAME
