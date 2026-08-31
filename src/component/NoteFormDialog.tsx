@@ -251,15 +251,20 @@ export default function NoteFormDialog({
     }
   };
 
-  const handleGithubFileSelect = async (path: string) => {
+  const handleGithubFileSelect = async (path: string, name: string) => {
     setGithubSelectorOpen(false);
     if (!octokit || !githubLogin || !repoName) return;
     setResolvingCodeSha(true);
     try {
       const { data } = await octokit.repos.getContent({ owner: githubLogin, repo: repoName, path });
-      const sha = !Array.isArray(data) && "sha" in data ? data.sha : null;
+      // フォルダを指すパスだとgetContentは配列を返す。そのまま添付すると
+      // 開けない壊れた添付になってしまうため、ファイル以外は弾く
+      if (Array.isArray(data)) throw new Error("フォルダは添付できません。");
+      const sha = "sha" in data ? data.sha : null;
       await addAttachmentLocallyOrRemotely({
-        kind: "code",
+        // 画像かどうかで添付の種別が変わる（以前は"code"固定で、画像を選んでも
+        // プレビューでコード扱いになっていた）
+        kind: attachmentKindOf(name),
         github_path: path,
         commit_sha: sha,
         repo_name: repoName,
@@ -267,7 +272,7 @@ export default function NoteFormDialog({
       });
     } catch (err) {
       console.error(err);
-      showToast("コードの添付に失敗しました。", "error");
+      showToast(errorMessage(err, "ファイルの添付に失敗しました。"), "error");
     } finally {
       setResolvingCodeSha(false);
     }

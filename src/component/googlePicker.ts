@@ -101,11 +101,18 @@ export const openGoogleDrivePicker = (
         myDriveView.setLabel("マイドライブ全体から選ぶ");
         views.push(myDriveView);
 
+        // サイズを指定しないとPickerはデフォルトの大きめ固定サイズ（横1051×縦650）で
+        // 開き、ウィンドウの表示領域がそれより小さいと上部のタブ行が画面外にはみ出して
+        // 見えなくなる。実際の表示領域に収まるサイズに明示的に合わせる
+        const pickerWidth = Math.min(1051, window.innerWidth - 32);
+        const pickerHeight = Math.min(650, window.innerHeight - 32);
+
         const builder = new google.picker.PickerBuilder()
           .setOAuthToken(accessToken)
           .setDeveloperKey(apiKey)
           .setAppId(projectNumber)
           .setLocale("ja")
+          .setSize(pickerWidth, pickerHeight)
           .setCallback((data: google.picker.ResponseObject) => {
             if (data.action === google.picker.Action.PICKED) {
               const doc = data.docs?.[0];
