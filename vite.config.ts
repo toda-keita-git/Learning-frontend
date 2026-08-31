@@ -39,10 +39,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["pwa-icon.svg"],
       manifest: {
-        name: "学習ログ",
-        short_name: "学習ログ",
+        name: "ツミアゲ",
+        short_name: "ツミアゲ",
         description:
-          "学んだことをGitHub上のコードと結びつけて記録・振り返りできる学習記録アプリ",
+          "目標をアクションプランに分解し、日々のメモが自動で進捗に積み上がる目標達成支援アプリ",
         theme_color: "#4f46e5",
         background_color: "#f6f7fb",
         display: "standalone",

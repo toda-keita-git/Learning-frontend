@@ -29,7 +29,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
-import GoogleDriveFileSelector from "./GoogleDriveFileSelector";
+import { openGoogleDrivePicker } from "./googlePicker";
 import { uploadDriveFile } from "./driveClient";
 import { getFileType } from "./getFileType";
 import MarkdownContent from "./MarkdownContent";
@@ -112,7 +112,6 @@ export default function NoteFormDialog({
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
-  const [driveSelectorOpen, setDriveSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -274,16 +273,30 @@ export default function NoteFormDialog({
     }
   };
 
-  const handleDriveFileSelect = async (fileId: string, fileName: string) => {
-    setDriveSelectorOpen(false);
-    if (!driveFolderId) return;
-    await addAttachmentLocallyOrRemotely({
-      kind: "code",
-      github_path: fileId,
-      commit_sha: fileName,
-      repo_name: driveFolderId,
-      provider: "google",
-    });
+  // ユーザーがGoogleドライブへ直接追加した既存ファイルも添付できるよう、
+  // 自前のフォルダ一覧ではなくGoogle純正のPickerを使う。drive.fileスコープの
+  // 例外規定（ユーザーが明示的に開いた＝Pickerで選んだファイルにはアクセスできる）
+  // を使うことで、アプリの外に一切持ち出さずに選べる
+  const handleOpenGoogleDrivePicker = async () => {
+    setResolvingCodeSha(true);
+    try {
+      const accessToken = await ensureDriveAccessToken();
+      if (!accessToken) throw new Error("Driveのアクセストークンを取得できませんでした。");
+      const picked = await openGoogleDrivePicker(accessToken, driveFolderId);
+      if (!picked || !driveFolderId) return; // キャンセル、またはドライブ未連携
+      await addAttachmentLocallyOrRemotely({
+        kind: attachmentKindOf(picked.name),
+        github_path: picked.id,
+        commit_sha: picked.name,
+        repo_name: driveFolderId,
+        provider: "google",
+      });
+    } catch (err) {
+      console.error(err);
+      showToast("Googleドライブからの添付に失敗しました。", "error");
+    } finally {
+      setResolvingCodeSha(false);
+    }
   };
 
   const handleRemoveAttachment = async (attachment: NoteAttachment, index: number) => {
@@ -522,7 +535,7 @@ export default function NoteFormDialog({
                   resolvingCodeSha ? <CircularProgress size={14} /> : <AttachmentProviderIcon provider={attachTarget} />
                 }
                 disabled={!hasAnyStorage || resolvingCodeSha}
-                onClick={() => (attachTarget === "google" ? setDriveSelectorOpen(true) : setGithubSelectorOpen(true))}
+                onClick={() => (attachTarget === "google" ? handleOpenGoogleDrivePicker() : setGithubSelectorOpen(true))}
               >
                 {attachmentProviderLabel(attachTarget)}
               </Button>
@@ -659,11 +672,6 @@ export default function NoteFormDialog({
         open={githubSelectorOpen}
         onClose={() => setGithubSelectorOpen(false)}
         onFileSelect={handleGithubFileSelect}
-      />
-      <GoogleDriveFileSelector
-        open={driveSelectorOpen}
-        onClose={() => setDriveSelectorOpen(false)}
-        onFileSelect={handleDriveFileSelect}
       />
     </Dialog>
   );
