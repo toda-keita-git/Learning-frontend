@@ -46,6 +46,21 @@ export interface PickedDriveFile {
   name: string;
 }
 
+// Google PickerはデフォルトでMUIのDialog（z-index: 1300）より低いz-indexで
+// 描画されるため、メモ添付ダイアログの後ろに隠れてしまう。Picker自体には
+// z-indexを指定するビルダーAPIが無いため、CSSで強制的に引き上げる
+let pickerZIndexStyleInjected = false;
+const ensurePickerZIndexStyle = (): void => {
+  if (pickerZIndexStyleInjected) return;
+  const style = document.createElement("style");
+  style.textContent = `
+    .picker-dialog-bg { z-index: 1301 !important; }
+    .picker-dialog { z-index: 1302 !important; }
+  `;
+  document.head.appendChild(style);
+  pickerZIndexStyleInjected = true;
+};
+
 // ツミアゲが作成した添付フォルダをデフォルトタブにしつつ、「マイドライブ」全体を
 // 見て選べるタブも並べる。これにより、アプリ内で作った添付とドライブに
 // 直接置いた既存ファイルの両方を、同じ画面から選べるようにしている。
@@ -79,6 +94,9 @@ export const openGoogleDrivePicker = (
           views.push(folderView);
         }
         const myDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS);
+        // setParent("root")が無いと、マイドライブの階層構造ではなく
+        // ドライブ全体を横断した検索結果がフラットに表示されてしまう
+        myDriveView.setParent("root");
         myDriveView.setIncludeFolders(true);
         myDriveView.setLabel("マイドライブ全体から選ぶ");
         views.push(myDriveView);
@@ -97,6 +115,7 @@ export const openGoogleDrivePicker = (
             }
           });
         views.forEach((view) => builder.addView(view));
+        ensurePickerZIndexStyle();
         builder.build().setVisible(true);
       })
   );
