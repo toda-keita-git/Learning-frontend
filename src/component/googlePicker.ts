@@ -86,6 +86,15 @@ export const openGoogleDrivePicker = (
           return;
         }
 
+        // LIST表示（詳細リスト）はフォルダ行の右端にある小さな矢印アイコンを正確に
+        // タップしないと階層に入れず、スマホでは指がずれて選択し直しになりやすい
+        // （「選択→開く」の2タップのはずが実質3タップ以上に感じられる）。GRID表示
+        // （サムネイル一覧）ならフォルダのカード全体が当たり判定になり、「タップで
+        // 選択→もう一度タップで開く」の2タップに安定する（実機での動作確認済み）。
+        // そのためスマホ幅ではGRIDを使う
+        const isMobile = window.innerWidth <= 600;
+        const docsViewMode = isMobile ? google.picker.DocsViewMode.GRID : google.picker.DocsViewMode.LIST;
+
         // マイドライブのルートを起点に、フォルダをたどって選べるようにする。
         //
         // フォルダの中身を一覧する操作はdrive.fileスコープでは許可されないため、
@@ -105,12 +114,14 @@ export const openGoogleDrivePicker = (
         myDriveView.setParent("root");
         myDriveView.setIncludeFolders(true);
         myDriveView.setLabel("マイドライブ全体から選ぶ");
+        myDriveView.setMode(docsViewMode);
         views.push(myDriveView);
 
         if (driveFolderId) {
           const folderView = new google.picker.DocsView(google.picker.ViewId.DOCS);
           folderView.setParent(driveFolderId);
           folderView.setLabel("このアプリの添付フォルダ");
+          folderView.setMode(docsViewMode);
           views.push(folderView);
         }
 
