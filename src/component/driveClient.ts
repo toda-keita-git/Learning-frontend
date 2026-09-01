@@ -73,33 +73,3 @@ export const deleteDriveFile = async (accessToken: string, fileId: string): Prom
     throw new Error("Googleドライブのファイル削除に失敗しました。");
   }
 };
-
-const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
-
-export interface DriveEntry {
-  id: string;
-  name: string;
-  isFolder: boolean;
-}
-
-// フォルダ・ファイルの名前一覧のみを目的とした最小限の呼び出し（中身は読まない）。
-// drive.metadata.readonlyスコープの範囲内で、任意のフォルダの直下を一覧できる。
-// GoogleDriveFolderBrowser（スマホでの1タップ階層移動用）が使う。
-// ファイルの実体（中身）には引き続きdrive.fileスコープの範囲でしかアクセスできない
-// ため、一覧に出てきたファイルをタップしても、選択の確定はGoogle純正Pickerに委ねる
-export const listDriveFolderContents = async (accessToken: string, parentId: string): Promise<DriveEntry[]> => {
-  const escapedParentId = parentId.replace(/'/g, "\\'");
-  const params = new URLSearchParams({
-    q: `'${escapedParentId}' in parents and trashed = false`,
-    fields: "files(id,name,mimeType)",
-    orderBy: "folder,name",
-    pageSize: "200",
-  });
-  const response = await fetch(`${FILES_URL}?${params.toString()}`, {
-    headers: authHeaders(accessToken),
-  });
-  if (!response.ok) throw new Error("Googleドライブのフォルダ一覧の取得に失敗しました。");
-  const data = await response.json();
-  const files = (data.files ?? []) as { id: string; name: string; mimeType: string }[];
-  return files.map((file) => ({ id: file.id, name: file.name, isFolder: file.mimeType === FOLDER_MIME_TYPE }));
-};
