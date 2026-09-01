@@ -73,3 +73,27 @@ export const deleteDriveFile = async (accessToken: string, fileId: string): Prom
     throw new Error("Googleドライブのファイル削除に失敗しました。");
   }
 };
+
+export interface DriveFolderItem {
+  id: string;
+  name: string;
+}
+
+// フォルダ名の一覧取得のみを目的とした最小限の呼び出し。drive.metadata.readonly
+// スコープの範囲内（ファイルの中身は読めない）で、任意のフォルダの直下のサブフォルダを
+// 一覧できる。GoogleDriveFolderBrowser（スマホでの1タップ階層移動用）が使う
+export const listDriveSubfolders = async (accessToken: string, parentId: string): Promise<DriveFolderItem[]> => {
+  const escapedParentId = parentId.replace(/'/g, "\\'");
+  const params = new URLSearchParams({
+    q: `'${escapedParentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    fields: "files(id,name)",
+    orderBy: "name",
+    pageSize: "200",
+  });
+  const response = await fetch(`${FILES_URL}?${params.toString()}`, {
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) throw new Error("Googleドライブのフォルダ一覧の取得に失敗しました。");
+  const data = await response.json();
+  return (data.files ?? []) as DriveFolderItem[];
+};

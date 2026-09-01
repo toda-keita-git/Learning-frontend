@@ -29,8 +29,10 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
-import { openGoogleDrivePicker } from "./googlePicker";
+import GoogleDriveFolderBrowser from "./GoogleDriveFolderBrowser";
+import { openGoogleDrivePicker, type PickedDriveFile } from "./googlePicker";
 import { uploadDriveFile } from "./driveClient";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 import { getFileType } from "./getFileType";
 import MarkdownContent from "./MarkdownContent";
 import { ROUTINE_PRESETS } from "./routine";
@@ -112,6 +114,8 @@ export default function NoteFormDialog({
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
+  const [driveBrowserOpen, setDriveBrowserOpen] = useState(false);
+  const [driveBrowserToken, setDriveBrowserToken] = useState<string | null>(null);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,6 +126,9 @@ export default function NoteFormDialog({
   const { octokit, githubLogin, repoName, authProvider, driveFolderId, ensureDriveAccessToken } =
     useContext(AuthContext);
   const { showToast } = useToast();
+  // スマホではGoogle Picker純正の「マイドライブ全体」タブでのフォルダ移動が
+  // 1タップで反応しないため、階層移動だけは自前のGoogleDriveFolderBrowserに任せる
+  const isMobile = useFullScreenDialog();
 
   // 添付の保存先として使えるか。ログインに使ったプロバイダーではなく、
   // 実際にその保存先を使う手段が揃っているかで判定する。
@@ -278,17 +285,12 @@ export default function NoteFormDialog({
     }
   };
 
-  // ユーザーがGoogleドライブへ直接追加した既存ファイルも添付できるよう、
-  // 自前のフォルダ一覧ではなくGoogle純正のPickerを使う。drive.fileスコープの
-  // 例外規定（ユーザーが明示的に開いた＝Pickerで選んだファイルにはアクセスできる）
-  // を使うことで、アプリの外に一切持ち出さずに選べる
-  const handleOpenGoogleDrivePicker = async () => {
-    setResolvingCodeSha(true);
+  // 選ばれたファイルを添付として登録する。Google純正Picker経由・自前の
+  // GoogleDriveFolderBrowser経由（最終的な選択はPickerに引き継ぐ）どちらも
+  // ここに合流する
+  const handleDrivePicked = async (picked: PickedDriveFile) => {
+    if (!driveFolderId) return;
     try {
-      const accessToken = await ensureDriveAccessToken();
-      if (!accessToken) throw new Error("Driveのアクセストークンを取得できませんでした。");
-      const picked = await openGoogleDrivePicker(accessToken, driveFolderId);
-      if (!picked || !driveFolderId) return; // キャンセル、またはドライブ未連携
       await addAttachmentLocallyOrRemotely({
         kind: attachmentKindOf(picked.name),
         github_path: picked.id,
@@ -299,6 +301,46 @@ export default function NoteFormDialog({
     } catch (err) {
       console.error(err);
       showToast("Googleドライブからの添付に失敗しました。", "error");
+    }
+  };
+
+  // ユーザーがGoogleドライブへ直接追加した既存ファイルも添付できるよう、
+  // 自前のフォルダ一覧ではなくGoogle純正のPickerを使う。drive.fileスコープの
+  // 例外規定（ユーザーが明示的に開いた＝Pickerで選んだファイルにはアクセスできる）
+  // を使うことで、アプリの外に一切持ち出さずに選べる。
+  //
+  // ただしPicker純正の「マイドライブ全体」タブは、フォルダを開くのに
+  // 「タップして選択→もう一度タップして開く」という2段階操作が必須で、
+  // スマホでは1タップで反応しないように感じられる（Picker自身のUI仕様のため
+  // 変更できない）。スマホではフォルダ階層をたどる操作自体をGoogleDriveFolderBrowser
+  // （1タップで確実に移動できる自前の一覧）に任せ、最終的なファイル選択だけを
+  // Pickerに引き継ぐ
+  const handleOpenGoogleDrivePicker = async () => {
+    setResolvingCodeSha(true);
+    try {
+      const accessToken = await ensureDriveAccessToken();
+      if (!accessToken) throw new Error("Driveのアクセストークンを取得できませんでした。");
+      if (isMobile) {
+        setDriveBrowserToken(accessToken);
+        setDriveBrowserOpen(true);
+        return;
+      }
+      const picked = await openGoogleDrivePicker(accessToken, driveFolderId);
+      if (!picked) return; // キャンセル
+      await handleDrivePicked(picked);
+    } catch (err) {
+      console.error(err);
+      showToast("Googleドライブからの添付に失敗しました。", "error");
+    } finally {
+      setResolvingCodeSha(false);
+    }
+  };
+
+  const handleDriveBrowserPick = async (picked: PickedDriveFile) => {
+    setDriveBrowserOpen(false);
+    setResolvingCodeSha(true);
+    try {
+      await handleDrivePicked(picked);
     } finally {
       setResolvingCodeSha(false);
     }
@@ -677,6 +719,14 @@ export default function NoteFormDialog({
         open={githubSelectorOpen}
         onClose={() => setGithubSelectorOpen(false)}
         onFileSelect={handleGithubFileSelect}
+      />
+
+      <GoogleDriveFolderBrowser
+        open={driveBrowserOpen}
+        accessToken={driveBrowserToken}
+        driveFolderId={driveFolderId}
+        onClose={() => setDriveBrowserOpen(false)}
+        onPick={handleDriveBrowserPick}
       />
     </Dialog>
   );
