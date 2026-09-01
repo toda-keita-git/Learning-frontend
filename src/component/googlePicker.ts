@@ -86,13 +86,6 @@ export const openGoogleDrivePicker = (
           return;
         }
 
-        const views: google.picker.DocsView[] = [];
-        if (driveFolderId) {
-          const folderView = new google.picker.DocsView(google.picker.ViewId.DOCS);
-          folderView.setParent(driveFolderId);
-          folderView.setLabel("このアプリの添付フォルダ");
-          views.push(folderView);
-        }
         // マイドライブのルートを起点に、フォルダをたどって選べるようにする。
         //
         // フォルダの中身を一覧する操作はdrive.fileスコープでは許可されないため、
@@ -103,11 +96,23 @@ export const openGoogleDrivePicker = (
         // setSelectFolderEnabledは有効にしない。添付できるのはファイルだけで、
         // フォルダを選べてしまうと壊れた添付ができてしまうため
         // （GitHub側のセレクタでも同じ理由でフォルダは選択対象外にしている）。
+        //
+        // Pickerは最初にaddViewしたタブをデフォルトで開くため、既存ファイルを
+        // 探す操作が多い「マイドライブ全体」を先に追加し、タブ切り替えの1タップを
+        // 省く（このアプリの添付フォルダへは2番目のタブから引き続き選べる）。
+        const views: google.picker.DocsView[] = [];
         const myDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS);
         myDriveView.setParent("root");
         myDriveView.setIncludeFolders(true);
         myDriveView.setLabel("マイドライブ全体から選ぶ");
         views.push(myDriveView);
+
+        if (driveFolderId) {
+          const folderView = new google.picker.DocsView(google.picker.ViewId.DOCS);
+          folderView.setParent(driveFolderId);
+          folderView.setLabel("このアプリの添付フォルダ");
+          views.push(folderView);
+        }
 
         // サイズを指定しないとPickerはデフォルトの大きめ固定サイズ（横1051×縦650）で
         // 開き、ウィンドウの表示領域がそれより小さいと上部のタブ行が画面外にはみ出して
