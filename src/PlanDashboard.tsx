@@ -88,6 +88,7 @@ import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import { appendStudyLog } from "./component/studyLogCommit";
 import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
 import { AuthContext } from "./Context";
+import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 
 type BottomTab = "plans" | "library" | "review" | "more";
@@ -283,6 +284,16 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [routineNotes, userId, routineVersion]
   );
+  // 期日が来た復習がたまっていれば、アプリを開いたタイミングで通知する。
+  // 設定でオンにしていて、かつブラウザの許可がある場合だけ実際に表示される
+  // （同じ日に何度も鳴らない抑制はnotifications側で行っている）。
+  // インストール済みPWAではアイコンにも件数バッジを出す
+  useEffect(() => {
+    if (loading) return;
+    updateAppBadge(dueRoutineNotes.length);
+    void maybeNotifyReview(dueRoutineNotes.length);
+  }, [loading, dueRoutineNotes.length]);
+
   // チェック済み＝直近で完了し、まだ次の期日が来ていないもの
   const checkedRoutineNotes = useMemo(() => {
     const dueIds = new Set(dueRoutineNotes.map((n) => n.id));
@@ -1289,6 +1300,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             onLogout={onLogout}
             isGuest={userId === null}
             canCommitStudyLog={!!octokit && !!githubLogin && !!repoName}
+            reviewCount={dueRoutineNotes.length}
           />
         )}
         {faqOpen && <FaqDialog open onClose={() => setFaqOpen(false)} />}

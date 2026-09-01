@@ -20,6 +20,14 @@ import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
 import { ColorModeContext } from "../ColorModeContext";
 import { useFullScreenDialog } from "./useFullScreenDialog";
 import { isStudyLogCommitEnabled, setStudyLogCommitEnabled } from "./studyLogSetting";
+import {
+  isNotificationSupported,
+  isRemindersEnabled,
+  requestAndEnableReminders,
+  setRemindersEnabled,
+  showTestReminder,
+} from "../notifications";
+import { useToast } from "../ToastContext";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -30,16 +38,44 @@ interface SettingsDialogProps {
   isGuest: boolean;
   // GitHub連携済みのときだけ「学習ログをコミットする」設定を出す
   canCommitStudyLog: boolean;
+  // 復習リマインドの文面に出す、今の復習候補の件数
+  reviewCount: number;
 }
 
 // フッター「その他」→「設定」。以前はヘッダーにアイコンだけで置いていた
 // 「明るさの切り替え」と「ログアウト」をここへ集約している。
 // ヘッダーはアイコンが並びすぎて何のボタンか分かりにくく、
 // 誤ってログアウトを押してしまう位置でもあったため
-export default function SettingsDialog({ open, onClose, onLogout, isGuest, canCommitStudyLog }: SettingsDialogProps) {
+export default function SettingsDialog({ open, onClose, onLogout, isGuest, canCommitStudyLog, reviewCount }: SettingsDialogProps) {
   const { mode, toggle } = useContext(ColorModeContext);
   const fullScreenDialog = useFullScreenDialog();
   const [studyLogEnabled, setStudyLogEnabled] = useState(isStudyLogCommitEnabled);
+  const { showToast } = useToast();
+  const notificationSupported = isNotificationSupported();
+  const [remindersOn, setRemindersOn] = useState(isRemindersEnabled);
+
+  // オンにするときだけ通知の許可を求める。ブロックされている場合は、
+  // ブラウザ側の設定を変えないと有効にできないことをそのまま伝える
+  const handleToggleReminders = async (next: boolean) => {
+    if (!next) {
+      setRemindersEnabled(false);
+      setRemindersOn(false);
+      return;
+    }
+    const permission = await requestAndEnableReminders();
+    if (permission === "granted") {
+      setRemindersOn(true);
+      void showTestReminder(reviewCount);
+      return;
+    }
+    setRemindersOn(false);
+    showToast(
+      permission === "denied"
+        ? "ブラウザで通知がブロックされています。サイトの設定から通知を許可してください。"
+        : "この環境では通知を使えません。",
+      "info"
+    );
+  };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
@@ -76,6 +112,27 @@ export default function SettingsDialog({ open, onClose, onLogout, isGuest, canCo
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
+
+          {notificationSupported && (
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                復習のリマインド
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                復習の期日が来たメモがあるとき、アプリを開いたタイミングで通知でお知らせします。
+                アプリを閉じている間に届く通知ではありません。
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={remindersOn}
+                    onChange={(e) => void handleToggleReminders(e.target.checked)}
+                  />
+                }
+                label={remindersOn ? "通知する" : "通知しない"}
+              />
+            </Box>
+          )}
 
           {canCommitStudyLog && (
             <>
