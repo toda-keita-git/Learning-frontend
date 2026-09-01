@@ -86,11 +86,20 @@ export const openGoogleDrivePicker = (
           return;
         }
 
+        // LIST表示（詳細リスト）はフォルダ行の右端にある小さな矢印アイコンを
+        // タップしないと階層に入れず、スマホではその当たり判定を外して「反応しない」
+        // ように感じられる。GRID表示（サムネイル一覧）なら、フォルダを選択させて
+        // いない（setSelectFolderEnabledを呼んでいない）ため、カード自体をタップする
+        // だけでそのまま階層に入れる。そのためスマホ幅ではGRIDを使う
+        const isMobile = window.innerWidth <= 600;
+        const docsViewMode = isMobile ? google.picker.DocsViewMode.GRID : google.picker.DocsViewMode.LIST;
+
         const views: google.picker.DocsView[] = [];
         if (driveFolderId) {
           const folderView = new google.picker.DocsView(google.picker.ViewId.DOCS);
           folderView.setParent(driveFolderId);
           folderView.setLabel("このアプリの添付フォルダ");
+          folderView.setMode(docsViewMode);
           views.push(folderView);
         }
         // マイドライブのルートを起点に、フォルダをたどって選べるようにする。
@@ -107,6 +116,7 @@ export const openGoogleDrivePicker = (
         myDriveView.setParent("root");
         myDriveView.setIncludeFolders(true);
         myDriveView.setLabel("マイドライブ全体から選ぶ");
+        myDriveView.setMode(docsViewMode);
         views.push(myDriveView);
 
         // サイズを指定しないとPickerはデフォルトの大きめ固定サイズ（横1051×縦650）で
