@@ -325,12 +325,23 @@ export default function Home() {
                     このリポジトリは手動で削除・改名しないでください。
                   </li>
                   <li>
-                    Googleでログインすると、あなたのGoogleドライブに<b>このアプリ専用のフォルダ</b>が作られ、添付ファイルはそこに保存されます。
-                    要求する権限は
-                    <Box component="code" sx={{ mx: 0.5, fontFamily: "monospace", color: "primary.main" }}>
-                      drive.file
+                    Googleでログインすると、あなたのGoogleドライブに<b>このアプリ専用のフォルダ</b>が作られ、アップロードした添付ファイルはそこに保存されます。
+                    要求する権限は次の2つです。
+                    <Box component="ul" sx={{ mt: 1, mb: 1, pl: 3 }}>
+                      <li>
+                        <Box component="code" sx={{ mr: 0.5, fontFamily: "monospace", color: "primary.main" }}>
+                          drive.file
+                        </Box>
+                        … <b>ファイルの中身</b>を読み書きできる権限。対象は、このアプリが作成したファイルと、あなたが選択画面で明示的に選んだファイルだけです。
+                      </li>
+                      <li>
+                        <Box component="code" sx={{ mr: 0.5, fontFamily: "monospace", color: "primary.main" }}>
+                          drive.metadata.readonly
+                        </Box>
+                        … <b>ファイル名・フォルダ構成の閲覧のみ</b>ができる権限。添付するファイルを選ぶときに、フォルダをたどって探せるようにするために必要です。この権限で<b>ファイルの中身を読むことはできません</b>。
+                      </li>
                     </Box>
-                    で、<b>このアプリが作成したファイル、またはあなたがGoogle純正の選択画面で明示的に選んだファイル以外は読み書きできません</b>。メモの添付では、この選択画面からドライブ内の既存ファイルを選んで添付することもできますが、その場合もアプリがドライブ全体を自由に見られるようになるわけではありません。
+                    つまり、添付として選んでいないファイルの中身がアプリに読まれることはありません。
                   </li>
                   <li>
                     GitHubのログイン時には<b>「repo」という権限</b>の許可を求められます。上記の保存場所を作ったり、内容を更新したりするために必要な権限です。

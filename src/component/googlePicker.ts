@@ -93,18 +93,20 @@ export const openGoogleDrivePicker = (
           folderView.setLabel("このアプリの添付フォルダ");
           views.push(folderView);
         }
-        // drive.fileスコープでは「フォルダの中身を一覧する」操作自体が許可されない
-        // （個別ファイルへの部分アクセスのみ許可され、フォルダはその対象外）。
-        // そのためsetParent("root")でマイドライブ直下から階層的に辿らせようとすると、
-        // 一覧には出てくるのにフォルダをクリックしても中に入れない「行き止まり」になる。
-        // drive.metadata.readonly等の追加スコープがあれば正しく辿れるが、それは
-        // 「アプリが作成したファイル以外は見えない」という現状の説明・同意内容を
-        // 超える広いスコープになるため、ここでは追加しない。
-        // 代わりに、階層を辿らせず検索で見つけて選ぶフラットな一覧にする
-        // （setParent・setIncludeFoldersのどちらも呼ばない＝Picker既定の
-        // 「最近使ったファイル＋検索」表示になり、drive.fileスコープでも機能する）
+        // マイドライブのルートを起点に、フォルダをたどって選べるようにする。
+        //
+        // フォルダの中身を一覧する操作はdrive.fileスコープでは許可されないため、
+        // これが機能するのはContext.tsxでdrive.metadata.readonlyを併せて要求して
+        // いるからである（このスコープが無いと、フォルダは一覧に出るのにクリック
+        // しても中に入れない「行き止まり」になる）。
+        //
+        // setSelectFolderEnabledは有効にしない。添付できるのはファイルだけで、
+        // フォルダを選べてしまうと壊れた添付ができてしまうため
+        // （GitHub側のセレクタでも同じ理由でフォルダは選択対象外にしている）。
         const myDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS);
-        myDriveView.setLabel("マイドライブ全体から選ぶ（検索）");
+        myDriveView.setParent("root");
+        myDriveView.setIncludeFolders(true);
+        myDriveView.setLabel("マイドライブ全体から選ぶ");
         views.push(myDriveView);
 
         // サイズを指定しないとPickerはデフォルトの大きめ固定サイズ（横1051×縦650）で
