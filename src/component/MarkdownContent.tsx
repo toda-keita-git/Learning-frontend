@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -6,11 +6,9 @@ import { findAndReplace } from "mdast-util-find-and-replace";
 import type { Root, Content } from "mdast";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
-import { useTheme } from "@mui/material/styles";
-// 添付ファイルのビューアーと同じくPrismAsyncLight（言語ごとに動的import）を使い、
-// メモ本文の```コードブロックも色付きで読めるようにする
-import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneLight, vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+// コードブロックの描画（＝ハイライタ本体）は、実際にコードを含むメモを
+// 開いたときだけ読み込む。詳細はMarkdownCodeBlock.tsxのコメントを参照
+const MarkdownCodeBlock = lazy(() => import("./MarkdownCodeBlock"));
 
 // ```ts のように書かれる短縮名は、そのままではPrismの言語ファイル名と一致せず
 // 色が付かない（Prism側は typescript / javascript … という名前で登録されている）。
@@ -198,10 +196,6 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
   onAllRevealed,
 }) => {
   const [revealedIndexes, setRevealedIndexes] = useState<Set<number>>(new Set());
-  // コードブロックの配色は画面の明るさ設定に合わせる（ダーク時に白背景が
-  // 浮いてしまわないようにするため）
-  const theme = useTheme();
-  const codeTheme = theme.palette.mode === "dark" ? vscDarkPlus : oneLight;
   const notifiedRef = useRef(false);
   const totalCloze = countCloze(text);
 
@@ -328,14 +322,19 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
                 </code>
               );
             }
+            const code = String(children).replace(/\n$/, "");
             return (
-              <SyntaxHighlighter
-                language={language}
-                style={codeTheme}
-                customStyle={{ margin: 0, borderRadius: 4, fontSize: "0.85em" }}
+              // 読み込みが終わるまでは色無しの同じ枠で出しておき、表示が一瞬
+              // 空になったり高さが飛んだりしないようにする
+              <Suspense
+                fallback={
+                  <pre>
+                    <code>{code}</code>
+                  </pre>
+                }
               >
-                {String(children).replace(/\n$/, "")}
-              </SyntaxHighlighter>
+                <MarkdownCodeBlock language={language} code={code} />
+              </Suspense>
             );
           },
           // @ts-expect-error 独自タグ名なのでReactMarkdownの型定義には無い

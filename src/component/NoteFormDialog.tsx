@@ -33,6 +33,8 @@ import { openGoogleDrivePicker } from "./googlePicker";
 import { uploadDriveFile } from "./driveClient";
 import { getFileType } from "./getFileType";
 import MarkdownContent from "./MarkdownContent";
+import MarkdownHelpDialog from "./MarkdownHelpDialog";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { ROUTINE_PRESETS } from "./routine";
 import type { Note, NoteInput, NoteType, NoteTodoItem, NoteAttachment, AttachmentKind, CategoryOption } from "./PlanTypes";
 import { NOTE_TYPE_LABEL } from "./PlanTypes";
@@ -112,6 +114,7 @@ export default function NoteFormDialog({
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
+  const [markdownHelpOpen, setMarkdownHelpOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [resolvingCodeSha, setResolvingCodeSha] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -426,7 +429,14 @@ export default function NoteFormDialog({
 
           <Stack spacing={0.75}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle2">本文</Typography>
+              <Stack direction="row" spacing={0.25} alignItems="center">
+                <Typography variant="subtitle2">本文</Typography>
+                {/* ==ハイライト== や [[穴埋め]] のような独自記法はプレースホルダーの
+                    1行だけでは伝わらないため、書き方の一覧をここから開けるようにする */}
+                <IconButton size="small" onClick={() => setMarkdownHelpOpen(true)} aria-label="Markdownの書き方">
+                  <HelpOutlineIcon fontSize="small" />
+                </IconButton>
+              </Stack>
               <ToggleButtonGroup
                 value={bodyTab}
                 exclusive
@@ -682,6 +692,8 @@ export default function NoteFormDialog({
         onClose={() => setGithubSelectorOpen(false)}
         onFileSelect={handleGithubFileSelect}
       />
+
+      <MarkdownHelpDialog open={markdownHelpOpen} onClose={() => setMarkdownHelpOpen(false)} />
     </Dialog>
   );
 }

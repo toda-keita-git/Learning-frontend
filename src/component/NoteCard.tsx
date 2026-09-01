@@ -17,6 +17,7 @@ import { attachmentProviderLabel } from "./attachmentVisuals";
 import AddIcon from "@mui/icons-material/Add";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import { AuthContext } from "../Context";
@@ -43,6 +44,9 @@ interface NoteCardProps {
   planOptions: PlanOption[];
   onLink: (planId: number) => void;
   onUnlink: (planId: number) => void;
+  // メモに設定されたカテゴリー名。カテゴリーはこれまでどこにも表示されず、
+  // 設定しても何も起きない状態だったため、タグと同じくカードに出す
+  categoryName?: string | null;
   // プラン詳細のメモトレイ⇄タイムライン間ドラッグ用。呼び出し側がPointer Eventsハンドラを注入する
   dragProps?: HTMLAttributes<HTMLDivElement>;
   dragging?: boolean;
@@ -56,6 +60,7 @@ export default function NoteCard({
   planOptions,
   onLink,
   onUnlink,
+  categoryName,
   dragProps,
   dragging,
 }: NoteCardProps) {
@@ -214,8 +219,19 @@ export default function NoteCard({
         </Stack>
       )}
 
-      {note.tags.length > 0 && (
+      {(categoryName || note.tags.length > 0) && (
         <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.5 }}>
+          {/* カテゴリーは1メモに1つだけの分類なので、複数付くタグ（#付き）と
+              見分けが付くようアイコン付きの塗りつぶしチップにして先頭に置く */}
+          {categoryName && (
+            <Chip
+              icon={<FolderOutlinedIcon fontSize="small" />}
+              label={categoryName}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          )}
           {note.tags.map((tag) => (
             <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
           ))}

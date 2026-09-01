@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -50,18 +50,19 @@ import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
 
 import { useToast } from "./ToastContext";
 import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/routine";
-import StreakDialog from "./component/StreakDialog";
+const StreakDialog = lazy(() => import("./component/StreakDialog"));
 import { calculateStreakStats } from "./component/streakStats";
-import TodayNextDialog from "./component/TodayNextDialog";
-import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
-import AccountInfoDialog from "./component/AccountInfoDialog";
-import SettingsDialog from "./component/SettingsDialog";
-import FaqDialog from "./component/FaqDialog";
-import UsageGuideDialog from "./component/UsageGuideDialog";
-import PricingPlanDialog from "./component/PricingPlanDialog";
+const TodayNextDialog = lazy(() => import("./component/TodayNextDialog"));
+const PlanBoardHelpDialog = lazy(() => import("./component/PlanBoardHelpDialog"));
+const AccountInfoDialog = lazy(() => import("./component/AccountInfoDialog"));
+const SettingsDialog = lazy(() => import("./component/SettingsDialog"));
+const FaqDialog = lazy(() => import("./component/FaqDialog"));
+const UsageGuideDialog = lazy(() => import("./component/UsageGuideDialog"));
+const PricingPlanDialog = lazy(() => import("./component/PricingPlanDialog"));
 import NotePreviewDialog from "./component/NotePreviewDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
@@ -80,6 +81,7 @@ import { NOTE_TRAY_EXPANDED_HEIGHT } from "./component/noteTrayLayout";
 import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
+import AdBanner from "./component/AdBanner";
 
 type BottomTab = "plans" | "library" | "review" | "more";
 
@@ -136,6 +138,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
+  const [libraryCategoryFilter, setLibraryCategoryFilter] = useState<"all" | number>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
 
@@ -494,19 +497,29 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     setPlanDialogOpen(true);
   };
 
+  // メモに設定されたカテゴリーの名前。カテゴリーはこれまで保存されるだけで
+  // どこにも表示されず、検索にも掛からなかったため、表示・検索の両方で使う
+  const categoryNameOf = (note: Note): string | null =>
+    categories.find((c) => c.id === note.category_id)?.name ?? null;
+
   const libraryNotes = useMemo(() => {
     let list = libraryTypeFilter === "all" ? notes : notes.filter((n) => n.type === libraryTypeFilter);
+    if (libraryCategoryFilter !== "all") {
+      list = list.filter((n) => n.category_id === libraryCategoryFilter);
+    }
     const q = noteSearchQuery.trim().toLowerCase();
     if (q) {
+      const nameOf = (n: Note) => categories.find((c) => c.id === n.category_id)?.name ?? "";
       list = list.filter(
         (n) =>
           n.title.toLowerCase().includes(q) ||
           (n.body ?? "").toLowerCase().includes(q) ||
-          n.tags.some((t) => t.toLowerCase().includes(q))
+          n.tags.some((t) => t.toLowerCase().includes(q)) ||
+          nameOf(n).toLowerCase().includes(q)
       );
     }
     return list;
-  }, [notes, libraryTypeFilter, noteSearchQuery]);
+  }, [notes, libraryTypeFilter, libraryCategoryFilter, noteSearchQuery, categories]);
 
   // プランボードの検索。マッチしたプランに加え、階層が分かるよう祖先・子孫も表示する
   const filteredPlans = useMemo(() => {
@@ -749,7 +762,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
             <TextField
               size="small"
-              placeholder="タイトル・本文・タグで検索"
+              placeholder="タイトル・本文・タグ・カテゴリーで検索"
               value={noteSearchQuery}
               onChange={(e) => setNoteSearchQuery(e.target.value)}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
@@ -768,10 +781,34 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               <ToggleButton value="normal">{NOTE_TYPE_LABEL.normal}</ToggleButton>
             </ToggleButtonGroup>
 
+            {/* カテゴリーは数が増えるとトグルでは並べきれないため、選択式にする。
+                1件も作られていない間は出しても選べるものが無いので隠す */}
+            {categories.length > 0 && (
+              <TextField
+                select
+                size="small"
+                label="カテゴリー"
+                value={libraryCategoryFilter}
+                onChange={(e) =>
+                  setLibraryCategoryFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+                }
+                sx={{ minWidth: 200, alignSelf: "flex-start" }}
+              >
+                <MenuItem value="all">すべて</MenuItem>
+                {categories.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
             {libraryNotes.length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                {noteSearchQuery.trim()
-                  ? "検索条件に一致するメモがありません。"
+                {noteSearchQuery.trim() ||
+                libraryTypeFilter !== "all" ||
+                libraryCategoryFilter !== "all"
+                  ? "条件に一致するメモがありません。"
                   : "まだメモがありません。「新しいメモ」から作成しましょう。プランに紐付けなくても保存できます。"}
               </Typography>
             ) : (
@@ -789,6 +826,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                   onToggleTodo={handleToggleTodo}
                   onLink={(planId) => handleLinkNote(note, planId)}
                   onUnlink={(planId) => handleUnlinkNote(note, planId)}
+                  categoryName={categoryNameOf(note)}
                 />
               ))
             )}
@@ -1017,12 +1055,18 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                     onToggleTodo={handleToggleTodo}
                     onLink={(planId) => handleLinkNote(note, planId)}
                     onUnlink={(planId) => handleUnlinkNote(note, planId)}
+                    categoryName={categoryNameOf(note)}
                   />
                 ))}
               </Stack>
             )}
           </Stack>
         )}
+
+        {/* ゲスト・フリープラン向けの広告枠。AdSenseの発行者ID/広告ユニットIDを
+            環境変数に設定するまでは何も描画されないため、審査中は今までどおり
+            何も表示されない（設定した時点で有効になる） */}
+        {!loading && <AdBanner />}
       </Container>
 
       {!loading && bottomTab === "plans" && (
@@ -1121,33 +1165,45 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         }
       />
 
-      {selectedPlan && (
-        <StreakDialog open={streakDialogOpen} onClose={() => setStreakDialogOpen(false)} dates={streakDates} />
-      )}
+      <Suspense fallback={null}>
+        {selectedPlan && streakDialogOpen && (
+          <StreakDialog open onClose={() => setStreakDialogOpen(false)} dates={streakDates} />
+        )}
+      </Suspense>
 
-      <TodayNextDialog
-        open={todayNextOpen}
-        onClose={() => setTodayNextOpen(false)}
-        plans={plans}
-        notes={notes}
-        userId={userId}
-        onOpenPlan={(planId) => {
-          setTodayNextOpen(false);
-          setBottomTab("plans");
-          setSelectedPlanId(planId);
-        }}
-      />
-      <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
-      <AccountInfoDialog open={accountInfoOpen} onClose={() => setAccountInfoOpen(false)} />
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onLogout={onLogout}
-        isGuest={userId === null}
-      />
-      <FaqDialog open={faqOpen} onClose={() => setFaqOpen(false)} />
-      <UsageGuideDialog open={usageGuideOpen} onClose={() => setUsageGuideOpen(false)} />
-      <PricingPlanDialog open={pricingPlanOpen} onClose={() => setPricingPlanOpen(false)} />
+      {/* 以下のダイアログは開いたときだけ読み込む（lazy）。常にマウントしておくと
+          初回表示のJSに全部含まれてしまい、ほとんど開かれない説明系の画面まで
+          起動時のダウンロードに乗ってしまうため。開くまでは何も描画しないので
+          Suspenseのfallbackも不要 */}
+      <Suspense fallback={null}>
+        {todayNextOpen && (
+          <TodayNextDialog
+            open={todayNextOpen}
+            onClose={() => setTodayNextOpen(false)}
+            plans={plans}
+            notes={notes}
+            userId={userId}
+            onOpenPlan={(planId) => {
+              setTodayNextOpen(false);
+              setBottomTab("plans");
+              setSelectedPlanId(planId);
+            }}
+          />
+        )}
+        {boardHelpOpen && <PlanBoardHelpDialog open onClose={() => setBoardHelpOpen(false)} />}
+        {accountInfoOpen && <AccountInfoDialog open onClose={() => setAccountInfoOpen(false)} />}
+        {settingsOpen && (
+          <SettingsDialog
+            open
+            onClose={() => setSettingsOpen(false)}
+            onLogout={onLogout}
+            isGuest={userId === null}
+          />
+        )}
+        {faqOpen && <FaqDialog open onClose={() => setFaqOpen(false)} />}
+        {usageGuideOpen && <UsageGuideDialog open onClose={() => setUsageGuideOpen(false)} />}
+        {pricingPlanOpen && <PricingPlanDialog open onClose={() => setPricingPlanOpen(false)} />}
+      </Suspense>
 
       <NotePreviewDialog
         note={previewNote}
