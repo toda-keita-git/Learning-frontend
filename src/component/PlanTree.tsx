@@ -104,6 +104,27 @@ export default function PlanTree({
     return map;
   }, [plans]);
 
+  // 折りたたんでいる親の配下に、まだ着手していないプランが何件あるか。
+  // 畳んだ状態では「どこで止まっているか」が見えず、親の達成率だけを見て
+  // 進んでいるつもりになりやすいため、隠れている未着手の数を行に出す。
+  // （子孫すべてを数える。孫以下で止まっていても気づけるようにするため）
+  const unstartedDescendantCount = useMemo(() => {
+    const counts = new Map<number, number>();
+    const countOf = (planId: number): number => {
+      const cached = counts.get(planId);
+      if (cached !== undefined) return cached;
+      let total = 0;
+      for (const child of childrenByParent.get(planId) ?? []) {
+        if (child.status === "not_started") total += 1;
+        total += countOf(child.id);
+      }
+      counts.set(planId, total);
+      return total;
+    };
+    for (const plan of plans) countOf(plan.id);
+    return counts;
+  }, [plans, childrenByParent]);
+
   const menuSiblingIndex = (plan: Plan): [number, boolean, boolean] => {
     const siblings = childrenByParent.get(plan.parent_id) ?? [];
     const idx = siblings.findIndex((p) => p.id === plan.id);
@@ -226,6 +247,7 @@ export default function PlanTree({
     const beforeHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "before";
     const afterHighlight = dropHint?.kind === "row" && dropHint.targetId === plan.id && dropHint.mode === "after";
     const noteHighlight = noteDropHighlightId === plan.id;
+    const hiddenUnstarted = unstartedDescendantCount.get(plan.id) ?? 0;
 
     // 1階層あたりのインデントを20px→9pxに縮小。深い階層でもタイトルの表示幅が
     // 潰れにくくする（10階層あっても消費されるのは最大81px程度に収まる）
@@ -298,9 +320,20 @@ export default function PlanTree({
             <Typography sx={{ fontWeight: isGoal ? 700 : 600, wordBreak: "break-word" }} variant={isGoal ? "body1" : "body2"}>
               {plan.title}
             </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25, flexWrap: "wrap", rowGap: 0.5 }}>
               <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" />
               <ProgressBadge value={plan.progress} />
+              {/* 畳んでいて中が見えないときだけ出す。開いていれば子の行を見れば分かるので、
+                  同じ情報を二重に出しても行が混むだけになる */}
+              {hasChildren && !expanded && hiddenUnstarted > 0 && (
+                <Chip
+                  label={`未着手 ${hiddenUnstarted}`}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ height: 20, "& .MuiChip-label": { px: 0.75, fontSize: "0.7rem" } }}
+                />
+              )}
             </Stack>
           </Stack>
 
