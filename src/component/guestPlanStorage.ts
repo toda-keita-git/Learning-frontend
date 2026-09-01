@@ -272,7 +272,7 @@ export const guestPlanDataSource: PlanDataSource = {
   async createPlan(data) {
     const plans = load<Plan>(PLANS_KEY);
     if (plans.length >= GUEST_PLAN_LIMIT) {
-      throw new Error(`ゲストモードではプランは${GUEST_PLAN_LIMIT}件までです。GitHubでログインすると無制限に作成できます。`);
+      throw new Error(`ゲストモードではプランは${GUEST_PLAN_LIMIT}件までです。ログインすると件数の制限なく作成できます。`);
     }
     const nextSortOrder = Math.max(-1, ...plans.filter((p) => p.parent_id === data.parent_id).map((p) => p.sort_order)) + 1;
     const id = nextId();
@@ -328,7 +328,7 @@ export const guestPlanDataSource: PlanDataSource = {
   async createNote(data) {
     const notes = load<Note>(NOTES_KEY);
     if (notes.length >= GUEST_NOTE_LIMIT) {
-      throw new Error(`ゲストモードではメモは${GUEST_NOTE_LIMIT}件までです。GitHubでログインすると（フリープランで100件まで）保存できます。`);
+      throw new Error(`ゲストモードではメモは${GUEST_NOTE_LIMIT}件までです。ログインすると100件まで保存できます。`);
     }
     const tags = ensureGuestTagsRegistered(data.tags);
     save(NOTES_KEY, [...notes, toNote(nextId(), data, tags)]);

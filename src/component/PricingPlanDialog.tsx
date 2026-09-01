@@ -21,12 +21,21 @@ interface PricingPlanDialogProps {
 // 「今どのプランなのか」を示す場所として用意している
 const INCLUDED = [
   "目標・アクションプランの登録（階層の深さ・件数の制限なし）",
-  "学習用・チェック用・通常メモの作成（件数の制限なし）",
   "メモとプランの紐づけ、進捗の自動集計",
   "習慣リスト（繰り返し設定）と継続日数の記録",
   "今日やること・次にやる事の一覧",
   "オフラインでの閲覧と、オンライン復帰時の自動送信",
   "GitHubリポジトリ / Googleドライブへのファイル添付",
+];
+
+// 登録できる件数の上限。サーバー側で実際にチェックしている値と揃えること
+// （NoteController.FREE_PLAN_LIMIT / LearningController.FREE_CATEGORY_LIMIT /
+//   LearningService.FREE_TAG_LIMIT）。ここに書かずに「制限なし」と案内していると、
+// 上限に達した利用者が説明と食い違うエラーに突き当たることになる
+const LIMITS = [
+  { label: "メモ", value: "100件まで" },
+  { label: "カテゴリー", value: "20件まで" },
+  { label: "タグ", value: "50件まで" },
 ];
 
 // フッター「その他」→「プラン」
@@ -54,7 +63,7 @@ export default function PricingPlanDialog({ open, onClose }: PricingPlanDialogPr
               無料プラン
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              月額 0円 / すべての機能が使えます
+              月額 0円 / 機能はすべて使えます
             </Typography>
           </Box>
 
@@ -72,6 +81,27 @@ export default function PricingPlanDialog({ open, onClose }: PricingPlanDialogPr
                 </Stack>
               ))}
             </Stack>
+          </Box>
+
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+              登録できる件数
+            </Typography>
+            <Stack spacing={0.75}>
+              {LIMITS.map((limit) => (
+                <Stack key={limit.label} direction="row" justifyContent="space-between" spacing={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    {limit.label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {limit.value}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              上限に達しても、これまでに登録した内容が消えることはありません。新しく追加できなくなるだけなので、使っていないものを削除すればまた追加できます。
+            </Typography>
           </Box>
 
           <Alert severity="info">
