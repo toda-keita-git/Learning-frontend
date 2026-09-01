@@ -24,10 +24,22 @@ const LINK_INTENT_KEY = "oauthLinkIntent";
 // 連携の結果メッセージ。連携後は/LearningContentへページ遷移するため、
 // その場でトーストを出しても遷移で消えてしまう。遷移先で出せるよう持ち越す
 const LINK_RESULT_KEY = "oauthLinkResult";
-// drive.fileはこのアプリが作成したファイルにのみアクセスできる限定スコープ。
+// drive.fileはこのアプリが作成した（またはPickerで明示的に選ばれた）ファイルにのみ
+// アクセスできる限定スコープ。ファイルの中身を読み書きできるのはこの範囲だけ。
+//
+// drive.metadata.readonlyは、添付を選ぶPickerでフォルダをたどれるようにするために
+// 追加している。drive.fileだけではフォルダの中身を一覧する操作自体が許可されず、
+// フォルダをクリックしても中に入れないため。読み取れるのはファイル名・フォルダ構成
+// などのメタデータのみで、ファイルの中身は読めない。
+// なおこれはGoogleの「制限付きスコープ」にあたり、本番公開には審査（CASA）が必要。
+// 未審査の間は同意画面に警告が出て、利用者数が100人までに制限される。
+//
 // access_type=offline + prompt=consent で毎回refresh_tokenを強制取得する
 // （Driveのアクセストークンは約1時間で失効するため、GitHubと違い再取得が必須）
-const GOOGLE_SCOPE = "openid email profile https://www.googleapis.com/auth/drive.file";
+const GOOGLE_SCOPE =
+  "openid email profile" +
+  " https://www.googleapis.com/auth/drive.file" +
+  " https://www.googleapis.com/auth/drive.metadata.readonly";
 
 type AuthProviderKind = "github" | "google" | null;
 
