@@ -13,10 +13,11 @@ import {
   Chip,
 } from "@mui/material";
 import FolderIcon from "@mui/icons-material/Folder";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AttachmentIcon from "@mui/icons-material/Attachment";
 import { useFullScreenDialog } from "./useFullScreenDialog";
-import { listDriveSubfolders, type DriveFolderItem } from "./driveClient";
+import { listDriveFolderContents, type DriveEntry } from "./driveClient";
 import { openGoogleDriveScopedPicker, type PickedDriveFile } from "./googlePicker";
 
 interface Props {
@@ -47,7 +48,7 @@ const ROOT_CRUMB: Crumb = { id: "root", name: "マイドライブ" };
 const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFolderId, onClose, onPick }) => {
   const fullScreenDialog = useFullScreenDialog();
   const [path, setPath] = useState<Crumb[]>([ROOT_CRUMB]);
-  const [folders, setFolders] = useState<DriveFolderItem[]>([]);
+  const [entries, setEntries] = useState<DriveEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -63,12 +64,12 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listDriveSubfolders(accessToken, currentFolder.id)
+    listDriveFolderContents(accessToken, currentFolder.id)
       .then((items) => {
-        if (!cancelled) setFolders(items);
+        if (!cancelled) setEntries(items);
       })
       .catch(() => {
-        if (!cancelled) setError("フォルダ一覧の取得に失敗しました。");
+        if (!cancelled) setError("一覧の取得に失敗しました。");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -78,7 +79,7 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
     };
   }, [open, accessToken, currentFolder.id]);
 
-  const handleEnterFolder = (folder: DriveFolderItem) => {
+  const handleEnterFolder = (folder: DriveEntry) => {
     setPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
   };
 
@@ -87,7 +88,7 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
   };
 
   const runScopedPicker = async (parentId: string, label: string) => {
-    if (!accessToken) return;
+    if (!accessToken || opening) return;
     setOpening(true);
     try {
       const picked = await openGoogleDriveScopedPicker(accessToken, parentId, label);
@@ -156,9 +157,9 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
           <Typography sx={{ p: 2 }} color="error">
             {error}
           </Typography>
-        ) : folders.length === 0 ? (
+        ) : entries.length === 0 ? (
           <Typography sx={{ p: 2 }} color="text.secondary">
-            サブフォルダはありません。
+            このフォルダは空です。
           </Typography>
         ) : (
           <Box
@@ -168,41 +169,66 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
               gap: 1.5,
             }}
           >
-            {folders.map((folder) => (
-              <Box
-                key={folder.id}
-                onClick={() => handleEnterFolder(folder)}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  p: 1.25,
-                  borderRadius: 1,
-                  cursor: "pointer",
-                  border: 1,
-                  borderColor: "divider",
-                  bgcolor: "background.paper",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              >
-                <FolderIcon color="action" />
-                <Typography variant="body2" noWrap title={folder.name}>
-                  {folder.name}
-                </Typography>
-              </Box>
-            ))}
+            {entries.map((entry) =>
+              entry.isFolder ? (
+                <Box
+                  key={entry.id}
+                  onClick={() => handleEnterFolder(entry)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    p: 1.25,
+                    borderRadius: 1,
+                    cursor: "pointer",
+                    border: 1,
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <FolderIcon color="action" />
+                  <Typography variant="body2" noWrap title={entry.name}>
+                    {entry.name}
+                  </Typography>
+                </Box>
+              ) : (
+                // ファイルの中身へはdrive.fileスコープの範囲でしかアクセスできず、
+                // ここでの一覧表示（drive.metadata.readonly）だけでは選択を確定できない。
+                // タップすると、このフォルダに絞り込んだGoogle純正Pickerを開き、
+                // そちらで同じファイルを選び直してもらうことで正式にアクセス権を得る
+                <Box
+                  key={entry.id}
+                  onClick={() => runScopedPicker(currentFolder.id, `「${currentFolder.name}」から選ぶ`)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    p: 1.25,
+                    borderRadius: 1,
+                    cursor: opening ? "default" : "pointer",
+                    pointerEvents: opening ? "none" : "auto",
+                    border: 1,
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    opacity: 0.85,
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <InsertDriveFileIcon color="action" />
+                  <Typography variant="body2" noWrap title={entry.name}>
+                    {entry.name}
+                  </Typography>
+                </Box>
+              )
+            )}
           </Box>
         )}
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={() => runScopedPicker(currentFolder.id, `「${currentFolder.name}」から選ぶ`)}
-          variant="contained"
-          disabled={opening}
-          startIcon={opening ? <CircularProgress size={16} color="inherit" /> : undefined}
-        >
-          このフォルダのファイルから選ぶ
-        </Button>
+        <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1, px: 1 }}>
+          ファイルをタップすると選択画面が開きます
+        </Typography>
         <Button onClick={onClose}>キャンセル</Button>
       </DialogActions>
     </Dialog>
