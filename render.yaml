@@ -47,6 +47,12 @@ services:
       # ではない）。VITE_GOOGLE_CLIENT_IDと同じCloudプロジェクトのものを使うこと
       - key: VITE_GOOGLE_PROJECT_NUMBER
         sync: false
+      # Google AdSense（ゲスト・フリープラン向けの広告枠）。審査通過後に設定する。
+      # 未設定の間は広告枠自体が描画されないため、空のままでも表示は変わらない
+      - key: VITE_ADSENSE_CLIENT_ID
+        sync: false
+      - key: VITE_ADSENSE_AD_SLOT
+        sync: false
       - key: VITE_REPO_OWNER
         sync: false
       - key: VITE_REPO_NAME

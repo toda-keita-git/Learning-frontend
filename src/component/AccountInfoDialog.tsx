@@ -18,6 +18,8 @@ import { meApi } from "./Api";
 import type { AccountInfo } from "./Api";
 import { errorMessage } from "./errorMessage";
 import { useFullScreenDialog } from "./useFullScreenDialog";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import RepoSelectDialog from "./RepoSelectDialog";
 
 interface AccountInfoDialogProps {
   open: boolean;
@@ -30,12 +32,13 @@ interface AccountInfoDialogProps {
 // 連携（旧「アカウント連携」）もここに統合している。ヘッダーにアイコンで置いていたが、
 // 何のアイコンか分かりにくく、アカウントに関する操作が複数の場所に散っていたため
 export default function AccountInfoDialog({ open, onClose }: AccountInfoDialogProps) {
-  const { linkGithub, linkGoogle, authProvider } = useContext(AuthContext);
+  const { linkGithub, linkGoogle, authProvider, repoName, setRepoName, token } = useContext(AuthContext);
   const fullScreenDialog = useFullScreenDialog();
 
   const [info, setInfo] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [repoSelectOpen, setRepoSelectOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -131,6 +134,36 @@ export default function AccountInfoDialog({ open, onClose }: AccountInfoDialogPr
               今の目標・プラン・メモはそのまま残ります。
             </Typography>
 
+            {/* 添付ファイルと学習ログの保存先。どのリポジトリが使われているかは
+                これまでどこにも出ておらず、確認も変更もできなかった */}
+            {info.has_github && (
+              <Box sx={{ p: 1.5, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                  <FolderOutlinedIcon fontSize="small" color="action" />
+                  <Typography variant="caption" color="text.secondary">
+                    添付ファイル・学習ログの保存先リポジトリ
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                  <Typography variant="body2" sx={{ fontWeight: 700, wordBreak: "break-all" }}>
+                    {repoName ?? "未設定"}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setRepoSelectOpen(true)}
+                    disabled={!token}
+                    sx={{ flexShrink: 0 }}
+                  >
+                    変更
+                  </Button>
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  変更しても、これまでに添付したファイルは元のリポジトリに残ります。
+                </Typography>
+              </Box>
+            )}
+
             {row("github", info.has_github, info.github_login ? `@${info.github_login}` : null, linkGithub)}
             {row("google", info.has_google, info.email, linkGoogle)}
 
@@ -148,6 +181,19 @@ export default function AccountInfoDialog({ open, onClose }: AccountInfoDialogPr
           </Stack>
         ) : null}
       </DialogContent>
+      {token && (
+        <RepoSelectDialog
+          open={repoSelectOpen}
+          onClose={() => setRepoSelectOpen(false)}
+          accessToken={token}
+          currentRepoName={repoName ?? ""}
+          onSelected={(name) => {
+            setRepoName(name);
+            setRepoSelectOpen(false);
+          }}
+        />
+      )}
+
       <DialogActions>
         <Button onClick={onClose} variant="contained">
           とじる

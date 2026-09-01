@@ -435,6 +435,7 @@ export default function Home() {
         </Typography>
         <Typography sx={{ color: "text.secondary", textAlign: "center", mb: 4 }}>
           下記はすべて無料プランに含まれています。追加費用はかかりません。
+          （メモ100件・カテゴリー20件・タグ50件までご登録いただけます）
         </Typography>
         <Box
           sx={{

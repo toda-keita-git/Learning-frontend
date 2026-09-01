@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -46,22 +46,24 @@ import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
 
 import { useToast } from "./ToastContext";
 import { isRoutineDue, markRoutineDone, clearRoutineDone, getRemainingDays } from "./component/routine";
-import StreakDialog from "./component/StreakDialog";
+const StreakDialog = lazy(() => import("./component/StreakDialog"));
 import { calculateStreakStats } from "./component/streakStats";
-import TodayNextDialog from "./component/TodayNextDialog";
-import PlanBoardHelpDialog from "./component/PlanBoardHelpDialog";
-import AccountInfoDialog from "./component/AccountInfoDialog";
-import SettingsDialog from "./component/SettingsDialog";
-import FaqDialog from "./component/FaqDialog";
-import UsageGuideDialog from "./component/UsageGuideDialog";
-import PricingPlanDialog from "./component/PricingPlanDialog";
+const TodayNextDialog = lazy(() => import("./component/TodayNextDialog"));
+const PlanBoardHelpDialog = lazy(() => import("./component/PlanBoardHelpDialog"));
+const AccountInfoDialog = lazy(() => import("./component/AccountInfoDialog"));
+const SettingsDialog = lazy(() => import("./component/SettingsDialog"));
+const FaqDialog = lazy(() => import("./component/FaqDialog"));
+const UsageGuideDialog = lazy(() => import("./component/UsageGuideDialog"));
+const PricingPlanDialog = lazy(() => import("./component/PricingPlanDialog"));
 import NotePreviewDialog from "./component/NotePreviewDialog";
 import { savePlanCache, loadPlanCache } from "./component/offlinePlanCache";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
@@ -80,6 +82,14 @@ import { NOTE_TRAY_EXPANDED_HEIGHT } from "./component/noteTrayLayout";
 import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
+import AdBanner from "./component/AdBanner";
+import ReviewDialog, { hasCloze } from "./component/ReviewDialog";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
+import { appendStudyLog } from "./component/studyLogCommit";
+import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
+import { AuthContext } from "./Context";
+import { maybeNotifyReview, updateAppBadge } from "./notifications";
+const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 
 type BottomTab = "plans" | "library" | "review" | "more";
 
@@ -96,6 +106,8 @@ interface PlanDashboardProps {
 
 export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
+  // 学習ログのコミット先（GitHub連携済みのときだけ使える）
+  const { octokit, githubLogin, repoName } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -132,10 +144,15 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [faqOpen, setFaqOpen] = useState(false);
   const [usageGuideOpen, setUsageGuideOpen] = useState(false);
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
+  // 習慣リストから復習モードで開いているメモ。編集画面と同じく、内容が変わっても
+  // 最新が映るようメモ自体ではなくIDを持つ
+  const [reviewNoteId, setReviewNoteId] = useState<number | null>(null);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
+  const [libraryCategoryFilter, setLibraryCategoryFilter] = useState<"all" | number>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
 
@@ -252,6 +269,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, selectedPlanId, plans]);
   const currentStreak = useMemo(() => calculateStreakStats(streakDates), [streakDates]);
+  // 振り返り画面用。プラン単位ではなく、全メモを対象にした通算の継続日数
+  const overallStreak = useMemo(
+    () => calculateStreakStats(notes.map((n) => n.created_at)),
+    [notes]
+  );
 
   // ---- 習慣リスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
@@ -262,6 +284,16 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [routineNotes, userId, routineVersion]
   );
+  // 期日が来た復習がたまっていれば、アプリを開いたタイミングで通知する。
+  // 設定でオンにしていて、かつブラウザの許可がある場合だけ実際に表示される
+  // （同じ日に何度も鳴らない抑制はnotifications側で行っている）。
+  // インストール済みPWAではアイコンにも件数バッジを出す
+  useEffect(() => {
+    if (loading) return;
+    updateAppBadge(dueRoutineNotes.length);
+    void maybeNotifyReview(dueRoutineNotes.length);
+  }, [loading, dueRoutineNotes.length]);
+
   // チェック済み＝直近で完了し、まだ次の期日が来ていないもの
   const checkedRoutineNotes = useMemo(() => {
     const dueIds = new Set(dueRoutineNotes.map((n) => n.id));
@@ -295,6 +327,40 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     setEditingNote(note);
     setNoteFixedPlanId(undefined);
     setNoteDialogOpen(true);
+  };
+
+  // 習慣リストから開く復習。自己採点の結果で次に出す間隔を伸縮させ、
+  // 覚えているものほど間隔が空くようにする（簡易的な間隔反復）。
+  // 「覚えていた」はチェック済みにもして、その日の分から消えるようにする
+  const handleGradeReview = async (note: Note, remembered: boolean) => {
+    const current = note.review_interval_days ?? 1;
+    // 覚えていたら倍に伸ばす（上限60日）。あやふやなら1日に戻して翌日また出す
+    const next = remembered ? Math.min(current * 2, 60) : 1;
+    setReviewNoteId(null);
+    if (remembered) handleRoutineCheck(note);
+    void commitStudyLog(note.type, note.title, remembered ? "復習した" : "復習した（要再確認）");
+    if (next === current) return;
+    try {
+      await dataSource.updateNote(note.id, {
+        type: note.type,
+        title: note.title,
+        body: note.body,
+        mastery: note.mastery,
+        progress: note.progress,
+        important: note.important,
+        category_id: note.category_id,
+        tags: note.tags,
+        todo_items: note.todo_items,
+        review_interval_days: next,
+      });
+      showToast(
+        remembered ? `次の復習は${next}日後にします。` : "明日もう一度出します。",
+        "success"
+      );
+      await fetchAll();
+    } catch (err) {
+      showToast(errorMessage(err, "復習間隔の更新に失敗しました。"), "error");
+    }
   };
 
   // チェック済み（未到来）のうち、頻度が2日以上のものだけ次の期日までの残り日数を添える。
@@ -331,6 +397,19 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
           )}
         </Stack>
+        {/* 本文があるメモは、編集ではなく復習として開けるようにする。
+            穴埋め([[ ]])があれば伏字で出題され、無ければ read-only で読み返せる */}
+        {note.body?.trim() && (
+          <Button
+            size="small"
+            variant={hasCloze(note.body) ? "contained" : "outlined"}
+            startIcon={<PsychologyOutlinedIcon fontSize="small" />}
+            onClick={() => setReviewNoteId(note.id)}
+            sx={{ flexShrink: 0 }}
+          >
+            復習
+          </Button>
+        )}
         <IconButton size="small" onClick={() => openNoteDetail(note)} aria-label="詳細を見る">
           <ChevronRightIcon fontSize="small" />
         </IconButton>
@@ -426,6 +505,23 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   };
 
   // ---- メモ ----
+  // 学習ログをGitHubへ1行追記する（設定でオンにしている場合のみ）。
+  // ここが失敗してもメモの保存自体は成功しているため、操作は失敗扱いにせず、
+  // 記録が残らなかったことだけを控えめに知らせる
+  const commitStudyLog = async (noteType: Note["type"], title: string, action: string) => {
+    if (!isStudyLogCommitEnabled()) return;
+    // 学習用メモだけを対象にする。通常メモの走り書きやチェック用のtodo消化まで
+    // 混ざると、学習ログとして読み返したときに何を学んだのかが埋もれてしまうため
+    if (noteType !== "learning") return;
+    if (!octokit || !githubLogin || !repoName) return;
+    try {
+      await appendStudyLog(octokit, githubLogin, repoName, { title, action });
+    } catch (err) {
+      console.error("学習ログのコミットに失敗しました", err);
+      showToast("学習ログをGitHubに記録できませんでした。", "info");
+    }
+  };
+
   const handleSaveNote = async (data: NoteInput) => {
     try {
       if (editingNote) {
@@ -436,6 +532,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         showToast("メモを作成しました。", "success");
       }
       await fetchAll();
+      // 保存が確定してから記録する（失敗した操作を草にしないため）
+      void commitStudyLog(data.type, data.title, editingNote ? "メモを更新" : "メモを作成");
     } catch (err) {
       showToast(errorMessage(err, "メモの保存に失敗しました。"), "error");
       throw err;
@@ -507,19 +605,29 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     setPlanDialogOpen(true);
   };
 
+  // メモに設定されたカテゴリーの名前。カテゴリーはこれまで保存されるだけで
+  // どこにも表示されず、検索にも掛からなかったため、表示・検索の両方で使う
+  const categoryNameOf = (note: Note): string | null =>
+    categories.find((c) => c.id === note.category_id)?.name ?? null;
+
   const libraryNotes = useMemo(() => {
     let list = libraryTypeFilter === "all" ? notes : notes.filter((n) => n.type === libraryTypeFilter);
+    if (libraryCategoryFilter !== "all") {
+      list = list.filter((n) => n.category_id === libraryCategoryFilter);
+    }
     const q = noteSearchQuery.trim().toLowerCase();
     if (q) {
+      const nameOf = (n: Note) => categories.find((c) => c.id === n.category_id)?.name ?? "";
       list = list.filter(
         (n) =>
           n.title.toLowerCase().includes(q) ||
           (n.body ?? "").toLowerCase().includes(q) ||
-          n.tags.some((t) => t.toLowerCase().includes(q))
+          n.tags.some((t) => t.toLowerCase().includes(q)) ||
+          nameOf(n).toLowerCase().includes(q)
       );
     }
     return list;
-  }, [notes, libraryTypeFilter, noteSearchQuery]);
+  }, [notes, libraryTypeFilter, libraryCategoryFilter, noteSearchQuery, categories]);
 
   // プランボードの検索。マッチしたプランに加え、階層が分かるよう祖先・子孫も表示する
   const filteredPlans = useMemo(() => {
@@ -553,6 +661,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // プレビュー中のメモ。編集・添付追加のあとにnotesが差し替わっても最新が映るよう、
   // 控えを持たずIDから毎回引き直す（メモが削除された場合は自動的に閉じる）
   const previewNote = previewNoteId !== null ? notes.find((n) => n.id === previewNoteId) ?? null : null;
+  const reviewNote = notes.find((n) => n.id === reviewNoteId) ?? null;
 
   // フッター「その他」に並べる項目。ゲストモードではアカウントが無いので
   // 「アカウント情報」は出さず、設定の中身だけを使えるようにする
@@ -567,6 +676,12 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           },
         ]
       : []),
+    {
+      icon: <InsightsOutlinedIcon color="action" />,
+      label: "振り返り",
+      description: "今月の積み上げと、共有用のまとめ",
+      onClick: () => setSummaryOpen(true),
+    },
     {
       icon: <SettingsOutlinedIcon color="action" />,
       label: "設定",
@@ -607,7 +722,10 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       >
         <Toolbar>
           <FlagOutlinedIcon color="primary" sx={{ mr: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
+          {/* サービス名はどの画面にも出るブランド表示であって、その画面の見出しではない。
+              h6のままだと画面見出し(h1)より前に上位でない見出しが挟まり、読み上げ時の
+              構造がおかしくなるため、見た目だけh6でマークアップはdivにする */}
+          <Typography variant="h6" component="div" sx={{ fontWeight: 700, flex: 1 }}>
             ツミアゲ
           </Typography>
           {accountLabel && (
@@ -662,7 +780,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Box>
         ) : bottomTab === "more" ? (
           <Stack spacing={2}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
               その他
             </Typography>
             <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
@@ -687,7 +805,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Stack>
         ) : bottomTab === "review" ? (
           <Stack spacing={3}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
               習慣リスト
             </Typography>
 
@@ -742,7 +860,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         ) : bottomTab === "library" ? (
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                 メモライブラリ
               </Typography>
               <Button
@@ -759,7 +877,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
             <TextField
               size="small"
-              placeholder="タイトル・本文・タグで検索"
+              placeholder="タイトル・本文・タグ・カテゴリーで検索"
               value={noteSearchQuery}
               onChange={(e) => setNoteSearchQuery(e.target.value)}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
@@ -778,10 +896,34 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               <ToggleButton value="normal">{NOTE_TYPE_LABEL.normal}</ToggleButton>
             </ToggleButtonGroup>
 
+            {/* カテゴリーは数が増えるとトグルでは並べきれないため、選択式にする。
+                1件も作られていない間は出しても選べるものが無いので隠す */}
+            {categories.length > 0 && (
+              <TextField
+                select
+                size="small"
+                label="カテゴリー"
+                value={libraryCategoryFilter}
+                onChange={(e) =>
+                  setLibraryCategoryFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+                }
+                sx={{ minWidth: 200, alignSelf: "flex-start" }}
+              >
+                <MenuItem value="all">すべて</MenuItem>
+                {categories.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
             {libraryNotes.length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                {noteSearchQuery.trim()
-                  ? "検索条件に一致するメモがありません。"
+                {noteSearchQuery.trim() ||
+                libraryTypeFilter !== "all" ||
+                libraryCategoryFilter !== "all"
+                  ? "条件に一致するメモがありません。"
                   : "まだメモがありません。「新しいメモ」から作成しましょう。プランに紐付けなくても保存できます。"}
               </Typography>
             ) : (
@@ -799,6 +941,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                   onToggleTodo={handleToggleTodo}
                   onLink={(planId) => handleLinkNote(note, planId)}
                   onUnlink={(planId) => handleUnlinkNote(note, planId)}
+                  categoryName={categoryNameOf(note)}
                 />
               ))
             )}
@@ -807,7 +950,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                   プランボード
                 </Typography>
                 <IconButton size="small" onClick={() => setBoardHelpOpen(true)} aria-label="プランボードの使い方">
@@ -921,7 +1064,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             >
               <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                     {selectedPlan.title}
                   </Typography>
                   <Chip label={PLAN_STATUS_LABEL[selectedPlan.status]} size="small" />
@@ -1027,12 +1170,18 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
                     onToggleTodo={handleToggleTodo}
                     onLink={(planId) => handleLinkNote(note, planId)}
                     onUnlink={(planId) => handleUnlinkNote(note, planId)}
+                    categoryName={categoryNameOf(note)}
                   />
                 ))}
               </Stack>
             )}
           </Stack>
         )}
+
+        {/* ゲスト・フリープラン向けの広告枠。AdSenseの発行者ID/広告ユニットIDを
+            環境変数に設定するまでは何も描画されないため、審査中は今までどおり
+            何も表示されない（設定した時点で有効になる） */}
+        {!loading && <AdBanner />}
       </Container>
 
       {!loading && bottomTab === "plans" && (
@@ -1131,33 +1280,58 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         }
       />
 
-      {selectedPlan && (
-        <StreakDialog open={streakDialogOpen} onClose={() => setStreakDialogOpen(false)} dates={streakDates} />
-      )}
+      <Suspense fallback={null}>
+        {selectedPlan && streakDialogOpen && (
+          <StreakDialog open onClose={() => setStreakDialogOpen(false)} dates={streakDates} />
+        )}
+      </Suspense>
 
-      <TodayNextDialog
-        open={todayNextOpen}
-        onClose={() => setTodayNextOpen(false)}
-        plans={plans}
-        notes={notes}
-        userId={userId}
-        onOpenPlan={(planId) => {
-          setTodayNextOpen(false);
-          setBottomTab("plans");
-          setSelectedPlanId(planId);
-        }}
-      />
-      <PlanBoardHelpDialog open={boardHelpOpen} onClose={() => setBoardHelpOpen(false)} />
-      <AccountInfoDialog open={accountInfoOpen} onClose={() => setAccountInfoOpen(false)} />
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onLogout={onLogout}
-        isGuest={userId === null}
-      />
-      <FaqDialog open={faqOpen} onClose={() => setFaqOpen(false)} />
-      <UsageGuideDialog open={usageGuideOpen} onClose={() => setUsageGuideOpen(false)} />
-      <PricingPlanDialog open={pricingPlanOpen} onClose={() => setPricingPlanOpen(false)} />
+      {/* 以下のダイアログは開いたときだけ読み込む（lazy）。常にマウントしておくと
+          初回表示のJSに全部含まれてしまい、ほとんど開かれない説明系の画面まで
+          起動時のダウンロードに乗ってしまうため。開くまでは何も描画しないので
+          Suspenseのfallbackも不要 */}
+      <Suspense fallback={null}>
+        {todayNextOpen && (
+          <TodayNextDialog
+            open={todayNextOpen}
+            onClose={() => setTodayNextOpen(false)}
+            plans={plans}
+            notes={notes}
+            userId={userId}
+            onOpenPlan={(planId) => {
+              setTodayNextOpen(false);
+              setBottomTab("plans");
+              setSelectedPlanId(planId);
+            }}
+          />
+        )}
+        {boardHelpOpen && <PlanBoardHelpDialog open onClose={() => setBoardHelpOpen(false)} />}
+        {accountInfoOpen && <AccountInfoDialog open onClose={() => setAccountInfoOpen(false)} />}
+        {settingsOpen && (
+          <SettingsDialog
+            open
+            onClose={() => setSettingsOpen(false)}
+            onLogout={onLogout}
+            isGuest={userId === null}
+            canCommitStudyLog={!!octokit && !!githubLogin && !!repoName}
+            reviewCount={dueRoutineNotes.length}
+          />
+        )}
+        {faqOpen && <FaqDialog open onClose={() => setFaqOpen(false)} />}
+        {usageGuideOpen && <UsageGuideDialog open onClose={() => setUsageGuideOpen(false)} />}
+        {pricingPlanOpen && <PricingPlanDialog open onClose={() => setPricingPlanOpen(false)} />}
+        {summaryOpen && (
+          <SummaryDialog
+            open
+            onClose={() => setSummaryOpen(false)}
+            plans={plans}
+            notes={notes}
+            currentStreak={overallStreak.current}
+          />
+        )}
+      </Suspense>
+
+      <ReviewDialog note={reviewNote} onClose={() => setReviewNoteId(null)} onGrade={handleGradeReview} />
 
       <NotePreviewDialog
         note={previewNote}
