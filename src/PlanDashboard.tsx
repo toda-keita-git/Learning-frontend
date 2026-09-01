@@ -327,7 +327,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     const next = remembered ? Math.min(current * 2, 60) : 1;
     setReviewNoteId(null);
     if (remembered) handleRoutineCheck(note);
-    void commitStudyLog(note.title, remembered ? "復習した" : "復習した（要再確認）");
+    void commitStudyLog(note.type, note.title, remembered ? "復習した" : "復習した（要再確認）");
     if (next === current) return;
     try {
       await dataSource.updateNote(note.id, {
@@ -483,8 +483,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // 学習ログをGitHubへ1行追記する（設定でオンにしている場合のみ）。
   // ここが失敗してもメモの保存自体は成功しているため、操作は失敗扱いにせず、
   // 記録が残らなかったことだけを控えめに知らせる
-  const commitStudyLog = async (title: string, action: string) => {
+  const commitStudyLog = async (noteType: Note["type"], title: string, action: string) => {
     if (!isStudyLogCommitEnabled()) return;
+    // 学習用メモだけを対象にする。通常メモの走り書きやチェック用のtodo消化まで
+    // 混ざると、学習ログとして読み返したときに何を学んだのかが埋もれてしまうため
+    if (noteType !== "learning") return;
     if (!octokit || !githubLogin || !repoName) return;
     try {
       await appendStudyLog(octokit, githubLogin, repoName, { title, action });
@@ -505,7 +508,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       }
       await fetchAll();
       // 保存が確定してから記録する（失敗した操作を草にしないため）
-      void commitStudyLog(data.title, editingNote ? "メモを更新" : "メモを作成");
+      void commitStudyLog(data.type, data.title, editingNote ? "メモを更新" : "メモを作成");
     } catch (err) {
       showToast(errorMessage(err, "メモの保存に失敗しました。"), "error");
       throw err;

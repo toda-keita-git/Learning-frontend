@@ -84,9 +84,10 @@ export default function SettingsDialog({ open, onClose, onLogout, isGuest, canCo
                   学習ログをGitHubに残す
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                  メモを書いた日に、連携中のリポジトリの study-log
+                  学習用メモを書いた日に、連携中のリポジトリの study-log
                   フォルダへ1行ずつ記録します。コミットが積み上がるので、GitHubのプロフィールに草が生えます。
                   記録されるのはメモのタイトルと操作内容だけで、本文は含みません。
+                  チェック用・通常のメモは記録しません。
                 </Typography>
                 <FormControlLabel
                   control={
@@ -101,8 +102,6 @@ export default function SettingsDialog({ open, onClose, onLogout, isGuest, canCo
                   label={studyLogEnabled ? "コミットする" : "コミットしない"}
                 />
               </Box>
-
-              <Divider />
             </>
           )}
 
