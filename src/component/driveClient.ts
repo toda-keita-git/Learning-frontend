@@ -74,20 +74,25 @@ export const deleteDriveFile = async (accessToken: string, fileId: string): Prom
   }
 };
 
-export interface DriveFolderItem {
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+
+export interface DriveEntry {
   id: string;
   name: string;
+  isFolder: boolean;
 }
 
-// フォルダ名の一覧取得のみを目的とした最小限の呼び出し。drive.metadata.readonly
-// スコープの範囲内（ファイルの中身は読めない）で、任意のフォルダの直下のサブフォルダを
-// 一覧できる。GoogleDriveFolderBrowser（スマホでの1タップ階層移動用）が使う
-export const listDriveSubfolders = async (accessToken: string, parentId: string): Promise<DriveFolderItem[]> => {
+// フォルダ・ファイルの名前一覧のみを目的とした最小限の呼び出し（中身は読まない）。
+// drive.metadata.readonlyスコープの範囲内で、任意のフォルダの直下を一覧できる。
+// GoogleDriveFolderBrowser（スマホでの1タップ階層移動用）が使う。
+// ファイルの実体（中身）には引き続きdrive.fileスコープの範囲でしかアクセスできない
+// ため、一覧に出てきたファイルをタップしても、選択の確定はGoogle純正Pickerに委ねる
+export const listDriveFolderContents = async (accessToken: string, parentId: string): Promise<DriveEntry[]> => {
   const escapedParentId = parentId.replace(/'/g, "\\'");
   const params = new URLSearchParams({
-    q: `'${escapedParentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-    fields: "files(id,name)",
-    orderBy: "name",
+    q: `'${escapedParentId}' in parents and trashed = false`,
+    fields: "files(id,name,mimeType)",
+    orderBy: "folder,name",
     pageSize: "200",
   });
   const response = await fetch(`${FILES_URL}?${params.toString()}`, {
@@ -95,5 +100,6 @@ export const listDriveSubfolders = async (accessToken: string, parentId: string)
   });
   if (!response.ok) throw new Error("Googleドライブのフォルダ一覧の取得に失敗しました。");
   const data = await response.json();
-  return (data.files ?? []) as DriveFolderItem[];
+  const files = (data.files ?? []) as { id: string; name: string; mimeType: string }[];
+  return files.map((file) => ({ id: file.id, name: file.name, isFolder: file.mimeType === FOLDER_MIME_TYPE }));
 };
