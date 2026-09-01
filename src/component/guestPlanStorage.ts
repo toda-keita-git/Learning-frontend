@@ -243,6 +243,7 @@ function toNote(id: number, data: NoteInput, tags: string[]): Note {
     progress: data.progress,
     category_id: data.category_id,
     review_interval_days: data.review_interval_days,
+    important: data.important,
     created_at: new Date().toISOString(),
     user_id: 0,
     todo_items: todoItems,
@@ -352,6 +353,7 @@ export const guestPlanDataSource: PlanDataSource = {
       progress: data.progress,
       category_id: data.category_id,
       review_interval_days: data.review_interval_days,
+      important: data.important,
       todo_items: todoItems,
       tags,
     };

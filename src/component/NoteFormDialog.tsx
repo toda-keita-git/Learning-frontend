@@ -13,6 +13,8 @@ import Slider from "@mui/material/Slider";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Link from "@mui/material/Link";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -29,6 +31,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileSelector from "./GitHubFileSelector";
+import MarkdownHelpDialog from "./MarkdownHelpDialog";
 import { openGoogleDrivePicker } from "./googlePicker";
 import { uploadDriveFile } from "./driveClient";
 import { getFileType } from "./getFileType";
@@ -110,6 +113,8 @@ export default function NoteFormDialog({
   const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
   const [bodyTab, setBodyTab] = useState<"write" | "preview">("write");
   const [reviewIntervalDays, setReviewIntervalDays] = useState<number | null>(null);
+  const [important, setImportant] = useState(false);
+  const [markdownHelpOpen, setMarkdownHelpOpen] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [githubSelectorOpen, setGithubSelectorOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -156,6 +161,7 @@ export default function NoteFormDialog({
       setTags(initialNote.tags ?? []);
       setAttachments(initialNote.attachments ?? []);
       setReviewIntervalDays(initialNote.review_interval_days ?? null);
+      setImportant(initialNote.important ?? false);
     } else {
       setType("normal");
       setTitle("");
@@ -167,6 +173,7 @@ export default function NoteFormDialog({
       setTags([]);
       setAttachments([]);
       setReviewIntervalDays(null);
+      setImportant(false);
     }
   }, [open, initialNote]);
 
@@ -323,6 +330,7 @@ export default function NoteFormDialog({
         progress: type === "task" && todoItems.length === 0 ? progress : null,
         category_id: categoryId === "" ? null : Number(categoryId),
         review_interval_days: reviewIntervalDays,
+        important,
         todo_items:
           type === "task"
             ? todoItems.filter((t) => t.label.trim()).map((t) => ({ ...t, label: t.label.trim() }))
@@ -452,6 +460,16 @@ export default function NoteFormDialog({
               <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.5, minHeight: 140 }}>
                 <MarkdownContent text={body} />
               </Box>
+            )}
+            {/* 学習用メモだけに出す。復習ボタンで開く画面では[[ ]]で囲んだ部分が
+                タップするまで隠れるため、書き方を知らないと使えない機能のため常時案内する */}
+            {type === "learning" && (
+              <Typography variant="caption" color="text.secondary">
+                💡 <code>[[語句]]</code> のように書くと、復習画面でその部分だけ隠せます（タップで表示）。
+                <Link component="button" type="button" onClick={() => setMarkdownHelpOpen(true)} sx={{ ml: 0.5 }}>
+                  書き方を見る
+                </Link>
+              </Typography>
             )}
           </Stack>
 
@@ -597,6 +615,11 @@ export default function NoteFormDialog({
             </Stack>
           </div>
 
+          <FormControlLabel
+            control={<Checkbox checked={important} onChange={(e) => setImportant(e.target.checked)} />}
+            label="重要（「今日やること・次にやる事」画面の一番下にまとめて表示）"
+          />
+
           <Autocomplete
             freeSolo
             options={categories}
@@ -678,6 +701,8 @@ export default function NoteFormDialog({
         onClose={() => setGithubSelectorOpen(false)}
         onFileSelect={handleGithubFileSelect}
       />
+
+      <MarkdownHelpDialog open={markdownHelpOpen} onClose={() => setMarkdownHelpOpen(false)} />
     </Dialog>
   );
 }

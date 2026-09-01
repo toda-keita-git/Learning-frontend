@@ -52,7 +52,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 
 import { useToast } from "./ToastContext";
-import { isRoutineDue, markRoutineDone, clearRoutineDone } from "./component/routine";
+import { isRoutineDue, markRoutineDone, clearRoutineDone, getRemainingDays } from "./component/routine";
 import StreakDialog from "./component/StreakDialog";
 import { calculateStreakStats } from "./component/streakStats";
 import TodayNextDialog from "./component/TodayNextDialog";
@@ -297,33 +297,46 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     setNoteDialogOpen(true);
   };
 
-  const renderRoutineRow = (note: Note, checked: boolean) => (
-    <Paper key={note.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}>
-      <Checkbox checked={checked} onChange={() => (checked ? handleRoutineUncheck(note) : handleRoutineCheck(note))} />
-      <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => openNoteDetail(note)}>
-        <Typography
-          noWrap
-          sx={{
-            fontWeight: 600,
-            textDecoration: checked ? "line-through" : "none",
-            color: checked ? "text.disabled" : "text.primary",
-          }}
-        >
-          {note.title}
-        </Typography>
-        {note.tags.length > 0 && (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
-            {note.tags.map((tag) => (
-              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
-            ))}
+  // チェック済み（未到来）のうち、頻度が2日以上のものだけ次の期日までの残り日数を添える。
+  // 未チェック（期日が来たもの）は残りが常に0以下で意味を持たないため対象外
+  const renderRoutineRow = (note: Note, checked: boolean) => {
+    const remainingDays =
+      checked && note.review_interval_days && note.review_interval_days >= 2
+        ? getRemainingDays(userId, note.id, note.review_interval_days)
+        : null;
+    return (
+      <Paper key={note.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Checkbox checked={checked} onChange={() => (checked ? handleRoutineUncheck(note) : handleRoutineCheck(note))} />
+        <Stack sx={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => openNoteDetail(note)}>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography
+              noWrap
+              sx={{
+                fontWeight: 600,
+                textDecoration: checked ? "line-through" : "none",
+                color: checked ? "text.disabled" : "text.primary",
+              }}
+            >
+              {note.title}
+            </Typography>
+            {remainingDays !== null && (
+              <Chip label={`あと${remainingDays}日`} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
+            )}
           </Stack>
-        )}
-      </Stack>
-      <IconButton size="small" onClick={() => openNoteDetail(note)} aria-label="詳細を見る">
-        <ChevronRightIcon fontSize="small" />
-      </IconButton>
-    </Paper>
-  );
+          {note.tags.length > 0 && (
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ rowGap: 0.5 }}>
+              {note.tags.map((tag) => (
+                <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" />
+              ))}
+            </Stack>
+          )}
+        </Stack>
+        <IconButton size="small" onClick={() => openNoteDetail(note)} aria-label="詳細を見る">
+          <ChevronRightIcon fontSize="small" />
+        </IconButton>
+      </Paper>
+    );
+  };
 
   // ---- プラン ----
   const handleSavePlan = async (data: PlanInput) => {

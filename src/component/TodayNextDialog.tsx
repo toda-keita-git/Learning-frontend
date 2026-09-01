@@ -14,8 +14,9 @@ import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
+import StarIcon from "@mui/icons-material/Star";
 import type { Plan, Note } from "./PlanTypes";
-import { PLAN_STATUS_LABEL } from "./PlanTypes";
+import { PLAN_STATUS_LABEL, NOTE_TYPE_LABEL } from "./PlanTypes";
 import { isRoutineDue } from "./routine";
 import { useFullScreenDialog } from "./useFullScreenDialog";
 
@@ -95,6 +96,9 @@ export default function TodayNextDialog({
 
   const totalToday = goalSections.reduce((sum, s) => sum + s.todayNotes.length, 0);
 
+  // 目標との紐づけに関わらず、「重要」チェックの付いたメモを画面全体の一番下にまとめて表示する
+  const importantNotes = useMemo(() => notes.filter((n) => n.important), [notes]);
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -143,7 +147,9 @@ export default function TodayNextDialog({
                         <Typography variant="body2" sx={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
                           {note.title}
                         </Typography>
-                        <Chip label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
+                        {/* 今日やることは期日が来たメモだけを表示するため、残り日数は常に0。
+                            「あと0日」ではなく「今日」とだけ示す */}
+                        <Chip label="今日" size="small" variant="outlined" sx={{ flexShrink: 0 }} />
                       </Stack>
                     ))
                   )}
@@ -199,6 +205,29 @@ export default function TodayNextDialog({
               </Paper>
             ))}
           </Stack>
+        )}
+
+        {/* 重要なメモは特定の目標に属さず横断的なので、目標ごとの一覧とは別に
+            画面全体の一番下にまとめて表示する */}
+        {importantNotes.length > 0 && (
+          <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, mt: 2.5 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
+              <StarIcon fontSize="small" sx={{ color: "warning.main" }} />
+              <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                重要なメモ（{importantNotes.length}）
+              </Typography>
+            </Stack>
+            <Stack spacing={0.5}>
+              {importantNotes.map((note) => (
+                <Stack key={note.id} direction="row" spacing={0.75} alignItems="center">
+                  <Chip label={NOTE_TYPE_LABEL[note.type]} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
+                  <Typography variant="body2" sx={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
+                    {note.title}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
         )}
       </DialogContent>
       <DialogActions>

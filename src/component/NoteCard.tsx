@@ -9,8 +9,14 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import StarIcon from "@mui/icons-material/Star";
 import Box from "@mui/material/Box";
 import AttachmentProviderIcon from "./AttachmentProviderIcon";
 import { attachmentProviderLabel } from "./attachmentVisuals";
@@ -32,6 +38,7 @@ import { NOTE_TYPE_COLOR, NOTE_TYPE_BORDER_COLOR } from "./noteVisuals";
 import ProgressBadge from "./ProgressBadge";
 import PlanPicker from "./PlanPicker";
 import type { PlanOption } from "./PlanPicker";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 const PREVIEW_UNSUPPORTED = ["excel", "pdf", "docx", "doc", "pptx", "zip-archive", "binary"];
 
@@ -61,10 +68,12 @@ export default function NoteCard({
 }: NoteCardProps) {
   const { octokit, githubLogin, ensureDriveAccessToken } = useContext(AuthContext);
   const { showToast } = useToast();
+  const fullScreenDialog = useFullScreenDialog();
   const [viewerOpen, setViewerOpen] = useState<NoteAttachment | null>(null);
   const [viewerContent, setViewerContent] = useState("");
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const linkedOptions = planOptions.filter((opt) => note.links.includes(opt.id));
 
@@ -134,12 +143,22 @@ export default function NoteCard({
             {note.review_interval_days && (
               <Chip icon={<RepeatIcon fontSize="small" />} label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" />
             )}
+            {note.important && (
+              <Chip icon={<StarIcon fontSize="small" />} label="重要" size="small" color="warning" variant="outlined" />
+            )}
           </Stack>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {note.title}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={0.5}>
+          {/* 復習ボタンは学習用メモにだけ出す。[[ ]]で隠した部分をタップして
+              1つずつ表示しながら振り返る画面を開く */}
+          {note.type === "learning" && (
+            <IconButton size="small" onClick={() => setReviewOpen(true)} aria-label="復習">
+              <SchoolOutlinedIcon fontSize="small" />
+            </IconButton>
+          )}
           <IconButton size="small" onClick={onEdit} aria-label="編集">
             <EditOutlinedIcon fontSize="small" />
           </IconButton>
@@ -285,6 +304,23 @@ export default function NoteCard({
           onUpdateFile={async () => {}}
         />
       )}
+
+      {/* 復習画面。forceRevealed={false}にすることで、本文中の[[ ]]で囲んだ部分が
+          タップするまで隠れた状態で表示される（MarkdownContent側の機能） */}
+      <Dialog open={reviewOpen} onClose={() => setReviewOpen(false)} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <SchoolOutlinedIcon color="primary" />
+          {note.title}
+        </DialogTitle>
+        <DialogContent dividers>
+          <MarkdownContent text={note.body ?? ""} color="text.primary" forceRevealed={false} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReviewOpen(false)} variant="contained">
+            とじる
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
