@@ -599,6 +599,10 @@ export default function NoteFormDialog({
 
           <Autocomplete
             freeSolo
+            // autoSelectが無いと、新しいカテゴリー名を入力しただけでEnterを押さずに
+            // 他の欄へ移った時点で入力が破棄され、保存しても空のままになる
+            // （エラーも出ないため、利用者は消えたことに気づけない）
+            autoSelect
             options={categories}
             loading={creatingCategory}
             getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}

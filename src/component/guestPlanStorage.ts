@@ -135,7 +135,10 @@ function withProgress(plans: Plan[], notes: Note[]): Plan[] {
     if (cache.has(plan.id)) return cache.get(plan.id)!;
     const values: (number | null)[] = [...(notesByPlan.get(plan.id) ?? [])];
     for (const child of childrenByParent.get(plan.id) ?? []) {
-      values.push(compute(child));
+      // メモが1件も無い子プランは未算出(null)だが、除外すると「手つかずの
+      // アクションプランがあるのに親の目標が100%」になってしまうため0%として数える
+      // （バックエンドのProgressServiceと同じルール）
+      values.push(compute(child) ?? 0);
     }
     const result = average(values);
     cache.set(plan.id, result);

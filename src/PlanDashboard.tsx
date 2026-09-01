@@ -594,7 +594,10 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
       >
         <Toolbar>
           <FlagOutlinedIcon color="primary" sx={{ mr: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
+          {/* サービス名はどの画面にも出るブランド表示であって、その画面の見出しではない。
+              h6のままだと画面見出し(h1)より前に上位でない見出しが挟まり、読み上げ時の
+              構造がおかしくなるため、見た目だけh6でマークアップはdivにする */}
+          <Typography variant="h6" component="div" sx={{ fontWeight: 700, flex: 1 }}>
             ツミアゲ
           </Typography>
           {accountLabel && (
@@ -649,7 +652,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Box>
         ) : bottomTab === "more" ? (
           <Stack spacing={2}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
               その他
             </Typography>
             <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
@@ -674,7 +677,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Stack>
         ) : bottomTab === "review" ? (
           <Stack spacing={3}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
               習慣リスト
             </Typography>
 
@@ -729,7 +732,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         ) : bottomTab === "library" ? (
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                 メモライブラリ
               </Typography>
               <Button
@@ -794,7 +797,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                   プランボード
                 </Typography>
                 <IconButton size="small" onClick={() => setBoardHelpOpen(true)} aria-label="プランボードの使い方">
@@ -908,7 +911,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             >
               <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
                     {selectedPlan.title}
                   </Typography>
                   <Chip label={PLAN_STATUS_LABEL[selectedPlan.status]} size="small" />

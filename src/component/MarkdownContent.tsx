@@ -6,6 +6,39 @@ import { findAndReplace } from "mdast-util-find-and-replace";
 import type { Root, Content } from "mdast";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
+import { useTheme } from "@mui/material/styles";
+// 添付ファイルのビューアーと同じくPrismAsyncLight（言語ごとに動的import）を使い、
+// メモ本文の```コードブロックも色付きで読めるようにする
+import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneLight, vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// ```ts のように書かれる短縮名は、そのままではPrismの言語ファイル名と一致せず
+// 色が付かない（Prism側は typescript / javascript … という名前で登録されている）。
+// よく使われる別名だけ正式名へ読み替える
+const CODE_FENCE_ALIAS: Record<string, string> = {
+  ts: "typescript",
+  tsx: "tsx",
+  js: "javascript",
+  jsx: "jsx",
+  py: "python",
+  rb: "ruby",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  yml: "yaml",
+  md: "markdown",
+  html: "markup",
+  xml: "markup",
+  vue: "markup",
+  "c++": "cpp",
+  "c#": "csharp",
+  cs: "csharp",
+  golang: "go",
+  kt: "kotlin",
+  rs: "rust",
+  psql: "sql",
+  dockerfile: "docker",
+};
 
 interface MarkdownContentProps {
   text: string;
@@ -165,6 +198,10 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
   onAllRevealed,
 }) => {
   const [revealedIndexes, setRevealedIndexes] = useState<Set<number>>(new Set());
+  // コードブロックの配色は画面の明るさ設定に合わせる（ダーク時に白背景が
+  // 浮いてしまわないようにするため）
+  const theme = useTheme();
+  const codeTheme = theme.palette.mode === "dark" ? vscDarkPlus : oneLight;
   const notifiedRef = useRef(false);
   const totalCloze = countCloze(text);
 
@@ -246,6 +283,13 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
           borderColor: "divider",
           color: "text.secondary",
         },
+        // 本文中の見出しは、ページ見出し(h1)と競合しないようcomponentsでタグを
+        // 2段下げている（h1→h3…）。ブラウザ既定のままだと下げたぶん小さく見えるので、
+        // 見た目の大きさは下げる前と同じになるようここで指定し直す
+        "& h3": { fontSize: "1.6em", fontWeight: 700, mt: 1.5, mb: 0.75 },
+        "& h4": { fontSize: "1.3em", fontWeight: 700, mt: 1.5, mb: 0.75 },
+        "& h5": { fontSize: "1.1em", fontWeight: 700, mt: 1.25, mb: 0.5 },
+        "& h6": { fontSize: "1em", fontWeight: 700, mt: 1.25, mb: 0.5 },
         "& hr": { border: "none", borderTop: "1px solid", borderColor: "divider" },
         "& mark": {
           bgcolor: (theme) => theme.palette.warning.light,
@@ -262,6 +306,38 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({
           a: ({ ...props }) => (
             <Link {...props} target="_blank" rel="noopener noreferrer" />
           ),
+          // メモ本文はカードの中身であって画面の見出しではないため、本文中の
+          // 「# 見出し」がページ見出し(h1)と同じ強さで並ばないよう2段下げる
+          // （下げたぶん小さくならないよう、見た目の大きさは上のsxで補正している）
+          h1: ({ ...props }) => <h3 {...props} />,
+          h2: ({ ...props }) => <h4 {...props} />,
+          h3: ({ ...props }) => <h5 {...props} />,
+          h4: ({ ...props }) => <h6 {...props} />,
+          h5: ({ ...props }) => <h6 {...props} />,
+          h6: ({ ...props }) => <h6 {...props} />,
+          // ```ts のように言語が指定された囲みコードだけ色付けする。
+          // 言語指定なしの囲みコードとインラインコード（`foo`）は、
+          // 上のsxで付けている既存の見た目のまま変えない
+          code: ({ className, children, ...props }: any) => {
+            const fence = /language-([\w+#-]+)/.exec(className ?? "")?.[1]?.toLowerCase();
+            const language = fence ? (CODE_FENCE_ALIAS[fence] ?? fence) : undefined;
+            if (!language) {
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <SyntaxHighlighter
+                language={language}
+                style={codeTheme}
+                customStyle={{ margin: 0, borderRadius: 4, fontSize: "0.85em" }}
+              >
+                {String(children).replace(/\n$/, "")}
+              </SyntaxHighlighter>
+            );
+          },
           // @ts-expect-error 独自タグ名なのでReactMarkdownの型定義には無い
           "cloze-blank": ({ node, children }: any) => {
             const index = node?.properties?.clozeIndex as number;

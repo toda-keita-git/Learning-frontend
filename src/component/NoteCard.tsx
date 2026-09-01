@@ -135,7 +135,9 @@ export default function NoteCard({
               <Chip icon={<RepeatIcon fontSize="small" />} label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" />
             )}
           </Stack>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {/* MUIのsubtitle1は既定でh6として描画されるが、画面見出し(h1)の直下に
+              h6が並ぶと見出しレベルが飛ぶ。見た目はそのままにh2として扱う */}
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
             {note.title}
           </Typography>
         </Stack>
