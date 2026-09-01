@@ -55,6 +55,8 @@ export interface Note {
   category_id: number | null;
   // nullなら繰り返しなし。設定時は「習慣リスト」タブでN日ごとのやることとして表示される（頻度は自由設定）
   review_interval_days: number | null;
+  // trueなら「今日やること・次にやる事」画面の一番下に、目標との紐づけに関わらず横断的に表示される
+  important: boolean;
   created_at: string;
   user_id: number;
   tags: string[];
@@ -75,6 +77,7 @@ export type NoteInput = {
   progress: number | null;
   category_id: number | null;
   review_interval_days: number | null;
+  important: boolean;
   todo_items: NoteTodoItem[];
   tags: string[];
   // 作成時のみ有効（サーバーはnote_insertでこの2つをそのまま張ってくれる）。更新時はlink/unlink・attachment系APIを使う

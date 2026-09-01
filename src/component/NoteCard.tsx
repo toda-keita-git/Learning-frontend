@@ -11,6 +11,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import StarIcon from "@mui/icons-material/Star";
 import Box from "@mui/material/Box";
 import AttachmentProviderIcon from "./AttachmentProviderIcon";
 import { attachmentProviderLabel } from "./attachmentVisuals";
@@ -138,6 +139,9 @@ export default function NoteCard({
             </Typography>
             {note.review_interval_days && (
               <Chip icon={<RepeatIcon fontSize="small" />} label={`${note.review_interval_days}日ごと`} size="small" variant="outlined" />
+            )}
+            {note.important && (
+              <Chip icon={<StarIcon fontSize="small" />} label="重要" size="small" color="warning" variant="outlined" />
             )}
           </Stack>
           {/* MUIのsubtitle1は既定でh6として描画されるが、画面見出し(h1)の直下に

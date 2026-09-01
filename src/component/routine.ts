@@ -43,6 +43,22 @@ export const isRoutineDue = (
   return due.toISOString().slice(0, 10) <= todayStr();
 };
 
+// 次の期日まであと何日か。まだ一度もやっていなければ0（即座に対象）。
+// intervalDaysが未設定なら対象外としてnullを返す
+export const getRemainingDays = (
+  userId: number | null | undefined,
+  noteId: number,
+  intervalDays: number | null
+): number | null => {
+  if (!intervalDays || intervalDays < 1) return null;
+  const last = getLastDone(userId, noteId);
+  if (!last) return 0;
+  const due = new Date(last);
+  due.setDate(due.getDate() + intervalDays);
+  const today = new Date(todayStr());
+  return Math.round((due.getTime() - today.getTime()) / 86400000);
+};
+
 export const markRoutineDone = (userId: number | null | undefined, noteId: number): void => {
   const all = loadAll(userId);
   all[noteId] = todayStr();
