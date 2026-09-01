@@ -87,11 +87,11 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
     setPath((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   };
 
-  const runScopedPicker = async (parentId: string, label: string) => {
+  const runScopedPicker = async (parentId: string, label: string, fileName?: string) => {
     if (!accessToken || opening) return;
     setOpening(true);
     try {
-      const picked = await openGoogleDriveScopedPicker(accessToken, parentId, label);
+      const picked = await openGoogleDriveScopedPicker(accessToken, parentId, label, fileName);
       if (picked) onPick(picked);
     } finally {
       setOpening(false);
@@ -199,7 +199,9 @@ const GoogleDriveFolderBrowser: React.FC<Props> = ({ open, accessToken, driveFol
                 // そちらで同じファイルを選び直してもらうことで正式にアクセス権を得る
                 <Box
                   key={entry.id}
-                  onClick={() => runScopedPicker(currentFolder.id, `「${currentFolder.name}」から選ぶ`)}
+                  onClick={() =>
+                    runScopedPicker(currentFolder.id, `「${entry.name}」を選択`, entry.name)
+                  }
                   sx={{
                     display: "flex",
                     alignItems: "center",

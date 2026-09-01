@@ -161,11 +161,17 @@ export const openGoogleDrivePicker = (
 // GoogleDriveFolderBrowserで1タップの独自ナビゲーションによりたどり着いた特定の
 // フォルダ直下のファイルだけを、Picker純正の画面で選ばせる。フォルダ移動は
 // 事前に済んでいるため、ここでのPickerはフォルダを含まない単一のフラットな
-// 一覧になり、Picker内でさらに階層をたどる必要がない
+// 一覧になり、Picker内でさらに階層をたどる必要がない。
+//
+// fileNameを渡すと、そのファイル名でPickerの検索を先に済ませた状態で開く。
+// 自前の一覧で既にどのファイルか分かっているのに、Picker側でもう一度同じ
+// 一覧から探し直す（＝実質的な二度手間）のを避け、「同じ項目をもう一度
+// タップして確定するだけ」まで手間を減らすため
 export const openGoogleDriveScopedPicker = (
   accessToken: string,
   parentId: string,
-  label: string
+  label: string,
+  fileName?: string
 ): Promise<PickedDriveFile | null> =>
   loadPickerApi().then(
     () =>
@@ -175,6 +181,7 @@ export const openGoogleDriveScopedPicker = (
           view.setParent(parentId);
           view.setIncludeFolders(false);
           view.setLabel(label);
+          if (fileName) view.setQuery(fileName);
           buildAndShowPicker(accessToken, [view], resolve);
         } catch (err) {
           reject(err);
