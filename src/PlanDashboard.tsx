@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
@@ -46,6 +46,7 @@ import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -82,6 +83,12 @@ import NoteFormDialog from "./component/NoteFormDialog";
 import type { PlanOption } from "./component/PlanPicker";
 import NoteCard from "./component/NoteCard";
 import AdBanner from "./component/AdBanner";
+import ReviewDialog, { hasCloze } from "./component/ReviewDialog";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
+import { appendStudyLog } from "./component/studyLogCommit";
+import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
+import { AuthContext } from "./Context";
+const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 
 type BottomTab = "plans" | "library" | "review" | "more";
 
@@ -98,6 +105,8 @@ interface PlanDashboardProps {
 
 export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
+  // 学習ログのコミット先（GitHub連携済みのときだけ使える）
+  const { octokit, githubLogin, repoName } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -134,9 +143,13 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [faqOpen, setFaqOpen] = useState(false);
   const [usageGuideOpen, setUsageGuideOpen] = useState(false);
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
+  // 習慣リストから復習モードで開いているメモ。編集画面と同じく、内容が変わっても
+  // 最新が映るようメモ自体ではなくIDを持つ
+  const [reviewNoteId, setReviewNoteId] = useState<number | null>(null);
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<"all" | Note["type"]>("all");
   const [libraryCategoryFilter, setLibraryCategoryFilter] = useState<"all" | number>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
@@ -255,6 +268,11 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, selectedPlanId, plans]);
   const currentStreak = useMemo(() => calculateStreakStats(streakDates), [streakDates]);
+  // 振り返り画面用。プラン単位ではなく、全メモを対象にした通算の継続日数
+  const overallStreak = useMemo(
+    () => calculateStreakStats(notes.map((n) => n.created_at)),
+    [notes]
+  );
 
   // ---- 習慣リスト（固定ペースの繰り返しやること。頻度はメモごとに自由設定し、設定した日数そのものでグループ化する） ----
   const routineNotes = useMemo(() => notes.filter((n) => n.review_interval_days), [notes]);
@@ -300,6 +318,39 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     setNoteDialogOpen(true);
   };
 
+  // 習慣リストから開く復習。自己採点の結果で次に出す間隔を伸縮させ、
+  // 覚えているものほど間隔が空くようにする（簡易的な間隔反復）。
+  // 「覚えていた」はチェック済みにもして、その日の分から消えるようにする
+  const handleGradeReview = async (note: Note, remembered: boolean) => {
+    const current = note.review_interval_days ?? 1;
+    // 覚えていたら倍に伸ばす（上限60日）。あやふやなら1日に戻して翌日また出す
+    const next = remembered ? Math.min(current * 2, 60) : 1;
+    setReviewNoteId(null);
+    if (remembered) handleRoutineCheck(note);
+    void commitStudyLog(note.title, remembered ? "復習した" : "復習した（要再確認）");
+    if (next === current) return;
+    try {
+      await dataSource.updateNote(note.id, {
+        type: note.type,
+        title: note.title,
+        body: note.body,
+        mastery: note.mastery,
+        progress: note.progress,
+        category_id: note.category_id,
+        tags: note.tags,
+        todo_items: note.todo_items,
+        review_interval_days: next,
+      });
+      showToast(
+        remembered ? `次の復習は${next}日後にします。` : "明日もう一度出します。",
+        "success"
+      );
+      await fetchAll();
+    } catch (err) {
+      showToast(errorMessage(err, "復習間隔の更新に失敗しました。"), "error");
+    }
+  };
+
   const renderRoutineRow = (note: Note, checked: boolean) => (
     <Paper key={note.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, display: "flex", alignItems: "center", gap: 0.5 }}>
       <Checkbox checked={checked} onChange={() => (checked ? handleRoutineUncheck(note) : handleRoutineCheck(note))} />
@@ -322,6 +373,19 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Stack>
         )}
       </Stack>
+      {/* 本文があるメモは、編集ではなく復習として開けるようにする。
+          穴埋め([[ ]])があれば伏字で出題され、無ければ read-only で読み返せる */}
+      {note.body?.trim() && (
+        <Button
+          size="small"
+          variant={hasCloze(note.body) ? "contained" : "outlined"}
+          startIcon={<PsychologyOutlinedIcon fontSize="small" />}
+          onClick={() => setReviewNoteId(note.id)}
+          sx={{ flexShrink: 0 }}
+        >
+          復習
+        </Button>
+      )}
       <IconButton size="small" onClick={() => openNoteDetail(note)} aria-label="詳細を見る">
         <ChevronRightIcon fontSize="small" />
       </IconButton>
@@ -416,6 +480,20 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   };
 
   // ---- メモ ----
+  // 学習ログをGitHubへ1行追記する（設定でオンにしている場合のみ）。
+  // ここが失敗してもメモの保存自体は成功しているため、操作は失敗扱いにせず、
+  // 記録が残らなかったことだけを控えめに知らせる
+  const commitStudyLog = async (title: string, action: string) => {
+    if (!isStudyLogCommitEnabled()) return;
+    if (!octokit || !githubLogin || !repoName) return;
+    try {
+      await appendStudyLog(octokit, githubLogin, repoName, { title, action });
+    } catch (err) {
+      console.error("学習ログのコミットに失敗しました", err);
+      showToast("学習ログをGitHubに記録できませんでした。", "info");
+    }
+  };
+
   const handleSaveNote = async (data: NoteInput) => {
     try {
       if (editingNote) {
@@ -426,6 +504,8 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
         showToast("メモを作成しました。", "success");
       }
       await fetchAll();
+      // 保存が確定してから記録する（失敗した操作を草にしないため）
+      void commitStudyLog(data.title, editingNote ? "メモを更新" : "メモを作成");
     } catch (err) {
       showToast(errorMessage(err, "メモの保存に失敗しました。"), "error");
       throw err;
@@ -553,6 +633,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   // プレビュー中のメモ。編集・添付追加のあとにnotesが差し替わっても最新が映るよう、
   // 控えを持たずIDから毎回引き直す（メモが削除された場合は自動的に閉じる）
   const previewNote = previewNoteId !== null ? notes.find((n) => n.id === previewNoteId) ?? null : null;
+  const reviewNote = notes.find((n) => n.id === reviewNoteId) ?? null;
 
   // フッター「その他」に並べる項目。ゲストモードではアカウントが無いので
   // 「アカウント情報」は出さず、設定の中身だけを使えるようにする
@@ -567,6 +648,12 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           },
         ]
       : []),
+    {
+      icon: <InsightsOutlinedIcon color="action" />,
+      label: "振り返り",
+      description: "今月の積み上げと、共有用のまとめ",
+      onClick: () => setSummaryOpen(true),
+    },
     {
       icon: <SettingsOutlinedIcon color="action" />,
       label: "設定",
@@ -1198,12 +1285,24 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             onClose={() => setSettingsOpen(false)}
             onLogout={onLogout}
             isGuest={userId === null}
+            canCommitStudyLog={!!octokit && !!githubLogin && !!repoName}
           />
         )}
         {faqOpen && <FaqDialog open onClose={() => setFaqOpen(false)} />}
         {usageGuideOpen && <UsageGuideDialog open onClose={() => setUsageGuideOpen(false)} />}
         {pricingPlanOpen && <PricingPlanDialog open onClose={() => setPricingPlanOpen(false)} />}
+        {summaryOpen && (
+          <SummaryDialog
+            open
+            onClose={() => setSummaryOpen(false)}
+            plans={plans}
+            notes={notes}
+            currentStreak={overallStreak.current}
+          />
+        )}
       </Suspense>
+
+      <ReviewDialog note={reviewNote} onClose={() => setReviewNoteId(null)} onGrade={handleGradeReview} />
 
       <NotePreviewDialog
         note={previewNote}
