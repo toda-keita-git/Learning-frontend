@@ -57,7 +57,6 @@ export default function GuestGoalDashboard() {
       <PlanDashboard
         dataSource={guestPlanDataSource}
         userId={null}
-        accountLabel="ゲスト"
         onLogout={() => setResetConfirmOpen(true)}
         topBanner={banner}
       />
