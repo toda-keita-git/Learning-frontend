@@ -11,6 +11,7 @@ import { useTheme } from "@mui/material/styles";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import { useFullScreenDialog } from "./useFullScreenDialog";
 import { calculateStreakStats } from "./streakStats";
+import MilestoneBadges from "./MilestoneBadges";
 
 type Props = {
   open: boolean;
@@ -126,6 +127,10 @@ export const StreakDialog: React.FC<Props> = ({ open, onClose, dates }) => {
           />
           <StatCard label="最長の連続" value={`${longest}日`} accent="#4f46e5" />
           <StatCard label="記録の合計" value={`${total}件`} accent="#0ea5a4" />
+        </Box>
+
+        <Box sx={{ mb: 2.5 }}>
+          <MilestoneBadges longest={longest} total={total} />
         </Box>
 
         <Typography
