@@ -8,9 +8,16 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import StarIcon from "@mui/icons-material/Star";
 import Box from "@mui/material/Box";
 import AttachmentProviderIcon from "./AttachmentProviderIcon";
@@ -71,6 +78,8 @@ export default function NoteCard({
   const [viewerContent, setViewerContent] = useState("");
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   const linkedOptions = planOptions.filter((opt) => note.links.includes(opt.id));
 
@@ -150,15 +159,32 @@ export default function NoteCard({
             {note.title}
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={onEdit} aria-label="編集">
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={onDelete} aria-label="削除">
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
-        </Stack>
+        <IconButton size="small" onClick={(event) => setMenuAnchor(event.currentTarget)} aria-label="その他の操作">
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
       </Stack>
+
+      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            onEdit();
+          }}
+        >
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>編集</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            onDelete();
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon><DeleteOutlineIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText>削除</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {note.effective_progress !== null && (
         <Stack sx={{ mt: 1.5, maxWidth: 260 }}>
@@ -191,13 +217,31 @@ export default function NoteCard({
         </Stack>
       )}
 
-      {note.body && (
+      {note.body && !expanded && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 1.25,
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {note.body}
+        </Typography>
+      )}
+
+      {expanded && note.body && (
         <Stack sx={{ mt: 1.5 }}>
           <MarkdownContent text={note.body} />
         </Stack>
       )}
 
-      {note.attachments.length > 0 && (
+      {expanded && note.attachments.length > 0 && (
         <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.75 }}>
           {note.attachments.map((attachment) => (
             <Button
@@ -223,7 +267,7 @@ export default function NoteCard({
         </Stack>
       )}
 
-      {(categoryName || note.tags.length > 0) && (
+      {expanded && (categoryName || note.tags.length > 0) && (
         <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1.5, rowGap: 0.5 }}>
           {/* カテゴリーは1メモに1つだけの分類なので、複数付くタグ（#付き）と
               見分けが付くようアイコン付きの塗りつぶしチップにして先頭に置く */}
@@ -246,7 +290,7 @@ export default function NoteCard({
           分からなくなる。見出しを添えた独立したブロックにし、1件ずつ行で表示する。
           プラン名は「目標 / アクションプラン」という階層パスなので長くなりやすく、
           チップだと途中で切れてどのプランか読み取れないため、折り返す行にしている */}
-      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px dashed", borderColor: "divider" }}>
+      {expanded && <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px dashed", borderColor: "divider" }}>
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.75 }}>
           <AccountTreeOutlinedIcon fontSize="small" color="action" />
           <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>
@@ -293,9 +337,21 @@ export default function NoteCard({
           color={pickerOpen ? "primary" : "default"}
           onClick={() => setPickerOpen((v) => !v)}
         />
-      </Box>
+      </Box>}
 
-      {pickerOpen && <PlanPicker options={planOptions} linkedIds={note.links} onToggle={(id) => (note.links.includes(id) ? onUnlink(id) : onLink(id))} />}
+      {expanded && pickerOpen && <PlanPicker options={planOptions} linkedIds={note.links} onToggle={(id) => (note.links.includes(id) ? onUnlink(id) : onLink(id))} />}
+
+      <Button
+        size="small"
+        onClick={() => {
+          setExpanded((value) => !value);
+          if (expanded) setPickerOpen(false);
+        }}
+        endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        sx={{ mt: 1.25 }}
+      >
+        {expanded ? "詳細を閉じる" : `詳細を表示${linkedOptions.length > 0 ? `（紐づくプラン ${linkedOptions.length}件）` : ""}`}
+      </Button>
 
       {viewerOpen && (
         <GitHubFileViewerDialog
