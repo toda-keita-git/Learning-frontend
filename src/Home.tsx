@@ -52,7 +52,7 @@ const features = [
   {
     icon: <DragIndicatorIcon fontSize="large" color="primary" />,
     title: "ドラッグ&ドロップで整理",
-    desc: "プランはドラッグして並べ替え・入れ替え・入れ子化ができます。メモトレイからプランへドラッグすれば、その場で紐づけられます。",
+    desc: "プランはドラッグまたは移動先の選択で、並べ替え・入れ替え・入れ子化ができます。スマホでも選択式で迷わず整理できます。",
   },
   {
     icon: <PlaylistAddCheckIcon fontSize="large" color="primary" />,
@@ -61,7 +61,7 @@ const features = [
   },
   {
     icon: <TodayOutlinedIcon fontSize="large" color="primary" />,
-    title: "今日やること・次にやる事",
+    title: "今日やること・次にやること",
     desc: "目標ごとに、今日が期限の習慣メモと、まだ終わっていないアクションプランを一覧できます。次に何をするか迷いません。",
   },
   {
@@ -105,7 +105,7 @@ const steps = [
   {
     no: "3",
     title: "メモで日々の取り組みを記録",
-    desc: "学習用・チェック用・通常の3種類のメモで取り組みを記録し、メモトレイからプランへ紐づけます。進捗は紐づいたメモから自動で積み上がります。",
+    desc: "学習用・チェック用・通常の3種類のメモで取り組みを記録し、目標へ紐づけます。進捗は紐づいたメモから自動で積み上がります。",
   },
 ];
 
@@ -165,9 +165,9 @@ export default function Home() {
             component="p"
             sx={{ color: "text.secondary", fontWeight: 400, mb: 4 }}
           >
-            最終目標をアクションプランに分解し、日々のメモで積み上げる。
+            資格・IT学習・副業など、働きながら続けたい目標を行動まで分解。
             <br />
-            進捗は自動で集計され、やることがいつも明確なままです。
+            今日やることと進捗が、いつでも明確になります。
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="center">
             {/* ログイン画面ではGitHub / Google の2つから選べる。ここで「GitHubログイン」と
@@ -391,7 +391,7 @@ export default function Home() {
             </Box>
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                プラン・メモの閲覧、タイトル/本文/タグでの検索、習慣リスト、今日やること・次にやる事の確認。
+                プラン・メモの閲覧、タイトル/本文/タグでの検索、習慣リスト、今日やること・次にやることの確認。
                 プラン・メモの登録・編集・削除も一旦保留され、次にオンラインに戻った瞬間（アプリを開き直したときも含む）に自動で送信されます。
               </Typography>
             </Box>
