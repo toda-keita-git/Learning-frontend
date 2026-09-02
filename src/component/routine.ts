@@ -72,6 +72,40 @@ export const clearRoutineDone = (userId: number | null | undefined, noteId: numb
   saveAll(userId, all);
 };
 
+// 指定範囲（開始日～終了日、両端含む）に入る「次の期日」を、intervalDaysおきに
+// 機械的に投影して返す（YYYY-MM-DD文字列の配列）。過去の完了実績までは遡らず、
+// 「最後にやった日（無ければ今日）」を起点に、そこから先の周期をカレンダーに
+// 重ねて見せるための単純な予測。実際に毎回その通りにやる保証はない
+export const getRoutineOccurrencesInRange = (
+  userId: number | null | undefined,
+  noteId: number,
+  intervalDays: number | null,
+  rangeStart: string,
+  rangeEnd: string
+): string[] => {
+  if (!intervalDays || intervalDays < 1) return [];
+  const last = getLastDone(userId, noteId);
+  const anchor = last ? new Date(last) : new Date(todayStr());
+  if (!last) {
+    // 未実施なら起点そのもの（今日）を初回の期日として含める
+  } else {
+    anchor.setDate(anchor.getDate() + intervalDays);
+  }
+  const start = new Date(rangeStart);
+  const end = new Date(rangeEnd);
+  const occurrences: string[] = [];
+  const cursor = new Date(anchor);
+  // 範囲より前なら、周期を進めて範囲内まで早送りする
+  while (cursor < start) {
+    cursor.setDate(cursor.getDate() + intervalDays);
+  }
+  while (cursor <= end) {
+    occurrences.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + intervalDays);
+  }
+  return occurrences;
+};
+
 // 作成・編集ダイアログのプリセット
 export const ROUTINE_PRESETS: { label: string; days: number }[] = [
   { label: "毎日", days: 1 },
