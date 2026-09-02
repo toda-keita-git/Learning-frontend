@@ -1,4 +1,5 @@
 import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -17,7 +18,8 @@ import { hasGuestData, isGuestImportDismissed } from "./component/guestPlanStora
 // GitHub・Googleいずれかのログインを要求するゲート。ログイン済みならバックエンドAPIを使う
 // PlanDashboardを、未ログインならログイン画面（初回ログイン時にどちらを使うか選ぶ場所）を表示する
 export default function AuthenticatedGoalApp() {
-  const { isAuthenticated, isAuthenticating, login, loginWithGoogle, logout, githubLogin, googleEmail, authProvider, userId } =
+  const navigate = useNavigate();
+  const { isAuthenticated, isAuthenticating, login, loginWithGoogle, logout, userId } =
     useContext(AuthContext);
 
   // ログイン直後、この端末にゲストモードの記録が残っていれば取り込みを確認する。
@@ -55,6 +57,9 @@ export default function AuthenticatedGoalApp() {
                 <Button variant="outlined" size="large" fullWidth startIcon={<GoogleIcon />} onClick={loginWithGoogle}>
                   Googleでログイン
                 </Button>
+                <Button size="large" fullWidth onClick={() => navigate("/")}>
+                  特徴・使い方を見る
+                </Button>
               </Stack>
             </>
           )}
@@ -63,11 +68,9 @@ export default function AuthenticatedGoalApp() {
     );
   }
 
-  const accountLabel = authProvider === "google" ? googleEmail : githubLogin;
-
   if (showGuestImportGate) {
     return <GuestImportGate onDone={() => setShowGuestImportGate(false)} />;
   }
 
-  return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} accountLabel={accountLabel} onLogout={logout} />;
+  return <PlanDashboard dataSource={apiPlanDataSource} userId={userId} onLogout={logout} />;
 }
