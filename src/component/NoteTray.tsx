@@ -58,7 +58,7 @@ type TypeFilter = NoteType | "all";
 
 type DropTarget = { kind: "plan"; planId: number } | { kind: "create" } | null;
 
-// 「プラン」タブなら常にどこからでも開ける、常設のメモトレイ。
+// 「プラン」タブなら常にどこからでも開ける、常設の未整理メモ一覧。
 //
 // 操作は3通り用意する:
 //  1. 左端のドラッグハンドル（PlanTreeのプラン並べ替えと同じ操作感）でプラン行や新規作成ゾーンへ運ぶ
@@ -249,7 +249,7 @@ export default function NoteTray({
       >
         <DescriptionOutlinedIcon fontSize="small" color="action" />
         <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }}>
-          メモトレイ（
+          未整理のメモ（
           {expanded && filtered.length !== notes.length ? `${filtered.length} / ${notes.length}件` : `${notes.length}件`}
           ）
         </Typography>
@@ -259,7 +259,7 @@ export default function NoteTray({
             e.stopPropagation();
             setHelpOpen(true);
           }}
-          aria-label="メモトレイの使い方"
+          aria-label="未整理のメモの使い方"
         >
           <HelpOutlineIcon fontSize="small" />
         </IconButton>
