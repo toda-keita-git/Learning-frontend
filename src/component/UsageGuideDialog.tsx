@@ -37,7 +37,7 @@ const STEPS: { icon: ReactNode; title: string; body: string }[] = [
   {
     icon: <AddLinkIcon fontSize="small" color="primary" />,
     title: "3. メモをプランに紐づける",
-    body: "「プラン」タブの下にあるメモトレイを開き、行の左端のつまみをプランの上までドラッグするか、右端のリンクアイコンから紐づけ先を選びます。行の中央をタップすると、メモの中身を確認できます。",
+    body: "「プラン」タブの下にある未整理のメモを開き、右端のリンクアイコンから紐づけ先を選びます。ドラッグ操作にも対応していますが、スマホでは選択式がおすすめです。行の中央をタップすると、メモの中身を確認できます。",
   },
   {
     icon: <TrendingUpIcon fontSize="small" color="primary" />,
@@ -46,8 +46,8 @@ const STEPS: { icon: ReactNode; title: string; body: string }[] = [
   },
   {
     icon: <TodayOutlinedIcon fontSize="small" color="primary" />,
-    title: "5. 今日やること・次にやる事",
-    body: "ヘッダーのカレンダーアイコンから、目標ごとの「今日やること」（今日が期限の習慣メモ）と「次にやる事」（まだ完了していないアクションプラン）をまとめて確認できます。",
+    title: "5. 今日やること・次にやること",
+    body: "ヘッダーの「今日やること」から、目標ごとの習慣メモと、まだ完了していないアクションプランをまとめて確認できます。",
   },
   {
     icon: <ChecklistIcon fontSize="small" color="primary" />,
@@ -81,7 +81,7 @@ export default function UsageGuideDialog({ open, onClose }: UsageGuideDialogProp
             </Stack>
           ))}
           <Typography variant="caption" color="text.secondary">
-            画面ごとの細かい操作は、プランボードとメモトレイの見出しにある「?」からも確認できます。
+            画面ごとの細かい操作は、プランボードと未整理のメモの見出しにある「?」からも確認できます。
           </Typography>
         </Stack>
       </DialogContent>
