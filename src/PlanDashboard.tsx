@@ -94,14 +94,14 @@ import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
 import { AuthContext } from "./Context";
 import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
-const ScheduleDialog = lazy(() => import("./component/ScheduleDialog"));
 const InquiryDialog = lazy(() => import("./component/InquiryDialog"));
+import ScheduleView from "./component/ScheduleView";
 import DashboardOverview from "./component/DashboardOverview";
 import GoalTemplates from "./component/GoalTemplates";
 import type { GoalTemplate } from "./component/GoalTemplates";
 import DeadlineChip from "./component/DeadlineChip";
 
-type BottomTab = "plans" | "library" | "review" | "more";
+type BottomTab = "plans" | "library" | "schedule" | "review" | "more";
 
 type DeleteTarget = { kind: "plan"; plan: Plan } | { kind: "note"; note: Note };
 
@@ -155,8 +155,9 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
   const [usageGuideOpen, setUsageGuideOpen] = useState(false);
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  // カレンダーの日付タップで新規プラン作成を開くときの、期限日の初期値
+  const [createDueDate, setCreateDueDate] = useState<string | null>(null);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
@@ -738,12 +739,6 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
       onClick: () => setSummaryOpen(true),
     },
     {
-      icon: <CalendarMonthOutlinedIcon color="action" />,
-      label: "スケジュール",
-      description: "プランの開始日・期限日をカレンダーで確認",
-      onClick: () => setScheduleOpen(true),
-    },
-    {
       icon: <SettingsOutlinedIcon color="action" />,
       label: "設定",
       description: userId !== null ? "画面の明るさ、ログアウト" : "画面の明るさ、ゲストデータの消去",
@@ -1017,6 +1012,22 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
               ))
             )}
           </Stack>
+        ) : bottomTab === "schedule" ? (
+          <ScheduleView
+            plans={plans}
+            notes={notes}
+            userId={userId}
+            onOpenPlan={(planId) => {
+              setBottomTab("plans");
+              setSelectedPlanId(planId);
+            }}
+            onCreatePlanOnDate={(dateKey) => {
+              setEditingPlan(null);
+              setCreateParentId(null);
+              setCreateDueDate(dateKey);
+              setPlanDialogOpen(true);
+            }}
+          />
         ) : !selectedPlan ? (
           <Stack spacing={2}>
             {plans.length > 0 && (
@@ -1308,6 +1319,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
         >
           <BottomNavigationAction label="プラン" value="plans" icon={<FlagOutlinedIcon />} />
           <BottomNavigationAction label="メモ" value="library" icon={<DescriptionOutlinedIcon />} />
+          <BottomNavigationAction label="カレンダー" value="schedule" icon={<CalendarMonthOutlinedIcon />} />
           <BottomNavigationAction
             label="習慣"
             value="review"
@@ -1326,12 +1338,14 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
         onClose={() => {
           setPlanDialogOpen(false);
           setPendingLinkNoteId(null);
+          setCreateDueDate(null);
         }}
         onSubmit={handleSavePlan}
         parentId={createParentId}
         parentTitle={selectedPlan?.title}
         initialPlan={editingPlan}
         linkingNoteTitle={pendingLinkNote?.title ?? null}
+        initialDueDate={createDueDate}
       />
 
       <PlanSelectDialog
@@ -1424,18 +1438,6 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
             plans={plans}
             notes={notes}
             currentStreak={overallStreak.current}
-          />
-        )}
-        {scheduleOpen && (
-          <ScheduleDialog
-            open
-            onClose={() => setScheduleOpen(false)}
-            plans={plans}
-            onOpenPlan={(planId) => {
-              setScheduleOpen(false);
-              setBottomTab("plans");
-              setSelectedPlanId(planId);
-            }}
           />
         )}
         {inquiryOpen && <InquiryDialog open onClose={() => setInquiryOpen(false)} />}

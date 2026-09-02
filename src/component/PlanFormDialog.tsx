@@ -22,6 +22,8 @@ interface PlanFormDialogProps {
   initialPlan?: Plan | null;
   // メモをドラッグして新規作成した場合に、作成後そのメモをリンクする旨を案内する
   linkingNoteTitle?: string | null;
+  // カレンダーの日付をタップして作成した場合に、その日を期限日の初期値にする（新規作成時のみ）
+  initialDueDate?: string | null;
 }
 
 export default function PlanFormDialog({
@@ -32,6 +34,7 @@ export default function PlanFormDialog({
   parentTitle,
   initialPlan,
   linkingNoteTitle,
+  initialDueDate,
 }: PlanFormDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -47,8 +50,8 @@ export default function PlanFormDialog({
     setDescription(initialPlan?.description ?? "");
     setStatus(initialPlan?.status ?? "not_started");
     setStartDate(initialPlan?.start_date ?? "");
-    setDueDate(initialPlan?.due_date ?? "");
-  }, [open, initialPlan, linkingNoteTitle]);
+    setDueDate(initialPlan?.due_date ?? (initialPlan ? "" : initialDueDate ?? ""));
+  }, [open, initialPlan, linkingNoteTitle, initialDueDate]);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
