@@ -47,6 +47,7 @@ import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -90,6 +91,7 @@ import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
 import { AuthContext } from "./Context";
 import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
+const ScheduleDialog = lazy(() => import("./component/ScheduleDialog"));
 import DashboardOverview from "./component/DashboardOverview";
 import GoalTemplates from "./component/GoalTemplates";
 import type { GoalTemplate } from "./component/GoalTemplates";
@@ -148,6 +150,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
   const [usageGuideOpen, setUsageGuideOpen] = useState(false);
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
@@ -718,6 +721,12 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
       label: "振り返り",
       description: "今月の積み上げと、共有用のまとめ",
       onClick: () => setSummaryOpen(true),
+    },
+    {
+      icon: <CalendarMonthOutlinedIcon color="action" />,
+      label: "スケジュール",
+      description: "プランの開始日・期限日をカレンダーで確認",
+      onClick: () => setScheduleOpen(true),
     },
     {
       icon: <SettingsOutlinedIcon color="action" />,
@@ -1392,6 +1401,18 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
             plans={plans}
             notes={notes}
             currentStreak={overallStreak.current}
+          />
+        )}
+        {scheduleOpen && (
+          <ScheduleDialog
+            open
+            onClose={() => setScheduleOpen(false)}
+            plans={plans}
+            onOpenPlan={(planId) => {
+              setScheduleOpen(false);
+              setBottomTab("plans");
+              setSelectedPlanId(planId);
+            }}
           />
         )}
       </Suspense>
