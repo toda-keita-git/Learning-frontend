@@ -397,9 +397,9 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
           )}
         </Stack>
-        {/* 本文があるメモは、編集ではなく復習として開けるようにする。
+        {/* 復習ボタンは学習用メモにだけ出す。本文があれば、編集ではなく復習として開ける。
             穴埋め([[ ]])があれば伏字で出題され、無ければ read-only で読み返せる */}
-        {note.body?.trim() && (
+        {note.type === "learning" && note.body?.trim() && (
           <Button
             size="small"
             variant={hasCloze(note.body) ? "contained" : "outlined"}
