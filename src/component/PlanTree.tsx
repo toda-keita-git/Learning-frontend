@@ -266,14 +266,23 @@ export default function PlanTree({
             alignItems: "center",
             gap: 0.75,
             borderWidth: isGoal ? 2 : 1,
+            // 目標とアクションプランの区別が、枠線の太さと小さいドットアイコンだけでは
+            // つきにくかったため、目標の行にだけ薄い色味の背景を敷いて一目で見分けられる
+            // ようにする（子の行は既定の白背景のまま）
+            borderColor: isGoal ? "primary.main" : "divider",
             willChange: "transform",
             outline: nestHighlight || noteHighlight ? "2px solid" : "none",
             outlineColor: noteHighlight ? DRAG_COLOR.link : DRAG_COLOR.nest,
-            bgcolor: noteHighlight ? (t) => (t.palette.mode === "dark" ? "rgba(46,125,50,0.25)" : "rgba(46,125,50,0.08)") : undefined,
-            borderTop: beforeHighlight ? "3px solid" : undefined,
-            borderTopColor: DRAG_COLOR.reorder,
-            borderBottom: afterHighlight ? "3px solid" : undefined,
-            borderBottomColor: DRAG_COLOR.reorder,
+            bgcolor: noteHighlight
+              ? (t) => (t.palette.mode === "dark" ? "rgba(46,125,50,0.25)" : "rgba(46,125,50,0.08)")
+              : isGoal
+                ? (t) => (t.palette.mode === "dark" ? "rgba(79,70,229,0.16)" : "rgba(79,70,229,0.06)")
+                : undefined,
+            // borderTopColor/borderBottomColorはborderTop/borderBottomと連動させないと、
+            // ドラッグ中でなくても常時このオレンジ色が上辺に乗ってしまう
+            // （全行がうっすらオレンジがかって見え、目標との色分けを打ち消していた）
+            ...(beforeHighlight && { borderTop: "3px solid", borderTopColor: DRAG_COLOR.reorder }),
+            ...(afterHighlight && { borderBottom: "3px solid", borderBottomColor: DRAG_COLOR.reorder }),
           }}
         >
           {hasChildren ? (
@@ -349,7 +358,7 @@ export default function PlanTree({
         </Paper>
 
         {hasChildren && expanded && (
-          <Box sx={{ borderLeft: "1px dashed", borderColor: "divider", pl: 0 }}>
+          <Box sx={{ borderLeft: "2px solid", borderColor: "action.selected", pl: 0 }}>
             {children.map((child) => renderNode(child, depth + 1))}
           </Box>
         )}

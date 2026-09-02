@@ -10,9 +10,11 @@ import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
+import Divider from "@mui/material/Divider";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import GoogleIcon from "@mui/icons-material/Google";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { AuthContext } from "../Context";
 import { meApi } from "./Api";
 import type { AccountInfo } from "./Api";
@@ -24,6 +26,7 @@ import RepoSelectDialog from "./RepoSelectDialog";
 interface AccountInfoDialogProps {
   open: boolean;
   onClose: () => void;
+  onLogout: () => void;
 }
 
 // フッター「その他」→「アカウント情報」。今ログインしているアカウントの情報と、
@@ -31,7 +34,7 @@ interface AccountInfoDialogProps {
 //
 // 連携（旧「アカウント連携」）もここに統合している。ヘッダーにアイコンで置いていたが、
 // 何のアイコンか分かりにくく、アカウントに関する操作が複数の場所に散っていたため
-export default function AccountInfoDialog({ open, onClose }: AccountInfoDialogProps) {
+export default function AccountInfoDialog({ open, onClose, onLogout }: AccountInfoDialogProps) {
   const { linkGithub, linkGoogle, authProvider, repoName, setRepoName, token } = useContext(AuthContext);
   const fullScreenDialog = useFullScreenDialog();
 
@@ -178,6 +181,28 @@ export default function AccountInfoDialog({ open, onClose }: AccountInfoDialogPr
                 連携時はもう一方のサービスのログイン画面が開きます。
               </Alert>
             )}
+
+            <Divider />
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                ログアウト
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                このブラウザからログアウトします。目標・プラン・メモは消えず、次回ログインすればそのまま続きから使えます。
+              </Typography>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<LogoutIcon />}
+                onClick={() => {
+                  onClose();
+                  onLogout();
+                }}
+              >
+                ログアウト
+              </Button>
+            </Box>
           </Stack>
         ) : null}
       </DialogContent>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -40,6 +41,8 @@ import Checkbox from "@mui/material/Checkbox";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import LoginIcon from "@mui/icons-material/Login";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
@@ -92,6 +95,7 @@ import { AuthContext } from "./Context";
 import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 const ScheduleDialog = lazy(() => import("./component/ScheduleDialog"));
+const InquiryDialog = lazy(() => import("./component/InquiryDialog"));
 import DashboardOverview from "./component/DashboardOverview";
 import GoalTemplates from "./component/GoalTemplates";
 import type { GoalTemplate } from "./component/GoalTemplates";
@@ -111,6 +115,7 @@ interface PlanDashboardProps {
 
 export default function PlanDashboard({ dataSource, userId, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   // 学習ログのコミット先（GitHub連携済みのときだけ使える）
   const { octokit, githubLogin, repoName } = useContext(AuthContext);
 
@@ -151,6 +156,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
   // 最新が映るよう、メモ自体ではなくIDを持ってnotesから引き直す
   const [previewNoteId, setPreviewNoteId] = useState<number | null>(null);
@@ -715,7 +721,16 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
             onClick: () => setAccountInfoOpen(true),
           },
         ]
-      : []),
+      : [
+          // ゲストモードの案内バナーを閉じると、それまでログインへの導線が
+          // どこにも無くなっていた。「その他」に常設のログイン導線を用意する
+          {
+            icon: <LoginIcon color="action" />,
+            label: "ログイン",
+            description: "GitHub・Googleでログインし、この端末の記録をアカウントへ取り込む",
+            onClick: () => navigate("/LearningContent"),
+          },
+        ]),
     {
       icon: <InsightsOutlinedIcon color="action" />,
       label: "振り返り",
@@ -751,6 +766,12 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
       label: "プラン",
       description: "ご利用中の料金プランと、含まれる機能",
       onClick: () => setPricingPlanOpen(true),
+    },
+    {
+      icon: <MailOutlineIcon color="action" />,
+      label: "お問い合わせ",
+      description: "不具合の報告やご要望はこちらから",
+      onClick: () => setInquiryOpen(true),
     },
   ];
 
@@ -1380,7 +1401,9 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           />
         )}
         {boardHelpOpen && <PlanBoardHelpDialog open onClose={() => setBoardHelpOpen(false)} />}
-        {accountInfoOpen && <AccountInfoDialog open onClose={() => setAccountInfoOpen(false)} />}
+        {accountInfoOpen && (
+          <AccountInfoDialog open onClose={() => setAccountInfoOpen(false)} onLogout={onLogout} />
+        )}
         {settingsOpen && (
           <SettingsDialog
             open
@@ -1415,6 +1438,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
             }}
           />
         )}
+        {inquiryOpen && <InquiryDialog open onClose={() => setInquiryOpen(false)} />}
       </Suspense>
 
       <ReviewDialog note={reviewNote} onClose={() => setReviewNoteId(null)} onGrade={handleGradeReview} />
