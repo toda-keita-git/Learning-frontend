@@ -56,6 +56,23 @@ export default function SummaryDialog({ open, onClose, plans, notes, currentStre
       goalProgresses.length > 0
         ? Math.round(goalProgresses.reduce((a, b) => a + b, 0) / goalProgresses.length)
         : null;
+    const now = new Date();
+    const weeklyNotes = Array.from({ length: 6 }, (_, index) => {
+      const weeksAgo = 5 - index;
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      end.setDate(end.getDate() - weeksAgo * 7);
+      const start = new Date(end);
+      start.setDate(end.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      return {
+        label: `${start.getMonth() + 1}/${start.getDate()}`,
+        count: notes.filter((note) => {
+          const created = new Date(note.created_at);
+          return created >= start && created <= end;
+        }).length,
+      };
+    });
     return {
       notesThisMonth: notesThisMonth.length,
       totalNotes: notes.length,
@@ -63,6 +80,7 @@ export default function SummaryDialog({ open, onClose, plans, notes, currentStre
       donePlans,
       inProgressPlans,
       avgGoalProgress,
+      weeklyNotes,
     };
   }, [plans, notes]);
 
@@ -154,6 +172,32 @@ export default function SummaryDialog({ open, onClose, plans, notes, currentStre
               </Typography>
             </Stack>
           </Stack>
+
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+              直近6週間のメモ
+            </Typography>
+            <Box sx={{ height: 128, display: "flex", alignItems: "flex-end", gap: 0.75 }}>
+              {stats.weeklyNotes.map((week) => {
+                const max = Math.max(1, ...stats.weeklyNotes.map((item) => item.count));
+                const height = week.count === 0 ? 4 : Math.max(12, Math.round((week.count / max) * 92));
+                return (
+                  <Stack key={week.label} alignItems="center" justifyContent="flex-end" sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                      {week.count}
+                    </Typography>
+                    <Box
+                      title={`${week.label}から7日間: ${week.count}件`}
+                      sx={{ width: "100%", maxWidth: 32, height, bgcolor: "primary.main", borderRadius: "4px 4px 0 0" }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", mt: 0.25 }}>
+                      {week.label}
+                    </Typography>
+                  </Stack>
+                );
+              })}
+            </Box>
+          </Box>
 
           <Divider />
 
