@@ -625,7 +625,7 @@ export default function NoteFormDialog({
 
           <FormControlLabel
             control={<Checkbox checked={important} onChange={(e) => setImportant(e.target.checked)} />}
-            label="重要（「今日やること・次にやる事」画面の一番下にまとめて表示）"
+            label="重要（「今日やること・次にやること」画面の一番下にまとめて表示）"
           />
 
           <Autocomplete
