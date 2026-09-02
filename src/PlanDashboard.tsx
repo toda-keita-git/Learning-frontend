@@ -780,7 +780,17 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
         position="sticky"
         color="default"
         elevation={1}
-        sx={{ backgroundImage: "none", bgcolor: "background.paper", color: "text.primary" }}
+        sx={{
+          backgroundImage: "none",
+          bgcolor: "background.paper",
+          color: "text.primary",
+          // 固定ヘッダーを半透明＋ぼかしにして、下を流れるコンテンツとの繋がりを出す。
+          // backdrop-filterが効かない端末では、上のbgcolor（不透明）のままになる
+          "@supports (backdrop-filter: blur(1px))": {
+            bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(30,41,59,0.72)" : "rgba(255,255,255,0.72)"),
+            backdropFilter: "blur(12px)",
+          },
+        }}
       >
         <Toolbar>
           <FlagOutlinedIcon color="primary" sx={{ mr: 1 }} />
@@ -1306,7 +1316,23 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
         />
       )}
 
-      <Paper elevation={3} sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: (t) => t.zIndex.appBar }}>
+      <Paper
+        elevation={3}
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: (t) => t.zIndex.appBar,
+          // ヘッダーと同じく半透明＋ぼかし。BottomNavigation自体の背景も
+          // 透過させないと、Paperをぼかしても手前が不透明のままになる
+          "@supports (backdrop-filter: blur(1px))": {
+            bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(30,41,59,0.78)" : "rgba(255,255,255,0.78)"),
+            backdropFilter: "blur(12px)",
+            "& .MuiBottomNavigation-root": { bgcolor: "transparent" },
+          },
+        }}
+      >
         {/* showLabelsを付けないと、選択中以外のタブはアイコンだけになる。
             「その他」の「…」は単体では何を指すか分からないため、常にラベルを出す */}
         <BottomNavigation

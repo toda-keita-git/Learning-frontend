@@ -60,15 +60,40 @@ export default function DashboardOverview({
     return { goals: goals.length, averageProgress, dueCount, overdueCount, upcomingDeadlineCount, recentNotes };
   }, [plans, notes, userId]);
 
+  // ベントーグリッド。4つを同じ大きさで並べると「どれから見ればいいか」が
+  // 伝わらないため、まず見るべき「今日やること」だけタイルを大きくして、
+  // 大きさそのものに優先度の意味を持たせる。
+  // spanは各段がちょうど埋まる値にしてある（狭い画面=2列: 2 / 1+1 / 2、
+  // 広い画面=6列: 3+1+1+1）。余ったセルができると、抜けのある表に見えてしまう
   const metrics = [
-    { label: "今日やること", value: `${stats.dueCount}件`, icon: <TodayOutlinedIcon color="primary" /> },
+    {
+      label: "今日やること",
+      value: `${stats.dueCount}件`,
+      icon: <TodayOutlinedIcon color="primary" />,
+      primary: true,
+      span: { xs: "span 2", md: "span 3" },
+    },
     {
       label: "7日以内の期限",
       value: stats.overdueCount > 0 ? `${stats.overdueCount}件超過` : `${stats.upcomingDeadlineCount}件`,
       icon: <EventBusyOutlinedIcon color={stats.overdueCount > 0 ? "error" : "warning"} />,
+      primary: false,
+      span: { xs: "span 1", md: "span 1" },
     },
-    { label: "目標の平均達成率", value: stats.averageProgress === null ? "未設定" : `${stats.averageProgress}%`, icon: <InsightsOutlinedIcon color="primary" /> },
-    { label: "継続日数", value: `${currentStreak}日`, icon: <LocalFireDepartmentOutlinedIcon color="warning" /> },
+    {
+      label: "目標の平均達成率",
+      value: stats.averageProgress === null ? "未設定" : `${stats.averageProgress}%`,
+      icon: <InsightsOutlinedIcon color="primary" />,
+      primary: false,
+      span: { xs: "span 1", md: "span 1" },
+    },
+    {
+      label: "継続日数",
+      value: `${currentStreak}日`,
+      icon: <LocalFireDepartmentOutlinedIcon color="warning" />,
+      primary: false,
+      span: { xs: "span 2", md: "span 1" },
+    },
   ];
 
   return (
@@ -96,19 +121,38 @@ export default function DashboardOverview({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
             gap: 1,
           }}
         >
           {metrics.map((metric) => (
-            <Box key={metric.label} sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover", minWidth: 0 }}>
+            <Box
+              key={metric.label}
+              sx={{
+                p: metric.primary ? 1.75 : 1.25,
+                borderRadius: 2,
+                minWidth: 0,
+                gridColumn: metric.span,
+                bgcolor: metric.primary ? "primary.main" : "action.hover",
+                color: metric.primary ? "primary.contrastText" : "inherit",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
               <Stack direction="row" spacing={0.75} alignItems="center">
-                {metric.icon}
-                <Typography variant="caption" color="text.secondary" noWrap>
+                <Box sx={{ display: "flex", "& .MuiSvgIcon-root": metric.primary ? { color: "inherit" } : undefined }}>
+                  {metric.icon}
+                </Box>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{ color: metric.primary ? "inherit" : "text.secondary", opacity: metric.primary ? 0.9 : 1 }}
+                >
                   {metric.label}
                 </Typography>
               </Stack>
-              <Typography variant="h6" sx={{ mt: 0.5, fontWeight: 800 }}>
+              <Typography variant={metric.primary ? "h5" : "h6"} sx={{ mt: 0.5, fontWeight: 800 }}>
                 {metric.value}
               </Typography>
             </Box>

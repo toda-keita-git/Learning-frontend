@@ -65,6 +65,14 @@ export const getTheme = (mode: PaletteMode) =>
           root: {
             borderRadius: 9999,
             paddingInline: 20,
+            // 押した瞬間にわずかに沈むフィードバック。毎日何度も触れる操作なので
+            // 演出は80ms程度に留め、動きを減らす設定の端末では無効にする
+            transition: "transform 80ms ease-out",
+            "&:active": { transform: "scale(0.97)" },
+            "@media (prefers-reduced-motion: reduce)": {
+              transition: "none",
+              "&:active": { transform: "none" },
+            },
             // ボタンのラベルは途中で折り返さない。スマホの狭い幅で横並びにすると
             // ボタンが縮められ、「画像を選/ぶ」のように語の途中で改行されて
             // 読みにくくなるため。入りきらない場合は、置いている側のStackを
@@ -114,6 +122,35 @@ export const getTheme = (mode: PaletteMode) =>
       MuiPaper: {
         styleOverrides: {
           rounded: { borderRadius: 16 },
+        },
+      },
+      // 習慣のチェックは「積み上げ」を実感する中心の操作。チェックした瞬間だけ
+      // アイコンが少し跳ねるようにして、達成感を後押しする
+      MuiCheckbox: {
+        styleOverrides: {
+          root: {
+            "& .MuiSvgIcon-root": { transition: "transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1)" },
+            "&.Mui-checked .MuiSvgIcon-root": { transform: "scale(1.15)" },
+            "@media (prefers-reduced-motion: reduce)": {
+              "& .MuiSvgIcon-root": { transition: "none" },
+              "&.Mui-checked .MuiSvgIcon-root": { transform: "none" },
+            },
+          },
+        },
+      },
+      // 選択中のタブのアイコンをわずかに持ち上げ、今どこにいるかを動きでも伝える
+      MuiBottomNavigationAction: {
+        styleOverrides: {
+          root: {
+            transition: "color 160ms ease-out",
+            "& .MuiSvgIcon-root": { transition: "transform 160ms ease-out" },
+            "&.Mui-selected .MuiSvgIcon-root": { transform: "translateY(-2px)" },
+            "@media (prefers-reduced-motion: reduce)": {
+              transition: "none",
+              "& .MuiSvgIcon-root": { transition: "none" },
+              "&.Mui-selected .MuiSvgIcon-root": { transform: "none" },
+            },
+          },
         },
       },
     },
