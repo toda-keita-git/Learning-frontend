@@ -32,8 +32,8 @@ const ITEMS: { icon: ReactNode; title: string; body: string }[] = [
   },
   {
     icon: <DescriptionOutlinedIcon fontSize="small" color="action" />,
-    title: "下のメモトレイからメモをリンク",
-    body: "メモトレイの行をドラッグしてプランの上に重ねる、またはタップしてリンク先を選ぶと、メモとプランが紐付きます。メモをプラン新規作成ゾーンにドロップすると、そのメモから新しい目標を作成できます。",
+    title: "下の未整理のメモからリンク",
+    body: "行のリンクアイコンから紐づけ先を選ぶと、メモとプランが紐付きます。ドラッグ操作にも対応していますが、スマホでは選択式がおすすめです。",
   },
   {
     icon: <TrendingUpIcon fontSize="small" color="action" />,
