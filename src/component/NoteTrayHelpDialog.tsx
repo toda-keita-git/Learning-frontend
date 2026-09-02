@@ -54,7 +54,7 @@ const ITEMS: { icon: ReactNode; title: string; body: string }[] = [
   },
 ];
 
-// メモトレイの操作方法をまとめたヘルプ。展開時に画面下半分いっぱいまで表示するため
+// 未整理のメモの操作方法をまとめたヘルプ。展開時に画面下半分いっぱいまで表示するため
 // 説明文を常設せず、必要なときにいつでも見返せるようここへ集約する
 export default function NoteTrayHelpDialog({ open, onClose }: NoteTrayHelpDialogProps) {
   const fullScreenDialog = useFullScreenDialog();
@@ -62,7 +62,7 @@ export default function NoteTrayHelpDialog({ open, onClose }: NoteTrayHelpDialog
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <HelpOutlineIcon color="primary" />
-        メモトレイの使い方
+        未整理のメモの使い方
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
