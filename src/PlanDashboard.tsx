@@ -90,6 +90,9 @@ import { isStudyLogCommitEnabled } from "./component/studyLogSetting";
 import { AuthContext } from "./Context";
 import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
+import DashboardOverview from "./component/DashboardOverview";
+import GoalTemplates from "./component/GoalTemplates";
+import type { GoalTemplate } from "./component/GoalTemplates";
 
 type BottomTab = "plans" | "library" | "review" | "more";
 
@@ -98,13 +101,12 @@ type DeleteTarget = { kind: "plan"; plan: Plan } | { kind: "note"; note: Note };
 interface PlanDashboardProps {
   dataSource: PlanDataSource;
   userId: number | null;
-  accountLabel: string | null;
   onLogout: () => void;
   topBanner?: ReactNode;
 }
 
 
-export default function PlanDashboard({ dataSource, userId, accountLabel, onLogout, topBanner }: PlanDashboardProps) {
+export default function PlanDashboard({ dataSource, userId, onLogout, topBanner }: PlanDashboardProps) {
   const { showToast } = useToast();
   // 学習ログのコミット先（GitHub連携済みのときだけ使える）
   const { octokit, githubLogin, repoName } = useContext(AuthContext);
@@ -155,6 +157,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
   const [libraryCategoryFilter, setLibraryCategoryFilter] = useState<"all" | number>("all");
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [planSearchQuery, setPlanSearchQuery] = useState("");
+  const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
 
   // 統合ボード（プランツリー）の展開状態。既定はすべて展開＝ドリルダウンせずに全体が見える
   const [collapsedPlanIds, setCollapsedPlanIds] = useState<Set<number>>(new Set());
@@ -437,6 +440,35 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
     } catch (err) {
       showToast(errorMessage(err, "プランの保存に失敗しました。"), "error");
       throw err;
+    }
+  };
+
+  const handleApplyGoalTemplate = async (template: GoalTemplate) => {
+    if (applyingTemplateId !== null) return;
+    setApplyingTemplateId(template.id);
+    try {
+      const goalId = await dataSource.createPlan({
+        parent_id: null,
+        title: template.title,
+        description: template.description,
+        status: "not_started",
+      });
+      for (const title of template.steps) {
+        await dataSource.createPlan({
+          parent_id: goalId,
+          title,
+          description: null,
+          status: "not_started",
+        });
+      }
+      await fetchAll();
+      showToast("目標テンプレートを作成しました。内容は自由に編集できます。", "success");
+    } catch (err) {
+      console.error(err);
+      showToast(errorMessage(err, "テンプレートの作成に失敗しました。"), "error");
+      await fetchAll();
+    } finally {
+      setApplyingTemplateId(null);
     }
   };
 
@@ -728,19 +760,23 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           <Typography variant="h6" component="div" sx={{ fontWeight: 700, flex: 1 }}>
             ツミアゲ
           </Typography>
-          {accountLabel && (
-            <Typography
-              variant="body2"
-              sx={{ color: "text.secondary", mr: 2, display: { xs: "none", sm: "block" }, maxWidth: 200 }}
-              noWrap
-            >
-              {accountLabel}
-            </Typography>
-          )}
           {/* アカウント連携・明るさ切り替え・ログアウトは、フッターの「その他」へ移した。
               アイコンだけが並んでいて何のボタンか分かりにくく、ログアウトを誤って
               押しやすい位置でもあったため */}
-          <IconButton onClick={() => setTodayNextOpen(true)} aria-label="今日やること・次にやる事">
+          <Button
+            size="small"
+            startIcon={<TodayOutlinedIcon />}
+            onClick={() => setTodayNextOpen(true)}
+            aria-label="今日やること・次にやること"
+            sx={{ display: { xs: "none", sm: "inline-flex" } }}
+          >
+            今日やること
+          </Button>
+          <IconButton
+            onClick={() => setTodayNextOpen(true)}
+            aria-label="今日やること・次にやること"
+            sx={{ display: { xs: "inline-flex", sm: "none" } }}
+          >
             <TodayOutlinedIcon />
           </IconButton>
         </Toolbar>
@@ -948,6 +984,17 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
           </Stack>
         ) : !selectedPlan ? (
           <Stack spacing={2}>
+            {plans.length > 0 && (
+              <DashboardOverview
+                plans={plans}
+                notes={notes}
+                userId={userId}
+                currentStreak={overallStreak.current}
+                onOpenToday={() => setTodayNextOpen(true)}
+                onOpenSummary={() => setSummaryOpen(true)}
+                onOpenNote={(note) => setPreviewNoteId(note.id)}
+              />
+            )}
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
@@ -979,6 +1026,18 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               fullWidth
             />
 
+            {plans.length === 0 && !planSearchQuery.trim() && (
+              <GoalTemplates
+                applyingId={applyingTemplateId}
+                onApply={handleApplyGoalTemplate}
+                onCreateBlank={() => {
+                  setEditingPlan(null);
+                  setCreateParentId(null);
+                  setPlanDialogOpen(true);
+                }}
+              />
+            )}
+
             {draggingNoteId !== null && (
               // position:fixedのオーバーレイにして通常のレイアウトフローに参加させない
               // （挿入時に下のプランツリーがずれてヒットテストが不安定になるのを防ぐ）
@@ -1008,7 +1067,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
               </Paper>
             )}
 
-            {planSearchQuery.trim() && filteredPlans.length === 0 ? (
+            {plans.length === 0 && !planSearchQuery.trim() ? null : planSearchQuery.trim() && filteredPlans.length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
                 検索条件に一致するプランがありません。
               </Typography>
@@ -1152,7 +1211,7 @@ export default function PlanDashboard({ dataSource, userId, accountLabel, onLogo
             </Stack>
             {notesLinkedTo(selectedPlan.id).length === 0 ? (
               <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-                まだリンクされたメモがありません。下のメモトレイでドラッグまたはタップしてリンク、または「+」から新規作成できます。
+                まだリンクされたメモがありません。下の「未整理のメモ」から紐づけ先を選ぶか、「+」から新規作成できます。
               </Typography>
             ) : (
               <Stack spacing={1.5}>
