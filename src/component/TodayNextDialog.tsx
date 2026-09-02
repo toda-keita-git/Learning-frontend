@@ -29,14 +29,14 @@ interface TodayNextDialogProps {
   onOpenPlan: (planId: number) => void;
 }
 
-// 「次にやる事」として1つの目標につき出す件数の上限。
+// 「次にやること」として1つの目標につき出す件数の上限。
 // 全部並べると結局ツリーを見るのと変わらず、何から手を付けるか分からなくなるため絞る
 const MAX_NEXT_PER_GOAL = 3;
 
-// 目標ごとに「今日やること」と「次にやる事」をまとめて見せる画面。
+// 目標ごとに「今日やること」と「次にやること」をまとめて見せる画面。
 //
 // 今日やること: その目標の配下にリンクされたメモのうち、繰り返し（習慣）の期日が来ているもの。
-// 次にやる事  : その目標の配下でまだ完了していないアクションプランを、ツリーの並び順で先頭から。
+// 次にやること: その目標の配下でまだ完了していないアクションプランを、ツリーの並び順で先頭から。
 //
 // プランボードは「全体の構造」を見るためのものなので、そこからは
 // 「今どれに手を付ければよいか」が読み取りにくい。その一点だけを抜き出して見せる
@@ -83,7 +83,7 @@ export default function TodayNextDialog({
           isRoutineDue(userId, n.id, n.review_interval_days)
       );
 
-      // 完了・中断は「次にやる事」から外す。statusに加えてprogressも見ているのは、
+      // 完了・中断は「次にやること」から外す。statusに加えてprogressも見ているのは、
       // バックエンド側は/plans取得のたびにprogress===100のプランをstatus="done"へ
       // 自動で追随させるが、その反映が届く前の古いデータ（オフラインキャッシュ等）では
       // 「進捗100%なのに未着手のまま」の行が一時的に残りうるための保険
@@ -103,7 +103,7 @@ export default function TodayNextDialog({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <TodayOutlinedIcon color="primary" />
-        今日やること・次にやる事
+        今日やること・次にやること
       </DialogTitle>
       <DialogContent dividers>
         {goalSections.length === 0 ? (
@@ -156,7 +156,7 @@ export default function TodayNextDialog({
                 </Stack>
 
                 <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>
-                  次にやる事
+                  次にやること
                 </Typography>
                 <Stack spacing={0.5} sx={{ mt: 0.5 }}>
                   {nextPlans.length === 0 ? (
