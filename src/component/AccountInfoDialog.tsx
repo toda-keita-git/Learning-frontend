@@ -11,12 +11,14 @@ import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import Divider from "@mui/material/Divider";
+import DialogContentText from "@mui/material/DialogContentText";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import GoogleIcon from "@mui/icons-material/Google";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import { AuthContext } from "../Context";
-import { meApi } from "./Api";
+import { meApi, deleteAccountDataApi } from "./Api";
 import type { AccountInfo } from "./Api";
 import { errorMessage } from "./errorMessage";
 import { useFullScreenDialog } from "./useFullScreenDialog";
@@ -42,6 +44,23 @@ export default function AccountInfoDialog({ open, onClose, onLogout }: AccountIn
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [repoSelectOpen, setRepoSelectOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccountData = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccountDataApi();
+      // 目標・プラン・メモが空になった状態を、この場しのぎの再取得ではなく
+      // 確実に反映させるため、アプリ全体を読み込み直す（ログイン状態は維持される）
+      window.location.reload();
+    } catch (err) {
+      setDeleteError(errorMessage(err, "削除に失敗しました。時間をおいて再度お試しください。"));
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -203,9 +222,53 @@ export default function AccountInfoDialog({ open, onClose, onLogout }: AccountIn
                 ログアウト
               </Button>
             </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: "error.main" }}>
+                アカウントデータの削除
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                目標・プラン・メモをすべて削除します。アカウント自体（ログイン・GitHub/Google連携）は残り、
+                削除後もそのままログインし続けられます。この操作は取り消せません。
+              </Typography>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteForeverOutlinedIcon />}
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                データを削除
+              </Button>
+            </Box>
           </Stack>
         ) : null}
       </DialogContent>
+
+      <Dialog open={deleteConfirmOpen} onClose={() => !deleting && setDeleteConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>アカウントデータを削除しますか？</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            目標・プラン・メモがすべて削除されます。アカウント自体は残り、引き続きログインできますが、
+            この操作は取り消せません。
+          </DialogContentText>
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
+            キャンセル
+          </Button>
+          <Button onClick={handleDeleteAccountData} color="error" variant="contained" disabled={deleting}>
+            {deleting ? <CircularProgress size={20} /> : "削除する"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {token && (
         <RepoSelectDialog
           open={repoSelectOpen}

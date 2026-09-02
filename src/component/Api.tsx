@@ -237,6 +237,11 @@ export const meApi = async (): Promise<AccountInfo> => {
   return response.data as AccountInfo;
 };
 
+// 目標・プラン・メモを全削除する（アカウント自体・GitHub/Google連携は残る）
+export const deleteAccountDataApi = async (): Promise<void> => {
+  await axios.post("/account_data_delete");
+};
+
 // サーバーが保持しているGitHubアクセストークンを取得する。
 // Googleでログインして後からGitHubを連携した場合、ブラウザ側にGitHubのトークンが
 // 無くリポジトリへの添付ができないため、これで受け取ってOctokitを組み立てる
