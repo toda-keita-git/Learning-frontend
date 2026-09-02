@@ -8,9 +8,10 @@ import Typography from "@mui/material/Typography";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import LocalFireDepartmentOutlinedIcon from "@mui/icons-material/LocalFireDepartmentOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import type { Note, Plan } from "./PlanTypes";
 import { isRoutineDue } from "./routine";
+import { daysUntil } from "./deadline";
 
 interface DashboardOverviewProps {
   plans: Plan[];
@@ -42,17 +43,32 @@ export default function DashboardOverview({
     const dueCount = notes.filter((note) =>
       isRoutineDue(userId, note.id, note.review_interval_days)
     ).length;
+    const activePlans = plans.filter(
+      (plan) => plan.status !== "done" && plan.status !== "suspended" && plan.progress !== 100
+    );
+    const overdueCount = activePlans.filter(
+      (plan) => plan.due_date && daysUntil(plan.due_date) < 0
+    ).length;
+    const upcomingDeadlineCount = activePlans.filter((plan) => {
+      if (!plan.due_date) return false;
+      const days = daysUntil(plan.due_date);
+      return days >= 0 && days <= 7;
+    }).length;
     const recentNotes = [...notes]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
-    return { goals: goals.length, averageProgress, dueCount, recentNotes };
+    return { goals: goals.length, averageProgress, dueCount, overdueCount, upcomingDeadlineCount, recentNotes };
   }, [plans, notes, userId]);
 
   const metrics = [
     { label: "今日やること", value: `${stats.dueCount}件`, icon: <TodayOutlinedIcon color="primary" /> },
+    {
+      label: "7日以内の期限",
+      value: stats.overdueCount > 0 ? `${stats.overdueCount}件超過` : `${stats.upcomingDeadlineCount}件`,
+      icon: <EventBusyOutlinedIcon color={stats.overdueCount > 0 ? "error" : "warning"} />,
+    },
     { label: "目標の平均達成率", value: stats.averageProgress === null ? "未設定" : `${stats.averageProgress}%`, icon: <InsightsOutlinedIcon color="primary" /> },
     { label: "継続日数", value: `${currentStreak}日`, icon: <LocalFireDepartmentOutlinedIcon color="warning" /> },
-    { label: "記録したメモ", value: `${notes.length}件`, icon: <DescriptionOutlinedIcon color="primary" /> },
   ];
 
   return (

@@ -216,6 +216,8 @@ function toPlan(id: number, sortOrder: number, data: PlanInput): Plan {
     title: data.title,
     description: data.description,
     status: data.status,
+    start_date: data.start_date,
+    due_date: data.due_date,
     sort_order: sortOrder,
     created_at: new Date().toISOString(),
     user_id: 0,

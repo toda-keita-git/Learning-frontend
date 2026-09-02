@@ -26,6 +26,7 @@ import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined
 import type { Plan } from "./PlanTypes";
 import { PLAN_STATUS_LABEL } from "./PlanTypes";
 import ProgressBadge from "./ProgressBadge";
+import DeadlineChip from "./DeadlineChip";
 import DragHintTooltip from "./DragHintTooltip";
 import { DRAG_COLOR } from "./dragVisuals";
 import type { DragHintKind } from "./dragVisuals";
@@ -323,6 +324,7 @@ export default function PlanTree({
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25, flexWrap: "wrap", rowGap: 0.5 }}>
               <Chip label={PLAN_STATUS_LABEL[plan.status]} size="small" variant="outlined" />
               <ProgressBadge value={plan.progress} />
+              <DeadlineChip value={plan.due_date} />
               {/* 畳んでいて中が見えないときだけ出す。開いていれば子の行を見れば分かるので、
                   同じ情報を二重に出しても行が混むだけになる */}
               {hasChildren && !expanded && hiddenUnstarted > 0 && (

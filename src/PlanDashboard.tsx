@@ -93,6 +93,7 @@ const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 import DashboardOverview from "./component/DashboardOverview";
 import GoalTemplates from "./component/GoalTemplates";
 import type { GoalTemplate } from "./component/GoalTemplates";
+import DeadlineChip from "./component/DeadlineChip";
 
 type BottomTab = "plans" | "library" | "review" | "more";
 
@@ -452,6 +453,8 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
         title: template.title,
         description: template.description,
         status: "not_started",
+        start_date: null,
+        due_date: null,
       });
       for (const title of template.steps) {
         await dataSource.createPlan({
@@ -459,6 +462,8 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           title,
           description: null,
           status: "not_started",
+          start_date: null,
+          due_date: null,
         });
       }
       await fetchAll();
@@ -1127,6 +1132,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
                     {selectedPlan.title}
                   </Typography>
                   <Chip label={PLAN_STATUS_LABEL[selectedPlan.status]} size="small" />
+                  <DeadlineChip value={selectedPlan.due_date} />
                 </Stack>
                 <Stack direction="row" spacing={1}>
                   {streakDates.length > 0 && (

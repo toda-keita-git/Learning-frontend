@@ -19,6 +19,7 @@ import type { Plan, Note } from "./PlanTypes";
 import { PLAN_STATUS_LABEL, NOTE_TYPE_LABEL } from "./PlanTypes";
 import { isRoutineDue } from "./routine";
 import { useFullScreenDialog } from "./useFullScreenDialog";
+import DeadlineChip from "./DeadlineChip";
 
 interface TodayNextDialogProps {
   open: boolean;
@@ -36,7 +37,7 @@ const MAX_NEXT_PER_GOAL = 3;
 // 目標ごとに「今日やること」と「次にやること」をまとめて見せる画面。
 //
 // 今日やること: その目標の配下にリンクされたメモのうち、繰り返し（習慣）の期日が来ているもの。
-// 次にやること: その目標の配下でまだ完了していないアクションプランを、ツリーの並び順で先頭から。
+// 次にやること: その目標の配下でまだ完了していないアクションプランを、期限が近い順で先頭から。
 //
 // プランボードは「全体の構造」を見るためのものなので、そこからは
 // 「今どれに手を付ければよいか」が読み取りにくい。その一点だけを抜き出して見せる
@@ -83,14 +84,23 @@ export default function TodayNextDialog({
           isRoutineDue(userId, n.id, n.review_interval_days)
       );
 
-      // 完了・中断は「次にやること」から外す。statusに加えてprogressも見ているのは、
+      // 完了・中断は「次にやること」から外す。期限未設定同士はツリーの並び順を維持する。
+      // statusに加えてprogressも見ているのは、
       // バックエンド側は/plans取得のたびにprogress===100のプランをstatus="done"へ
       // 自動で追随させるが、その反映が届く前の古いデータ（オフラインキャッシュ等）では
       // 「進捗100%なのに未着手のまま」の行が一時的に残りうるための保険
       const isDone = (p: Plan) => p.status === "done" || p.status === "suspended" || p.progress === 100;
-      const nextPlans = descendants.filter((p) => !isDone(p)).slice(0, MAX_NEXT_PER_GOAL);
+      const pendingPlans = descendants.filter((p) => !isDone(p));
+      const nextPlans = [...pendingPlans]
+        .sort((a, b) => {
+          if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+          if (a.due_date) return -1;
+          if (b.due_date) return 1;
+          return a.sort_order - b.sort_order;
+        })
+        .slice(0, MAX_NEXT_PER_GOAL);
 
-      return { goal, todayNotes, nextPlans, remainingCount: descendants.filter((p) => !isDone(p)).length - nextPlans.length };
+      return { goal, todayNotes, nextPlans, remainingCount: pendingPlans.length - nextPlans.length };
     });
   }, [plans, notes, userId]);
 
@@ -191,6 +201,7 @@ export default function TodayNextDialog({
                             variant="outlined"
                             sx={{ flexShrink: 0 }}
                           />
+                          <DeadlineChip value={plan.due_date} />
                           <ChevronRightIcon fontSize="small" color="action" sx={{ flexShrink: 0 }} />
                         </ButtonBase>
                       ))}

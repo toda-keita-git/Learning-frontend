@@ -16,6 +16,8 @@ export interface Plan {
   title: string;
   description: string | null;
   status: PlanStatus;
+  start_date: string | null;
+  due_date: string | null;
   sort_order: number;
   created_at: string;
   user_id: number;
@@ -68,7 +70,7 @@ export interface Note {
 }
 
 // 新規作成・更新時に送るペイロード（id等はサーバー側で確定する）
-export type PlanInput = Pick<Plan, "parent_id" | "title" | "description" | "status">;
+export type PlanInput = Pick<Plan, "parent_id" | "title" | "description" | "status" | "start_date" | "due_date">;
 export type NoteInput = {
   type: NoteType;
   title: string;

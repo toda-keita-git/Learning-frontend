@@ -36,6 +36,8 @@ export default function PlanFormDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<PlanStatus>("not_started");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,6 +46,8 @@ export default function PlanFormDialog({
     setTitle(initialPlan?.title ?? linkingNoteTitle ?? "");
     setDescription(initialPlan?.description ?? "");
     setStatus(initialPlan?.status ?? "not_started");
+    setStartDate(initialPlan?.start_date ?? "");
+    setDueDate(initialPlan?.due_date ?? "");
   }, [open, initialPlan, linkingNoteTitle]);
 
   const handleSubmit = async () => {
@@ -55,6 +59,8 @@ export default function PlanFormDialog({
         title: title.trim(),
         description: description.trim() || null,
         status,
+        start_date: startDate || null,
+        due_date: dueDate || null,
       });
       onClose();
     } finally {
@@ -93,6 +99,26 @@ export default function PlanFormDialog({
             minRows={3}
             fullWidth
           />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              type="date"
+              label="開始日（任意）"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+            <TextField
+              type="date"
+              label="期限日（任意）"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: startDate || undefined } }}
+              error={!!startDate && !!dueDate && dueDate < startDate}
+              helperText={startDate && dueDate && dueDate < startDate ? "開始日以降を選択してください" : " "}
+              fullWidth
+            />
+          </Stack>
           {initialPlan && (
             <TextField
               select
@@ -114,7 +140,11 @@ export default function PlanFormDialog({
         <Button onClick={onClose} disabled={saving}>
           キャンセル
         </Button>
-        <Button onClick={handleSubmit} variant="contained" disabled={saving || !title.trim()}>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={saving || !title.trim() || (!!startDate && !!dueDate && dueDate < startDate)}
+        >
           {saving ? <CircularProgress size={20} /> : "保存"}
         </Button>
       </DialogActions>
