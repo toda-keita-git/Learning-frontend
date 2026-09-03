@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import ResponsiveAppBar from "./ResponsiveAppBar";
@@ -17,18 +18,30 @@ interface LegalPageLayoutProps {
 // ヘッダーはロゴのみ（CTAは出さない＝ホームへの導線に集中させない）
 export default function LegalPageLayout({ title, updatedAt, children }: LegalPageLayoutProps) {
   const navigate = useNavigate();
+  // アプリの「その他」からも開けるようになったため、常にトップページへ送ると
+  // 使っていた画面から追い出す形になる。アプリ内から来ている場合は元の画面へ戻す
+  // （react-routerは履歴の位置をhistory.state.idxに持つ。取れない場合は従来どおり）
+  const [cameFromApp] = useState(() => {
+    try {
+      const idx = (window.history.state as { idx?: number } | null)?.idx;
+      return typeof idx === "number" && idx > 0;
+    } catch {
+      return false;
+    }
+  });
+
   return (
     <>
       <ResponsiveAppBar />
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
         <Link
           component="button"
-          onClick={() => navigate("/")}
+          onClick={() => (cameFromApp ? navigate(-1) : navigate("/"))}
           underline="hover"
           sx={{ display: "inline-flex", alignItems: "center", mb: 3, color: "text.secondary" }}
         >
           <ChevronLeftIcon fontSize="small" />
-          トップページへ戻る
+          {cameFromApp ? "戻る" : "トップページへ戻る"}
         </Link>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 1 }}>
           {title}

@@ -9,6 +9,7 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import LoyaltyOutlinedIcon from "@mui/icons-material/LoyaltyOutlined";
 import { useFullScreenDialog } from "./useFullScreenDialog";
 
@@ -17,15 +18,25 @@ interface PricingPlanDialogProps {
   onClose: () => void;
 }
 
-// 現状は有料プランが無く、全機能が無料。将来プランを分ける場合に備えて
-// 「今どのプランなのか」を示す場所として用意している
-const INCLUDED = [
+// 無料プランに含まれるもの。ここに書いた内容は利用規約 第5条とも揃えること
+const FREE_INCLUDED = [
   "目標・アクションプランの登録（階層の深さ・件数の制限なし）",
   "メモとプランの紐づけ、進捗の自動集計",
+  "カレンダー（開始日〜期限日の帯、休みの設定）",
   "習慣リスト（繰り返し設定）と継続日数の記録",
-  "今日やること・次にやることの一覧",
+  "今日やること・次にやることの一覧と、振り返り",
   "オフラインでの閲覧と、オンライン復帰時の自動送信",
   "GitHubリポジトリ / Googleドライブへのファイル添付",
+];
+
+// Proプランで無料プランに上乗せされるもの
+const PRO_ADDED = [
+  "メモ・カテゴリー・タグの件数上限なし",
+  "広告の非表示",
+  "習慣の記録をサーバーに保存し、複数の端末で同期",
+  "目標・メモのデータエクスポート（CSV / PDF）",
+  "振り返りレポートの強化（傾向グラフ・期間の比較）",
+  "お問い合わせの優先対応",
 ];
 
 // 登録できる件数の上限。サーバー側で実際にチェックしている値と揃えること
@@ -33,46 +44,35 @@ const INCLUDED = [
 //   LearningService.FREE_TAG_LIMIT）。ここに書かずに「制限なし」と案内していると、
 // 上限に達した利用者が説明と食い違うエラーに突き当たることになる
 const LIMITS = [
-  { label: "メモ", value: "100件まで" },
-  { label: "カテゴリー", value: "20件まで" },
-  { label: "タグ", value: "50件まで" },
+  { label: "メモ", free: "100件まで", pro: "無制限" },
+  { label: "カテゴリー", free: "20件まで", pro: "無制限" },
+  { label: "タグ", free: "50件まで", pro: "無制限" },
 ];
 
 // フッター「その他」→「プラン」
 export default function PricingPlanDialog({ open, onClose }: PricingPlanDialogProps) {
   const fullScreenDialog = useFullScreenDialog();
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" fullScreen={fullScreenDialog}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreenDialog}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <LoyaltyOutlinedIcon color="primary" />
-        ご利用プラン
+        料金プラン
       </DialogTitle>
       <DialogContent dividers>
-        <Stack spacing={2}>
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "primary.main",
-              textAlign: "center",
-            }}
-          >
-            <Chip label="ご利用中" size="small" color="primary" sx={{ mb: 1 }} />
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              無料プラン
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              月額 0円 / 機能はすべて使えます
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-              このプランに含まれるもの
+        <Stack spacing={2.5}>
+          {/* 無料プラン */}
+          <Box sx={{ p: 2, borderRadius: 2, border: "2px solid", borderColor: "primary.main" }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                無料プラン
+              </Typography>
+              <Chip label="ご利用中" size="small" color="primary" />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              月額 0円
             </Typography>
             <Stack spacing={0.75}>
-              {INCLUDED.map((item) => (
+              {FREE_INCLUDED.map((item) => (
                 <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
                   <CheckCircleOutlineIcon fontSize="small" color="success" sx={{ mt: 0.25, flexShrink: 0 }} />
                   <Typography variant="body2" color="text.secondary">
@@ -83,29 +83,77 @@ export default function PricingPlanDialog({ open, onClose }: PricingPlanDialogPr
             </Stack>
           </Box>
 
-          <Box>
+          {/* Proプラン。まだ提供していないので、金額と内容の案内に留める */}
+          <Box sx={{ p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Proプラン
+              </Typography>
+              <Chip label="準備中" size="small" variant="outlined" />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              月額 480円（税込） / 年額 4,800円（税込）
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+              年額は2か月分おトクになります。
+            </Typography>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-              登録できる件数
+              無料プランのすべてに加えて
             </Typography>
             <Stack spacing={0.75}>
-              {LIMITS.map((limit) => (
-                <Stack key={limit.label} direction="row" justifyContent="space-between" spacing={1}>
+              {PRO_ADDED.map((item) => (
+                <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
+                  <AddCircleOutlineIcon fontSize="small" color="primary" sx={{ mt: 0.25, flexShrink: 0 }} />
                   <Typography variant="body2" color="text.secondary">
-                    {limit.label}
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {limit.value}
+                    {item}
                   </Typography>
                 </Stack>
               ))}
             </Stack>
+          </Box>
+
+          {/* 件数の比較 */}
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+              登録できる件数
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto auto",
+                columnGap: 2,
+                rowGap: 0.75,
+                alignItems: "center",
+              }}
+            >
+              <Box />
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right", minWidth: 64 }}>
+                無料
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right", minWidth: 56 }}>
+                Pro
+              </Typography>
+              {LIMITS.map((limit) => (
+                <Box key={limit.label} sx={{ display: "contents" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {limit.label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ textAlign: "right" }}>
+                    {limit.free}
+                  </Typography>
+                  <Typography variant="body2" sx={{ textAlign: "right", fontWeight: 700 }}>
+                    {limit.pro}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
               上限に達しても、これまでに登録した内容が消えることはありません。新しく追加できなくなるだけなので、使っていないものを削除すればまた追加できます。
             </Typography>
           </Box>
 
           <Alert severity="info">
-            有料プランは今のところありません。追加費用が発生する変更を行う場合は、事前にこの画面とお問い合わせでご案内します。
+            Proプランはまだ提供を開始していません。現在はすべての機能を無料プランでご利用いただけます。提供開始の時期とお支払い方法は、この画面とお問い合わせでご案内します。
           </Alert>
 
           <Typography variant="caption" color="text.secondary">

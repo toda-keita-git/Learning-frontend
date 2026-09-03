@@ -43,6 +43,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import LoginIcon from "@mui/icons-material/Login";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
@@ -95,6 +96,7 @@ import { AuthContext } from "./Context";
 import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 const InquiryDialog = lazy(() => import("./component/InquiryDialog"));
+const LegalLinksDialog = lazy(() => import("./component/LegalLinksDialog"));
 import ScheduleView from "./component/ScheduleView";
 const DashboardDialog = lazy(() => import("./component/DashboardDialog"));
 import GoalTemplates from "./component/GoalTemplates";
@@ -157,6 +159,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
   const [pricingPlanOpen, setPricingPlanOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
   // カレンダーの日付タップで新規プラン作成を開くときの、期限日の初期値
   const [createDueDate, setCreateDueDate] = useState<string | null>(null);
   // メモトレイからプレビューを開いているメモ。編集や添付追加で内容が変わっても
@@ -765,8 +768,8 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
     },
     {
       icon: <LoyaltyOutlinedIcon color="action" />,
-      label: "プラン",
-      description: "ご利用中の料金プランと、含まれる機能",
+      label: "料金プラン",
+      description: "無料プランとProプランの内容、登録できる件数",
       onClick: () => setPricingPlanOpen(true),
     },
     {
@@ -774,6 +777,12 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
       label: "お問い合わせ",
       description: "不具合の報告やご要望はこちらから",
       onClick: () => setInquiryOpen(true),
+    },
+    {
+      icon: <GavelOutlinedIcon color="action" />,
+      label: "規約・ポリシー",
+      description: "利用規約、プライバシーポリシー、特定商取引法に基づく表記",
+      onClick: () => setLegalOpen(true),
     },
   ];
 
@@ -1488,6 +1497,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           />
         )}
         {inquiryOpen && <InquiryDialog open onClose={() => setInquiryOpen(false)} />}
+        {legalOpen && <LegalLinksDialog open onClose={() => setLegalOpen(false)} />}
       </Suspense>
 
       <ReviewDialog note={reviewNote} onClose={() => setReviewNoteId(null)} onGrade={handleGradeReview} />
