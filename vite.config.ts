@@ -96,7 +96,7 @@ export default defineConfig({
       },
       workbox: {
         // アプリの外枠（HTML/JS/CSS/画像）をキャッシュしてオフライン初期表示・高速化
-        globPatterns: ["**/*.{js,mjs,css,html,svg,png,ico,woff2}"],
+        globPatterns: ["**/*.{js,mjs,css,html,svg,png,jpg,ico,woff2}"],
         // メインバンドルが大きめなので、プリキャッシュ上限を引き上げる
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // API と GitHub へのアクセスはキャッシュせず、常にネットワークから取得
