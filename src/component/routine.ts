@@ -5,7 +5,22 @@
 
 const storageKey = (userId: number | null | undefined) => `routineDone_${userId ?? "anon"}`;
 
-const todayStr = (): string => new Date().toISOString().slice(0, 10);
+// 日付はすべて端末のローカル時刻で扱う。
+// 以前は toISOString().slice(0, 10)（＝UTC）で日付キーを作っていたが、
+// カレンダー（ScheduleView）・期限（deadline.ts）・継続日数（streakStats.ts）は
+// いずれもローカル時刻で日付を出しているため、UTCとの時差ぶんだけ食い違っていた。
+// 日本（UTC+9）では 0時〜9時 のあいだ「アプリの中の今日」が前日のままになり、
+// 朝に開くと毎日の習慣がまだ期日になっていない、という状態が起きていた。
+const toDateKey = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// "YYYY-MM-DD" をローカルの0時として解釈する（new Date("YYYY-MM-DD") はUTC0時になるため使わない）
+const parseDateKey = (key: string): Date => {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+};
+
+const todayStr = (): string => toDateKey(new Date());
 
 const loadAll = (userId: number | null | undefined): Record<number, string> => {
   try {
@@ -38,9 +53,9 @@ export const isRoutineDue = (
   if (!intervalDays || intervalDays < 1) return false;
   const last = getLastDone(userId, noteId);
   if (!last) return true;
-  const due = new Date(last);
+  const due = parseDateKey(last);
   due.setDate(due.getDate() + intervalDays);
-  return due.toISOString().slice(0, 10) <= todayStr();
+  return toDateKey(due) <= todayStr();
 };
 
 // 次の期日まであと何日か。まだ一度もやっていなければ0（即座に対象）。
@@ -53,9 +68,9 @@ export const getRemainingDays = (
   if (!intervalDays || intervalDays < 1) return null;
   const last = getLastDone(userId, noteId);
   if (!last) return 0;
-  const due = new Date(last);
+  const due = parseDateKey(last);
   due.setDate(due.getDate() + intervalDays);
-  const today = new Date(todayStr());
+  const today = parseDateKey(todayStr());
   return Math.round((due.getTime() - today.getTime()) / 86400000);
 };
 
@@ -85,14 +100,15 @@ export const getRoutineOccurrencesInRange = (
 ): string[] => {
   if (!intervalDays || intervalDays < 1) return [];
   const last = getLastDone(userId, noteId);
-  const anchor = last ? new Date(last) : new Date(todayStr());
+  const anchor = parseDateKey(last ?? todayStr());
   if (!last) {
     // 未実施なら起点そのもの（今日）を初回の期日として含める
   } else {
     anchor.setDate(anchor.getDate() + intervalDays);
   }
-  const start = new Date(rangeStart);
-  const end = new Date(rangeEnd);
+  // 呼び出し側（ScheduleView）はローカル日付のキーを渡してくるので、同じ基準で解釈する
+  const start = parseDateKey(rangeStart);
+  const end = parseDateKey(rangeEnd);
   const occurrences: string[] = [];
   const cursor = new Date(anchor);
   // 範囲より前なら、周期を進めて範囲内まで早送りする
@@ -100,7 +116,7 @@ export const getRoutineOccurrencesInRange = (
     cursor.setDate(cursor.getDate() + intervalDays);
   }
   while (cursor <= end) {
-    occurrences.push(cursor.toISOString().slice(0, 10));
+    occurrences.push(toDateKey(cursor));
     cursor.setDate(cursor.getDate() + intervalDays);
   }
   return occurrences;
