@@ -4,7 +4,7 @@ import LegalPageLayout from "./component/LegalPageLayout";
 // メールアドレスは専用アドレス作成後に差し替えること（TODO参照）
 export default function TermsPage() {
   return (
-    <LegalPageLayout title="利用規約" updatedAt="2026年8月29日">
+    <LegalPageLayout title="利用規約" updatedAt="2026年9月3日">
       <p>
         この利用規約（以下「本規約」）は、戸田啓太（以下「運営者」）が提供する「ツミアゲ」（以下「本サービス」）の利用条件を定めるものです。本サービスをご利用いただく方（以下「利用者」）には、本規約に同意のうえご利用いただきます。
       </p>
@@ -41,7 +41,9 @@ export default function TermsPage() {
         <tbody>
           <tr>
             <th>無料プラン</th>
-            <td>0円。目標2件・メモ50件までご利用いただけます。</td>
+            <td>
+              0円。目標・アクションプランは件数の制限なくご利用いただけます。メモは100件、カテゴリーは20件、タグは50件までです。
+            </td>
           </tr>
           <tr>
             <th>Proプラン</th>
@@ -50,7 +52,7 @@ export default function TermsPage() {
         </tbody>
       </table>
       <p>
-        Proプランの提供開始時期・お支払い方法は、本サービス内で別途ご案内します。価格は予告のうえ変更する場合があります。
+        Proプランは現在まだ提供を開始しておらず、本サービスの機能はすべて無料プランでご利用いただけます。Proプランの提供開始時期・お支払い方法は、本サービス内で別途ご案内します。価格は予告のうえ変更する場合があります。
       </p>
 
       <h2>第6条（返金）</h2>

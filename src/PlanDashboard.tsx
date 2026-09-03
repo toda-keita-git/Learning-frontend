@@ -96,7 +96,7 @@ import { maybeNotifyReview, updateAppBadge } from "./notifications";
 const SummaryDialog = lazy(() => import("./component/SummaryDialog"));
 const InquiryDialog = lazy(() => import("./component/InquiryDialog"));
 import ScheduleView from "./component/ScheduleView";
-import DashboardOverview from "./component/DashboardOverview";
+const DashboardDialog = lazy(() => import("./component/DashboardDialog"));
 import GoalTemplates from "./component/GoalTemplates";
 import type { GoalTemplate } from "./component/GoalTemplates";
 import DeadlineChip from "./component/DeadlineChip";
@@ -148,6 +148,7 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
   const [routineVersion, setRoutineVersion] = useState(0);
   const [streakDialogOpen, setStreakDialogOpen] = useState(false);
   const [todayNextOpen, setTodayNextOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [boardHelpOpen, setBoardHelpOpen] = useState(false);
   const [accountInfoOpen, setAccountInfoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -733,6 +734,12 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           },
         ]),
     {
+      icon: <TodayOutlinedIcon color="action" />,
+      label: "今日やること",
+      description: "期日が来た習慣と、次に手をつけるプラン",
+      onClick: () => setTodayNextOpen(true),
+    },
+    {
       icon: <InsightsOutlinedIcon color="action" />,
       label: "振り返り",
       description: "今月の積み上げと、共有用のまとめ",
@@ -803,18 +810,21 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           {/* アカウント連携・明るさ切り替え・ログアウトは、フッターの「その他」へ移した。
               アイコンだけが並んでいて何のボタンか分かりにくく、ログアウトを誤って
               押しやすい位置でもあったため */}
+          {/* ダッシュボードはプランボードの先頭に常時置いていたが、プランを見に
+              来るたびスクロールで押しのける形になっていた。見たいときだけ開ける
+              よう、ヘッダーのボタンから出す */}
           <Button
             size="small"
             startIcon={<TodayOutlinedIcon />}
-            onClick={() => setTodayNextOpen(true)}
-            aria-label="今日やること・次にやること"
+            onClick={() => setDashboardOpen(true)}
+            aria-label="今日のダッシュボード"
             sx={{ display: { xs: "none", sm: "inline-flex" } }}
           >
-            今日やること
+            ダッシュボード
           </Button>
           <IconButton
-            onClick={() => setTodayNextOpen(true)}
-            aria-label="今日やること・次にやること"
+            onClick={() => setDashboardOpen(true)}
+            aria-label="今日のダッシュボード"
             sx={{ display: { xs: "inline-flex", sm: "none" } }}
           >
             <TodayOutlinedIcon />
@@ -1040,17 +1050,6 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           />
         ) : !selectedPlan ? (
           <Stack spacing={2}>
-            {plans.length > 0 && (
-              <DashboardOverview
-                plans={plans}
-                notes={notes}
-                userId={userId}
-                currentStreak={overallStreak.current}
-                onOpenToday={() => setTodayNextOpen(true)}
-                onOpenSummary={() => setSummaryOpen(true)}
-                onOpenNote={(note) => setPreviewNoteId(note.id)}
-              />
-            )}
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
@@ -1426,6 +1425,28 @@ export default function PlanDashboard({ dataSource, userId, onLogout, topBanner 
           起動時のダウンロードに乗ってしまうため。開くまでは何も描画しないので
           Suspenseのfallbackも不要 */}
       <Suspense fallback={null}>
+        {dashboardOpen && (
+          <DashboardDialog
+            open
+            onClose={() => setDashboardOpen(false)}
+            plans={plans}
+            notes={notes}
+            userId={userId}
+            currentStreak={overallStreak.current}
+            onOpenToday={() => {
+              setDashboardOpen(false);
+              setTodayNextOpen(true);
+            }}
+            onOpenSummary={() => {
+              setDashboardOpen(false);
+              setSummaryOpen(true);
+            }}
+            onOpenNote={(note) => {
+              setDashboardOpen(false);
+              setPreviewNoteId(note.id);
+            }}
+          />
+        )}
         {todayNextOpen && (
           <TodayNextDialog
             open={todayNextOpen}
