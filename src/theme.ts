@@ -142,6 +142,23 @@ export const getTheme = (mode: PaletteMode) =>
       MuiBottomNavigationAction: {
         styleOverrides: {
           root: {
+            // タブが5つになり、狭い画面では1つあたり75px前後しか取れない。
+            // MUIは選択中のラベルだけ0.875remに拡大するため「カレンダー」が
+            // 収まらず「カレンダ／ー」と改行していた。拡大をやめて折り返しも禁じる
+            minWidth: 0,
+            paddingLeft: 4,
+            paddingRight: 4,
+            "& .MuiBottomNavigationAction-label": {
+              whiteSpace: "nowrap",
+              fontSize: "0.7rem",
+              "&.Mui-selected": { fontSize: "0.7rem" },
+            },
+            "@media (max-width:359.95px)": {
+              "& .MuiBottomNavigationAction-label": {
+                fontSize: "0.65rem",
+                "&.Mui-selected": { fontSize: "0.65rem" },
+              },
+            },
             transition: "color 160ms ease-out",
             "& .MuiSvgIcon-root": { transition: "transform 160ms ease-out" },
             "&.Mui-selected .MuiSvgIcon-root": { transform: "translateY(-2px)" },

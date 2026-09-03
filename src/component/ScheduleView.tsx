@@ -1,21 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
-import ButtonBase from "@mui/material/ButtonBase";
+import Chip from "@mui/material/Chip";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import ToggleButton from "@mui/material/ToggleButton";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import AddIcon from "@mui/icons-material/Add";
 import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
-import RepeatIcon from "@mui/icons-material/Repeat";
+import TuneIcon from "@mui/icons-material/Tune";
 import type { Plan, Note } from "./PlanTypes";
 import { PLAN_STATUS_LABEL } from "./PlanTypes";
 import { getRoutineOccurrencesInRange } from "./routine";
+import RestDaySettingsDialog from "./RestDaySettingsDialog";
+import { loadRestDayConfig, saveRestDayConfig, getRestDayInfo } from "./restDays";
+import type { RestDayConfig } from "./restDays";
 
 interface ScheduleViewProps {
   plans: Plan[];
@@ -26,6 +29,7 @@ interface ScheduleViewProps {
 }
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
 const isDone = (plan: Plan) => plan.status === "done" || plan.status === "suspended" || plan.progress === 100;
 
 const toDateKey = (d: Date): string =>
@@ -33,26 +37,52 @@ const toDateKey = (d: Date): string =>
 
 const startOfWeek = (d: Date): Date => {
   const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
   r.setDate(r.getDate() - r.getDay());
   return r;
 };
 
 type DayEntry = { plan: Plan; kind: "start" | "due" };
 
-// プランの開始日・期限日・習慣の期日を、下部ナビの「スケジュール」タブとして
-// カレンダーで俯瞰できるようにする。
-//
-// フォルダ一覧やダイアログの奥に隠さず、タップ無しでも「その日に何があるか」が
-// 見えるようにするのが目的（Googleカレンダーのように、日付セルへ直接タイトルを
-// 並べる）。習慣（review_interval_days）は固定の日付列ではなく「最後にやった日＋
-// N日ごと」の周期なので、表示中の範囲だけgetRoutineOccurrencesInRangeで都度
-// 投影して重ねる
+// 3種類の予定を、色と短いラベルの両方で区別する。色だけに意味を持たせると
+// 色覚特性によっては読み取れないため、詳細側では必ず文字も添える
+const KIND_COLOR = {
+  start: "info.main",
+  due: "error.main",
+  habit: "warning.main",
+} as const;
+
+// 休みの背景色。日曜・祝日は赤系、土曜は青系、自分で足した休みは中立色にして、
+// なぜ休みなのかが色でも分かるようにする
+const REST_BG = {
+  sunday: { light: "rgba(239,68,68,0.07)", dark: "rgba(239,68,68,0.16)" },
+  holiday: { light: "rgba(239,68,68,0.07)", dark: "rgba(239,68,68,0.16)" },
+  saturday: { light: "rgba(59,130,246,0.07)", dark: "rgba(59,130,246,0.16)" },
+  custom: { light: "rgba(100,116,139,0.10)", dark: "rgba(148,163,184,0.16)" },
+} as const;
+
+/**
+ * プランの開始日・期限日と、習慣の次回期日をカレンダーで俯瞰するタブ。
+ *
+ * 画面幅の狭いスマホが主な利用環境なので、月表示では日付セルに文字を詰め込まず
+ * 色付きの点で「何が入っているか」だけを示し、名前は下の詳細と週表示（アジェンダ）
+ * で読ませる。7列を必ず画面幅に収めるため、セルにはminmax(0,1fr)を使い、
+ * 中の要素にも最小幅を持たせない。
+ */
 export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreatePlanOnDate }: ScheduleViewProps) {
+  const todayKey = toDateKey(new Date());
+
   const [mode, setMode] = useState<"month" | "week">("month");
   const [cursor, setCursor] = useState(() => new Date());
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // 開いた時点で今日が選ばれている状態にする（まず見たいのはたいてい今日のため）
+  const [selectedKey, setSelectedKey] = useState<string>(todayKey);
+  const [restConfig, setRestConfig] = useState<RestDayConfig>(() => loadRestDayConfig());
+  const [restSettingsOpen, setRestSettingsOpen] = useState(false);
 
-  const todayKey = toDateKey(new Date());
+  // 日付をまたいだままアプリを開き続けた場合に、選択が前日のまま残らないようにする
+  useEffect(() => {
+    setSelectedKey((prev) => prev || todayKey);
+  }, [todayKey]);
 
   const planById = useMemo(() => new Map(plans.map((p) => [p.id, p])), [plans]);
   const rootGoalOf = (plan: Plan): Plan => {
@@ -65,7 +95,7 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
     return cur;
   };
 
-  // 表示中の範囲（月表示なら月の前後の見えている週もカバー、週表示ならその週）
+  // 表示中の範囲。月表示では前後の月にはみ出す週も含めて、常に7列×n段で埋める
   const range = useMemo(() => {
     if (mode === "week") {
       const start = startOfWeek(cursor);
@@ -96,6 +126,8 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
         due.set(plan.due_date, list);
       }
     }
+    // 習慣は固定の日付を持たず「最後にやった日＋N日ごと」の周期なので、
+    // 表示中の範囲だけ都度投影して重ねる
     const habit = new Map<string, Note[]>();
     const rangeStartKey = toDateKey(range.start);
     const rangeEndKey = toDateKey(range.end);
@@ -118,14 +150,19 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
   }, [plans, notes, userId, range]);
 
   const cells = useMemo(() => {
-    const days: Date[] = [];
+    const list: Date[] = [];
     const cur = new Date(range.start);
     while (cur <= range.end) {
-      days.push(new Date(cur));
+      list.push(new Date(cur));
       cur.setDate(cur.getDate() + 1);
     }
-    return days;
+    return list;
   }, [range]);
+
+  const entriesFor = (key: string): DayEntry[] => [
+    ...(startByDate.get(key) ?? []).map((plan) => ({ plan, kind: "start" as const })),
+    ...(dueByDate.get(key) ?? []).map((plan) => ({ plan, kind: "due" as const })),
+  ];
 
   const goPrev = () => {
     const next = new Date(cursor);
@@ -144,283 +181,444 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
     setSelectedKey(todayKey);
   };
 
-  const entriesFor = (key: string): DayEntry[] => [
-    ...(startByDate.get(key) ?? []).map((plan): DayEntry => ({ plan, kind: "start" })),
-    ...(dueByDate.get(key) ?? []).map((plan): DayEntry => ({ plan, kind: "due" })),
-  ];
+  const restInfoOf = (day: Date, key: string) => getRestDayInfo(day, key, restConfig);
 
-  // 親プランを表示するときは、同じ日に紐づく子プランをその中にまとめる。
-  // 対象の親が今日の一覧に無くても「（親: ○○）」だけは分かるようにする
-  const groupByGoal = (entries: DayEntry[]) => {
+  const periodLabel = useMemo(() => {
+    if (mode === "week") {
+      const end = new Date(range.start);
+      end.setDate(end.getDate() + 6);
+      const sameMonth = range.start.getMonth() === end.getMonth();
+      return sameMonth
+        ? `${range.start.getFullYear()}年${range.start.getMonth() + 1}月${range.start.getDate()}日〜${end.getDate()}日`
+        : `${range.start.getMonth() + 1}/${range.start.getDate()}〜${end.getMonth() + 1}/${end.getDate()}`;
+    }
+    return `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`;
+  }, [mode, cursor, range]);
+
+  // 日付セルの背景色。選択中 > 休み > 通常、の優先度で決める
+  const cellBg = (key: string, tone: ReturnType<typeof restInfoOf>["tone"]) => {
+    if (key === selectedKey) return "action.selected";
+    if (!tone) return "background.paper";
+    return (t: { palette: { mode: string } }) =>
+      t.palette.mode === "dark" ? REST_BG[tone].dark : REST_BG[tone].light;
+  };
+
+  const dayNumberColor = (day: Date, tone: ReturnType<typeof restInfoOf>["tone"]) => {
+    if (tone === "sunday" || tone === "holiday") return "error.main";
+    if (tone === "saturday") return "info.main";
+    return day.getDay() === 0 ? "error.main" : day.getDay() === 6 ? "info.main" : "text.primary";
+  };
+
+  // 月表示の1日ぶん。狭い画面では点だけ、幅に余裕があるときだけ名前も出す
+  const renderMonthCell = (day: Date) => {
+    const key = toDateKey(day);
+    const entries = entriesFor(key);
+    const habits = habitByDate.get(key) ?? [];
+    const rest = restInfoOf(day, key);
+    const isToday = key === todayKey;
+    const isCurrentMonth = day.getMonth() === cursor.getMonth();
+    const marks = [
+      ...entries.map((e) => e.kind),
+      ...habits.map(() => "habit" as const),
+    ];
+
+    return (
+      <Box
+        key={key}
+        role="button"
+        tabIndex={0}
+        aria-label={`${day.getMonth() + 1}月${day.getDate()}日${rest.holidayName ? ` ${rest.holidayName}` : ""}、予定${marks.length}件`}
+        onClick={() => setSelectedKey(key)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedKey(key);
+          }
+        }}
+        sx={{
+          minWidth: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 0.25,
+          py: 0.5,
+          px: 0.25,
+          minHeight: { xs: 52, sm: 62 },
+          borderRadius: 1,
+          cursor: "pointer",
+          border: key === selectedKey ? "2px solid" : "1px solid",
+          borderColor: key === selectedKey ? "primary.main" : "divider",
+          bgcolor: cellBg(key, rest.tone),
+          opacity: isCurrentMonth ? 1 : 0.4,
+          "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 1 },
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            fontSize: "0.72rem",
+            lineHeight: 1.2,
+            fontWeight: isToday ? 800 : 500,
+            color: isToday ? "primary.main" : dayNumberColor(day, rest.tone),
+            // 今日は数字を丸で囲って、色以外でも分かるようにする
+            ...(isToday && {
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              border: "1.5px solid",
+              borderColor: "primary.main",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }),
+          }}
+        >
+          {day.getDate()}
+        </Typography>
+
+        {/* 名前は幅に余裕があるときだけ。狭い画面では点で件数と種類を示す */}
+        <Stack spacing={0.2} sx={{ width: "100%", display: { xs: "none", sm: "flex" }, minWidth: 0 }}>
+          {entries.slice(0, 2).map((entry) => (
+            <Typography
+              key={`${entry.kind}-${entry.plan.id}`}
+              variant="caption"
+              noWrap
+              sx={{
+                fontSize: "0.6rem",
+                lineHeight: 1.3,
+                px: 0.3,
+                borderRadius: 0.5,
+                color: KIND_COLOR[entry.kind],
+                bgcolor: "action.hover",
+                textDecoration: isDone(entry.plan) ? "line-through" : "none",
+              }}
+            >
+              {entry.plan.title}
+            </Typography>
+          ))}
+          {habits.length > 0 && entries.length < 2 && (
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ fontSize: "0.6rem", lineHeight: 1.3, px: 0.3, color: KIND_COLOR.habit, bgcolor: "action.hover", borderRadius: 0.5 }}
+            >
+              習慣{habits.length}件
+            </Typography>
+          )}
+        </Stack>
+
+        {marks.length > 0 && (
+          <Stack
+            direction="row"
+            spacing={0.25}
+            sx={{ display: { xs: "flex", sm: "none" }, alignItems: "center", justifyContent: "center", flexWrap: "nowrap" }}
+          >
+            {marks.slice(0, 3).map((kind, i) => (
+              <Box
+                key={i}
+                sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: KIND_COLOR[kind], flexShrink: 0 }}
+              />
+            ))}
+            {marks.length > 3 && (
+              <Typography sx={{ fontSize: "0.55rem", color: "text.secondary", lineHeight: 1 }}>
+                +{marks.length - 3}
+              </Typography>
+            )}
+          </Stack>
+        )}
+      </Box>
+    );
+  };
+
+  // 週表示は7列に切らず、縦並びのアジェンダにする。狭い画面でも名前が読め、
+  // 列が潰れてレイアウトが崩れることもない
+  const renderWeekRow = (day: Date) => {
+    const key = toDateKey(day);
+    const entries = entriesFor(key);
+    const habits = habitByDate.get(key) ?? [];
+    const rest = restInfoOf(day, key);
+    const isToday = key === todayKey;
+
+    return (
+      <Box
+        key={key}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedKey(key)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedKey(key);
+          }
+        }}
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "44px minmax(0, 1fr)",
+          gap: 1,
+          alignItems: "start",
+          p: 1,
+          borderRadius: 1.5,
+          cursor: "pointer",
+          border: key === selectedKey ? "2px solid" : "1px solid",
+          borderColor: key === selectedKey ? "primary.main" : "divider",
+          bgcolor: cellBg(key, rest.tone),
+          "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 1 },
+        }}
+      >
+        <Stack alignItems="center" sx={{ minWidth: 0 }}>
+          <Typography variant="caption" sx={{ fontSize: "0.65rem", color: dayNumberColor(day, rest.tone) }}>
+            {WEEKDAY_LABELS[day.getDay()]}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "1.05rem",
+              fontWeight: isToday ? 800 : 600,
+              lineHeight: 1.2,
+              color: isToday ? "primary.main" : dayNumberColor(day, rest.tone),
+            }}
+          >
+            {day.getDate()}
+          </Typography>
+        </Stack>
+
+        <Stack spacing={0.4} sx={{ minWidth: 0, py: 0.25 }}>
+          {rest.holidayName && (
+            <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700 }}>
+              {rest.holidayName}
+            </Typography>
+          )}
+          {entries.length === 0 && habits.length === 0 && !rest.holidayName && (
+            <Typography variant="caption" color="text.secondary">
+              予定なし
+            </Typography>
+          )}
+          {entries.map((entry) => (
+            <Stack key={`${entry.kind}-${entry.plan.id}`} direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: KIND_COLOR[entry.kind], flexShrink: 0 }} />
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{ minWidth: 0, textDecoration: isDone(entry.plan) ? "line-through" : "none" }}
+              >
+                {entry.plan.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                {entry.kind === "due" ? "期限" : "開始"}
+              </Typography>
+            </Stack>
+          ))}
+          {habits.map((note) => (
+            <Stack key={`habit-${note.id}`} direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: KIND_COLOR.habit, flexShrink: 0 }} />
+              <Typography variant="body2" noWrap sx={{ minWidth: 0, color: "text.secondary" }}>
+                {note.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                習慣
+              </Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+    );
+  };
+
+  const selectedDate = useMemo(() => {
+    const [y, m, d] = selectedKey.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }, [selectedKey]);
+  const selectedEntries = entriesFor(selectedKey);
+  const selectedHabits = habitByDate.get(selectedKey) ?? [];
+  const selectedRest = restInfoOf(selectedDate, selectedKey);
+
+  // 子プランは親目標の中に入れて表示する（同じ目標の作業がばらけないように）
+  const selectedGroups = useMemo(() => {
     const groups = new Map<number, { goal: Plan; entries: DayEntry[] }>();
-    for (const entry of entries) {
+    for (const entry of selectedEntries) {
       const goal = rootGoalOf(entry.plan);
       const group = groups.get(goal.id) ?? { goal, entries: [] };
       group.entries.push(entry);
       groups.set(goal.id, group);
     }
     return Array.from(groups.values());
-  };
-
-  const monthLabel =
-    mode === "week"
-      ? `${range.start.getFullYear()}年${range.start.getMonth() + 1}月${range.start.getDate()}日〜${range.end.getMonth() + 1}月${range.end.getDate()}日`
-      : `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`;
-
-  const renderDayLabel = (entry: DayEntry) => (entry.kind === "start" ? "開始" : "期限");
-
-  const dayCard = (day: Date) => {
-    const key = toDateKey(day);
-    const entries = entriesFor(key);
-    const habitNotes = habitByDate.get(key) ?? [];
-    const isToday = key === todayKey;
-    const isSelected = key === selectedKey;
-    const isCurrentMonth = mode === "week" || day.getMonth() === cursor.getMonth();
-    const totalCount = entries.length + habitNotes.length;
-    const previewLimit = mode === "week" ? 6 : 2;
-
-    return (
-      // 内側の「+」がIconButton（<button>）のため、外枠は<button>にできない
-      // （<button>のネストはHTML的に無効でハイドレーションエラーになる）。
-      // role="button"+tabIndex+keydownで、見た目・操作感はButtonBase相当に保つ
-      <Box
-        key={key}
-        role="button"
-        tabIndex={0}
-        onClick={() => setSelectedKey((prev) => (prev === key ? null : key))}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setSelectedKey((prev) => (prev === key ? null : key));
-          }
-        }}
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "stretch",
-          justifyContent: "flex-start",
-          textAlign: "left",
-          p: 0.5,
-          minHeight: mode === "week" ? 220 : 84,
-          borderRadius: 1.5,
-          border: 1,
-          borderColor: isSelected ? "primary.main" : "divider",
-          bgcolor: isSelected ? "action.selected" : "background.paper",
-          opacity: isCurrentMonth ? 1 : 0.45,
-          cursor: "pointer",
-          "&:focus-visible": { outline: (t) => `2px solid ${t.palette.primary.main}`, outlineOffset: 1 },
-        }}
-      >
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 0.25 }}>
-          <Typography
-            variant="caption"
-            sx={{ fontWeight: isToday ? 800 : 400, color: isToday ? "primary.main" : "text.primary" }}
-          >
-            {mode === "week" ? `${WEEKDAY_LABELS[day.getDay()]} ${day.getDate()}` : day.getDate()}
-          </Typography>
-          <IconButton
-            size="small"
-            sx={{ p: 0.25 }}
-            aria-label="この日にプランを作成"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCreatePlanOnDate(key);
-            }}
-          >
-            <AddIcon sx={{ fontSize: 14 }} />
-          </IconButton>
-        </Stack>
-        <Stack spacing={0.25} sx={{ mt: 0.25, overflow: "hidden" }}>
-          {entries.slice(0, previewLimit).map((entry) => (
-            <Box
-              key={`${entry.kind}-${entry.plan.id}`}
-              sx={{
-                fontSize: "0.68rem",
-                lineHeight: 1.3,
-                px: 0.5,
-                py: 0.1,
-                borderRadius: 0.5,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                color: entry.kind === "due" ? "error.dark" : "info.dark",
-                bgcolor: entry.kind === "due" ? "error.50" : "info.50",
-                textDecoration: isDone(entry.plan) ? "line-through" : "none",
-              }}
-            >
-              {entry.plan.title}
-            </Box>
-          ))}
-          {habitNotes.slice(0, Math.max(0, previewLimit - entries.length)).map((note) => (
-            <Box
-              key={`habit-${note.id}`}
-              sx={{
-                fontSize: "0.68rem",
-                lineHeight: 1.3,
-                px: 0.5,
-                py: 0.1,
-                borderRadius: 0.5,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                color: "warning.dark",
-                bgcolor: "warning.50",
-              }}
-            >
-              🔁 {note.title}
-            </Box>
-          ))}
-          {totalCount > previewLimit && (
-            <Typography variant="caption" color="text.secondary" sx={{ px: 0.5, fontSize: "0.65rem" }}>
-              ほか{totalCount - previewLimit}件
-            </Typography>
-          )}
-        </Stack>
-      </Box>
-    );
-  };
-
-  const selectedEntries = selectedKey ? entriesFor(selectedKey) : [];
-  const selectedHabits = selectedKey ? (habitByDate.get(selectedKey) ?? []) : [];
-  const selectedGroups = groupByGoal(selectedEntries);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey, plans, startByDate, dueByDate]);
 
   return (
-    <Stack spacing={2}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" rowGap={1}>
-        <Stack direction="row" alignItems="center" spacing={0.5}>
-          <IconButton onClick={goPrev} aria-label="前へ">
-            <ChevronLeftIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ fontWeight: 700, minWidth: 140, textAlign: "center" }}>
-            {monthLabel}
-          </Typography>
-          <IconButton onClick={goNext} aria-label="次へ">
-            <ChevronRightIcon />
-          </IconButton>
-          <Button size="small" onClick={goToday}>
-            今日
-          </Button>
-        </Stack>
-        <ToggleButtonGroup size="small" exclusive value={mode} onChange={(_, v) => v && setMode(v)}>
-          <ToggleButton value="month">月</ToggleButton>
-          <ToggleButton value="week">週</ToggleButton>
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+      <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
+        カレンダー
+      </Typography>
+
+      {/* 操作列。狭い画面でも折り返して収まるようにしている */}
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+        <IconButton size="small" onClick={goPrev} aria-label="前へ">
+          <ChevronLeftIcon fontSize="small" />
+        </IconButton>
+        <Typography sx={{ fontWeight: 700, flex: 1, textAlign: "center", fontSize: { xs: "0.95rem", sm: "1.1rem" } }} noWrap>
+          {periodLabel}
+        </Typography>
+        <IconButton size="small" onClick={goNext} aria-label="次へ">
+          <ChevronRightIcon fontSize="small" />
+        </IconButton>
+      </Stack>
+
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={mode}
+          onChange={(_, v) => v && setMode(v)}
+          sx={{ flexShrink: 0 }}
+        >
+          <ToggleButton value="month" sx={{ px: 1.5 }}>月</ToggleButton>
+          <ToggleButton value="week" sx={{ px: 1.5 }}>週</ToggleButton>
         </ToggleButtonGroup>
+        <Button size="small" onClick={goToday} sx={{ flexShrink: 0 }}>
+          今日
+        </Button>
+        <Box sx={{ flex: 1 }} />
+        <IconButton size="small" onClick={() => setRestSettingsOpen(true)} aria-label="休みの設定">
+          <TuneIcon fontSize="small" />
+        </IconButton>
       </Stack>
 
-      <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={0.5}>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "info.main" }} />
-          <Typography variant="caption" color="text.secondary">開始日</Typography>
-        </Stack>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "error.main" }} />
-          <Typography variant="caption" color="text.secondary">期限日</Typography>
-        </Stack>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "warning.main" }} />
-          <Typography variant="caption" color="text.secondary">習慣（予測）</Typography>
-        </Stack>
+      {/* 凡例 */}
+      <Stack direction="row" spacing={1.25} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
+        {[
+          { color: KIND_COLOR.start, label: "開始日" },
+          { color: KIND_COLOR.due, label: "期限日" },
+          { color: KIND_COLOR.habit, label: "習慣" },
+        ].map((item) => (
+          <Stack key={item.label} direction="row" spacing={0.5} alignItems="center">
+            <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: item.color }} />
+            <Typography variant="caption" color="text.secondary">
+              {item.label}
+            </Typography>
+          </Stack>
+        ))}
       </Stack>
 
-      {mode === "week" ? (
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 0.5 }}>
-          {cells.map((day) => dayCard(day))}
+      {mode === "month" ? (
+        <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 0.25, mb: 0.5 }}>
+            {WEEKDAY_LABELS.map((label, i) => (
+              <Typography
+                key={label}
+                variant="caption"
+                sx={{
+                  textAlign: "center",
+                  fontSize: "0.68rem",
+                  color: i === 0 ? "error.main" : i === 6 ? "info.main" : "text.secondary",
+                }}
+              >
+                {label}
+              </Typography>
+            ))}
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 0.25 }}>
+            {cells.map((day) => renderMonthCell(day))}
+          </Box>
         </Box>
       ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 0.5 }}>
-          {WEEKDAY_LABELS.map((label) => (
-            <Typography key={label} variant="caption" color="text.secondary" align="center">
-              {label}
-            </Typography>
-          ))}
-          {cells.map((day) => dayCard(day))}
-        </Box>
+        <Stack spacing={0.5} sx={{ minWidth: 0 }}>{cells.map((day) => renderWeekRow(day))}</Stack>
       )}
 
-      {selectedKey && (
-        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            {Number(selectedKey.split("-")[1])}月{Number(selectedKey.split("-")[2])}日
+      {/* 選択中の日の詳細。初期表示では今日が選ばれている */}
+      <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, minWidth: 0 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, flexWrap: "wrap", rowGap: 0.5 }}>
+          <Typography sx={{ fontWeight: 700 }}>
+            {selectedDate.getMonth() + 1}月{selectedDate.getDate()}日（{WEEKDAY_LABELS[selectedDate.getDay()]}）
           </Typography>
-          {selectedEntries.length === 0 && selectedHabits.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              この日の予定はありません。右上の＋から新しいプランを作れます。
-            </Typography>
-          ) : (
-            <Stack spacing={1.5}>
-              {selectedGroups.map(({ goal, entries }) => {
-                // 親（目標）自身がその日の一覧に含まれているかどうかで、見出しの出し方を変える
-                const goalEntry = entries.find((e) => e.plan.id === goal.id);
-                const childEntries = entries.filter((e) => e.plan.id !== goal.id);
-                return (
-                  <Box key={goal.id}>
-                    <ButtonBase
-                      onClick={() => onOpenPlan(goal.id)}
-                      sx={{ display: "flex", alignItems: "center", gap: 0.75, width: "100%", textAlign: "left", py: 0.5 }}
-                    >
-                      <FlagOutlinedIcon fontSize="small" color="primary" />
-                      <Typography variant="body2" sx={{ fontWeight: 700, flex: 1, minWidth: 0, wordBreak: "break-word" }}>
-                        {goal.title}
-                      </Typography>
-                      {goalEntry && (
-                        <Typography variant="caption" color="text.secondary">
-                          {renderDayLabel(goalEntry)}
-                        </Typography>
-                      )}
-                    </ButtonBase>
-                    {childEntries.length > 0 && (
-                      <Stack spacing={0.5} sx={{ pl: 3, borderLeft: "2px solid", borderColor: "action.selected", ml: 1.5 }}>
-                        {childEntries.map((entry) => (
-                          <ButtonBase
-                            key={`${entry.kind}-${entry.plan.id}`}
-                            onClick={() => onOpenPlan(entry.plan.id)}
-                            sx={{ display: "flex", alignItems: "center", gap: 0.75, width: "100%", textAlign: "left", py: 0.4 }}
-                          >
-                            <Typography
-                              variant="body2"
-                              sx={{ flex: 1, minWidth: 0, wordBreak: "break-word", opacity: isDone(entry.plan) ? 0.6 : 1 }}
-                            >
-                              {entry.plan.title}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {renderDayLabel(entry)}・{PLAN_STATUS_LABEL[entry.plan.status]}
-                            </Typography>
-                          </ButtonBase>
-                        ))}
-                      </Stack>
-                    )}
-                  </Box>
-                );
-              })}
+          {selectedKey === todayKey && <Chip label="今日" size="small" color="primary" />}
+          {selectedRest.holidayName && <Chip label={selectedRest.holidayName} size="small" color="error" variant="outlined" />}
+          {selectedRest.isRest && !selectedRest.holidayName && <Chip label="休み" size="small" variant="outlined" />}
+        </Stack>
 
-              {selectedHabits.length > 0 && (
-                <Box>
-                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.5 }}>
-                    <RepeatIcon fontSize="small" color="warning" />
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      習慣（予測）
-                    </Typography>
-                  </Stack>
-                  <Stack spacing={0.5}>
-                    {selectedHabits.map((note) => (
-                      <Typography key={note.id} variant="body2" color="text.secondary" sx={{ pl: 3.5 }}>
+        {selectedEntries.length === 0 && selectedHabits.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            この日の予定はありません。
+          </Typography>
+        ) : (
+          <Stack spacing={1.5} sx={{ mb: 1.5 }}>
+            {selectedGroups.map(({ goal, entries }) => (
+              <Box key={goal.id} sx={{ minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  alignItems="center"
+                  onClick={() => onOpenPlan(goal.id)}
+                  sx={{ cursor: "pointer", minWidth: 0 }}
+                >
+                  <FlagOutlinedIcon fontSize="small" color="primary" sx={{ flexShrink: 0 }} />
+                  <Typography variant="subtitle2" noWrap sx={{ fontWeight: 700, minWidth: 0 }}>
+                    {goal.title}
+                  </Typography>
+                </Stack>
+                <Stack spacing={0.5} sx={{ mt: 0.5, pl: 1, borderLeft: "2px solid", borderColor: "action.selected" }}>
+                  {entries.map((entry) => (
+                    <Stack
+                      key={`${entry.kind}-${entry.plan.id}`}
+                      direction="row"
+                      spacing={0.75}
+                      alignItems="center"
+                      onClick={() => onOpenPlan(entry.plan.id)}
+                      sx={{ cursor: "pointer", minWidth: 0 }}
+                    >
+                      <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: KIND_COLOR[entry.kind], flexShrink: 0 }} />
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{ minWidth: 0, textDecoration: isDone(entry.plan) ? "line-through" : "none" }}
+                      >
+                        {entry.plan.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                        {entry.kind === "due" ? "期限" : "開始"}・{PLAN_STATUS_LABEL[entry.plan.status]}
+                      </Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Box>
+            ))}
+
+            {selectedHabits.length > 0 && (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  習慣（予測）
+                </Typography>
+                <Stack spacing={0.5}>
+                  {selectedHabits.map((note) => (
+                    <Stack key={note.id} direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: KIND_COLOR.habit, flexShrink: 0 }} />
+                      <Typography variant="body2" noWrap sx={{ minWidth: 0, color: "text.secondary" }}>
                         {note.title}
                       </Typography>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-            </Stack>
-          )}
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            sx={{ mt: 1.5 }}
-            onClick={() => onCreatePlanOnDate(selectedKey)}
-          >
-            この日にプランを作成
-          </Button>
-        </Paper>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        )}
+
+        <Button size="small" startIcon={<AddIcon />} onClick={() => onCreatePlanOnDate(selectedKey)}>
+          この日にプランを作成
+        </Button>
+      </Paper>
+
+      {restSettingsOpen && (
+        <RestDaySettingsDialog
+          open
+          config={restConfig}
+          onClose={() => setRestSettingsOpen(false)}
+          onSave={(next) => {
+            setRestConfig(next);
+            saveRestDayConfig(next);
+            setRestSettingsOpen(false);
+          }}
+        />
       )}
     </Stack>
   );
