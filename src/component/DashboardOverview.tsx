@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
@@ -96,18 +95,14 @@ export default function DashboardOverview({
     },
   ];
 
+  // 見出しと外枠は、置き場所であるDashboardDialog側が持つ（重複させない）
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 3 }}>
+    <Box>
       <Stack spacing={2}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
-          <Box>
-            <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>
-              今日のダッシュボード
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              迷ったら、まず今日やることを確認しましょう。
-            </Typography>
-          </Box>
+          <Typography variant="body2" color="text.secondary">
+            迷ったら、まず今日やることを確認しましょう。
+          </Typography>
           <Stack direction="row" spacing={1}>
             <Button size="small" variant="contained" startIcon={<TodayOutlinedIcon />} onClick={onOpenToday}>
               今日やること
@@ -178,6 +173,6 @@ export default function DashboardOverview({
           </Box>
         )}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
