@@ -62,36 +62,36 @@ export default function DashboardOverview({
   // ベントーグリッド。4つを同じ大きさで並べると「どれから見ればいいか」が
   // 伝わらないため、まず見るべき「今日やること」だけタイルを大きくして、
   // 大きさそのものに優先度の意味を持たせる。
-  // spanは各段がちょうど埋まる値にしてある（狭い画面=2列: 2 / 1+1 / 2、
-  // 広い画面=6列: 3+1+1+1）。余ったセルができると、抜けのある表に見えてしまう
+  // 常に2列（上のgridTemplateColumns参照）なので、spanは2/1+1/2で
+  // ちょうど各段が埋まる値にしてある。余ったセルができると抜けのある表に見えてしまう
   const metrics = [
     {
       label: "今日やること",
       value: `${stats.dueCount}件`,
       icon: <TodayOutlinedIcon color="primary" />,
       primary: true,
-      span: { xs: "span 2", md: "span 3" },
+      span: "span 2",
     },
     {
       label: "7日以内の期限",
       value: stats.overdueCount > 0 ? `${stats.overdueCount}件超過` : `${stats.upcomingDeadlineCount}件`,
       icon: <EventBusyOutlinedIcon color={stats.overdueCount > 0 ? "error" : "warning"} />,
       primary: false,
-      span: { xs: "span 1", md: "span 1" },
+      span: "span 1",
     },
     {
       label: "目標の平均達成率",
       value: stats.averageProgress === null ? "未設定" : `${stats.averageProgress}%`,
       icon: <InsightsOutlinedIcon color="primary" />,
       primary: false,
-      span: { xs: "span 1", md: "span 1" },
+      span: "span 1",
     },
     {
       label: "継続日数",
       value: `${currentStreak}日`,
       icon: <LocalFireDepartmentOutlinedIcon color="warning" />,
       primary: false,
-      span: { xs: "span 2", md: "span 1" },
+      span: "span 2",
     },
   ];
 
@@ -115,8 +115,14 @@ export default function DashboardOverview({
 
         <Box
           sx={{
+            // このコンポーネントはDashboardDialog（maxWidth="sm"、実測約600px固定）の
+            // 中でしか使わない。以前はmdブレークポイントで6列にしていたが、MUIの
+            // ブレークポイントは「ダイアログの実際の幅」ではなく「ブラウザのビューポート幅」
+            // で切り替わるため、デスクトップ（ビューポート900px以上）では幅600px固定の
+            // ダイアログに6列を詰め込む形になり、1タイル約90pxまで狭まって見出しが
+            // 省略されていた。コンテナ幅は画面幅によらず変わらないので、常に2列で揃える
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(6, minmax(0, 1fr))" },
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: 1,
           }}
         >
