@@ -469,6 +469,13 @@ export default function NoteFormDialog({
                 <MarkdownContent text={body} />
               </Box>
             )}
+            {/* 本アプリは暗号化して保管する場所ではないため、常時案内する。
+                端末内での機械的な検知は誤検知・見落としの両方が起きやすく、かつ
+                内容を判定するには文面を見る必要があり本末転倒になるため行わない。
+                注意喚起の一文だけをここに置く */}
+            <Typography variant="caption" color="text.secondary">
+              ⚠️ パスワード・秘密鍵・APIキー・本人確認書類などの重要情報は保存しないでください。
+            </Typography>
             {/* 学習用メモだけに出す。復習ボタンで開く画面では[[ ]]で囲んだ部分が
                 タップするまで隠れるため、書き方を知らないと使えない機能のため常時案内する */}
             {type === "learning" && (

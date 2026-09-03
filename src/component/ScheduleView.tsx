@@ -19,6 +19,7 @@ import { getRoutineOccurrencesInRange } from "./routine";
 import RestDaySettingsDialog from "./RestDaySettingsDialog";
 import { loadRestDayConfig, saveRestDayConfig, getRestDayInfo } from "./restDays";
 import type { RestDayConfig } from "./restDays";
+import { useFullScreenDialog } from "./useFullScreenDialog";
 
 interface ScheduleViewProps {
   plans: Plan[];
@@ -78,8 +79,11 @@ const REST_BG = {
  */
 export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreatePlanOnDate }: ScheduleViewProps) {
   const todayKey = toDateKey(new Date());
+  // 狭い画面では月表示だと7列に文字が詰まって読みにくいため、初期表示だけ週にする
+  // （600pxはMUIの既定breakpoint。ダイアログの全画面化と同じ基準に揃えている）
+  const isNarrowScreen = useFullScreenDialog();
 
-  const [mode, setMode] = useState<"month" | "week">("month");
+  const [mode, setMode] = useState<"month" | "week">(() => (isNarrowScreen ? "week" : "month"));
   const [cursor, setCursor] = useState(() => new Date());
   // 開いた時点で今日が選ばれている状態にする（まず見たいのはたいてい今日のため）
   const [selectedKey, setSelectedKey] = useState<string>(todayKey);
