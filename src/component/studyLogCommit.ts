@@ -61,7 +61,24 @@ export const appendStudyLog = async (
   let existing = "";
   let sha: string | undefined;
   try {
-    const { data } = await octokit.repos.getContent({ owner, repo, path });
+    // その日の初回は必ず404になる（＝正常系）。Octokitは既定で404もコンソールに
+    // エラーとして出すため、他の不具合を追うときにノイズになる。この呼び出しに限り
+    // 404のログを止める（他のエラーは今までどおり出す）
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path,
+      request: {
+        log: {
+          ...console,
+          warn: (...args: unknown[]) => console.warn(...args),
+          error: (message?: unknown, ...args: unknown[]) => {
+            if (typeof message === "string" && message.includes("404")) return;
+            console.error(message, ...args);
+          },
+        },
+      },
+    });
     if (!Array.isArray(data) && "content" in data && typeof data.content === "string") {
       existing = decodeBase64(data.content);
       sha = data.sha;

@@ -331,7 +331,9 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
           // 日付と点の行は高さを明示する。背景セルが全行にまたがるため、
           // autoのままだとこの2行が潰れ、帯が日付の上に重なってしまう
-          gridTemplateRows: `21px 9px repeat(${Math.max(laneCount, 1)}, 12px)${hiddenCount > 0 ? " 12px" : ""}`,
+          // 帯のレーンは、帯の高さ(16px)＋上下の余白が収まるだけ確保する。
+          // ここが帯より低いと、帯が次のレーンや日付の行に重なって潰れる
+          gridTemplateRows: `21px 9px repeat(${Math.max(laneCount, 1)}, 19px)${hiddenCount > 0 ? " 12px" : ""}`,
           columnGap: 0.25,
           rowGap: 0.25,
           mb: 0.25,
@@ -432,11 +434,16 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
-                // 子プランは細く薄くして、目標の帯と一目で区別できるようにする
-                height: seg.isRoot ? 10 : 8,
+                // 帯に載せるタイトルが読める高さを確保する。以前は10px/8pxで、
+                // そこに収めるため文字が8〜9pxまで小さくなり、実質判読できなかった
+                height: seg.isRoot ? 16 : 14,
                 alignSelf: "center",
                 bgcolor: color,
-                opacity: isDone(seg.plan) ? 0.4 : seg.isRoot ? 1 : 0.68,
+                // 子プランは以前 opacity 0.68 で薄くしていたが、透過は文字にも掛かるため
+                // 白文字のコントラストが落ちる（ダークで約4:1）。塗りは不透明のままにして、
+                // 太さと文字の太さだけで目標の帯と区別する。完了済みだけは薄くしてよい
+                // （取り消し線も付くので、読めなくても意味が伝わる）
+                opacity: isDone(seg.plan) ? 0.4 : 1,
                 borderTopLeftRadius: seg.isStart ? 999 : 2,
                 borderBottomLeftRadius: seg.isStart ? 999 : 2,
                 borderTopRightRadius: seg.isEnd ? 999 : 2,
@@ -447,8 +454,10 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
                 <Typography
                   noWrap
                   sx={{
-                    // 帯の高さに収まる大きさにする（はみ出すと上下が切れて読めない）
-                    fontSize: seg.isRoot ? "0.58rem" : "0.5rem",
+                    // 帯の高さに収まる大きさにする（はみ出すと上下が切れて読めない）。
+                    // 日本語は10px未満になると字形が潰れて読めないため、帯側の高さを
+                    // 上げたうえで11px相当を下限にしている
+                    fontSize: seg.isRoot ? "0.75rem" : "0.6875rem",
                     lineHeight: 1,
                     color: "#fff",
                     px: 0.5,
@@ -653,7 +662,8 @@ export default function ScheduleView({ plans, notes, userId, onOpenPlan, onCreat
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Box sx={{ width: 18, height: 6, borderRadius: 999, bgcolor: GOAL_COLORS[0], opacity: 0.68 }} />
+              {/* 実際の帯から透過をやめたので、見本も塗りは同じにして太さだけで区別する */}
+              <Box sx={{ width: 18, height: 6, borderRadius: 999, bgcolor: GOAL_COLORS[0] }} />
               <Typography variant="caption" color="text.secondary">
                 子プランの期間
               </Typography>

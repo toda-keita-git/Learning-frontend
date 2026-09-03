@@ -32,6 +32,7 @@ import { AuthContext } from "../Context";
 import { useToast } from "../ToastContext";
 import GitHubFileViewerDialog from "./GitHubFileViewerDialog";
 import { getFileType } from "./getFileType";
+import { notePreviewText } from "./notePreviewText";
 import { decodeBase64Text, getImageDataUrl } from "./decodeBase64";
 import { getDriveFileBase64 } from "./driveClient";
 import MarkdownContent from "./MarkdownContent";
@@ -231,7 +232,7 @@ export default function NoteCard({
             wordBreak: "break-word",
           }}
         >
-          {note.body}
+          {notePreviewText(note.body)}
         </Typography>
       )}
 
