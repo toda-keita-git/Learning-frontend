@@ -141,6 +141,9 @@ export default function PlanTree({
     const el = rowRefs.current.get(id);
     if (!el) return;
     el.style.transform = `translateY(${dy}px) scale(1.02)`;
+    // z-indexはposition:staticの要素には効かない。これが無いと、持ち上げた行より
+    // 後ろにある（＝下に並んでいる）行が上に描画され、文字どうしが重なって読めなくなる
+    el.style.position = "relative";
     el.style.zIndex = "10";
     el.style.boxShadow = "0 10px 24px rgba(0,0,0,0.22)";
     el.style.pointerEvents = "none";
@@ -150,6 +153,7 @@ export default function PlanTree({
     const el = rowRefs.current.get(id);
     if (!el) return;
     el.style.transform = "";
+    el.style.position = "";
     el.style.zIndex = "";
     el.style.boxShadow = "";
     el.style.pointerEvents = "";
@@ -273,11 +277,16 @@ export default function PlanTree({
             willChange: "transform",
             outline: nestHighlight || noteHighlight ? "2px solid" : "none",
             outlineColor: noteHighlight ? DRAG_COLOR.link : DRAG_COLOR.nest,
-            bgcolor: noteHighlight
-              ? (t) => (t.palette.mode === "dark" ? "rgba(46,125,50,0.25)" : "rgba(46,125,50,0.08)")
-              : isGoal
-                ? (t) => (t.palette.mode === "dark" ? "rgba(79,70,229,0.16)" : "rgba(79,70,229,0.06)")
-                : undefined,
+            // ドラッグ中の行は必ず不透明にする。目標行の通常時の背景は6%の
+            // 薄い色なので、持ち上げて重ねた瞬間に下の行が透けて文字どうしが
+            // 重なり、どちらも読めなくなっていた
+            bgcolor: draggingId === plan.id
+              ? "background.paper"
+              : noteHighlight
+                ? (t) => (t.palette.mode === "dark" ? "rgba(46,125,50,0.25)" : "rgba(46,125,50,0.08)")
+                : isGoal
+                  ? (t) => (t.palette.mode === "dark" ? "rgba(79,70,229,0.16)" : "rgba(79,70,229,0.06)")
+                  : undefined,
             // borderTopColor/borderBottomColorはborderTop/borderBottomと連動させないと、
             // ドラッグ中でなくても常時このオレンジ色が上辺に乗ってしまう
             // （全行がうっすらオレンジがかって見え、目標との色分けを打ち消していた）
